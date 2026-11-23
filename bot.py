@@ -126,7 +126,14 @@ class RelatorioErroModal(discord.ui.Modal, title="Reportar problema com o NARA")
         self.contexto = contexto
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        canal_id = int(getattr(config, "MOD_CHANNEL_ID", 0) or 0)
+        # Usa a configuração por servidor do /adm; MOD_CHANNEL_ID fica apenas
+        # como fallback para instalações que ainda não escolheram um canal.
+        from admin_config import GuildConfig
+
+        canal_id = await GuildConfig.get(
+            interaction.client.db, interaction.guild_id, "mod_channel"
+        ) if interaction.guild_id else getattr(config, "MOD_CHANNEL_ID", 0)
+        canal_id = int(canal_id or 0)
         canal = interaction.client.get_channel(canal_id) if canal_id else None
         if canal is None and canal_id:
             try:
@@ -579,8 +586,8 @@ class NaraBot(commands.Bot):
         if self.failed_extensions:
             log.error("Inicialização parcial: %s extensão(ões) falharam: %s", len(self.failed_extensions), ", ".join(self.failed_extensions))
 
-        if not config.MOD_CHANNEL_ID:
-            log.warning("MOD_CHANNEL_ID não configurado: os fluxos de aprovação que dependem da central ficarão indisponíveis.")
+        # O canal de moderação agora é configurado por servidor no /adm.
+        # Não validar apenas MOD_CHANNEL_ID aqui: o valor pode estar salvo no banco.
         if not config.GUILD_ID:
             log.warning("GUILD_ID vazio: /nara e /adm serão sincronizados globalmente; a propagação do Discord pode levar algum tempo.")
         if not any((os.getenv("GEMINI_API_KEY"), os.getenv("GEMINI_BACKUP_API_KEY"), os.getenv("GEMINI_THIRD_API_KEY"))):
