@@ -526,6 +526,66 @@ class Soulslike(commands.Cog):
         await self.bot.db.log(interaction.user.id, "sl_desafio_adicionar", nome)
         await interaction.response.send_message(msg, ephemeral=True)
 
+    @sl_admin.command(name="recompensa_desafio", description="[MOD] Configura chance de Primordial e Singular de um desafio Soulslike.")
+    @app_commands.describe(
+        desafio_id="ID do desafio exibido no cadastro/registro",
+        permitir_primordial="Habilita chance de 0,1% de drop Primordial nas runs aprovadas",
+        singular="Carta Singular concedida ao aprovar uma run deste desafio",
+    )
+    @app_commands.choices(singular=[
+        app_commands.Choice(name="Nenhuma Singular", value="none"),
+        app_commands.Choice(name="O Primeiro Juramento", value="gwent_singular_primeiro"),
+        app_commands.Choice(name="A Lâmina Intocada (No-hit)", value="gwent_singular_intocavel"),
+        app_commands.Choice(name="A Vontade Inquebrável (Nível 1)", value="gwent_singular_nivel1"),
+        app_commands.Choice(name="A Coroa dos Vencidos (Todos os chefes)", value="gwent_singular_cacador_chefes"),
+    ])
+    async def recompensa_desafio(
+        self,
+        interaction: discord.Interaction,
+        desafio_id: int,
+        permitir_primordial: bool,
+        singular: app_commands.Choice[str],
+    ):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("Apenas moderadores com Gerenciar servidor.", ephemeral=True)
+        desafio = await self.bot.db._one("SELECT id,name FROM sl_challenges WHERE id=?", (int(desafio_id),))
+        if not desafio:
+            return await interaction.response.send_message("Desafio não encontrado.", ephemeral=True)
+        singular_id = singular.value
+        await self.bot.db.conn.execute(
+            "UPDATE sl_challenges SET coliseu_primordial_drop=?,coliseu_singular_card_id=? WHERE id=?",
+            (int(bool(permitir_primordial)), singular_id, int(desafio_id)),
+        )
+        await self.bot.db.conn.commit()
+        await self.bot.db.log(
+            interaction.user.id,
+            "sl_recompensa_desafio_configurada",
+            f"challenge={desafio_id};primordial={int(bool(permitir_primordial))};singular={singular_id or 'nenhuma'}",
+        )
+        resumo = "Primordial: chance de 0,1% habilitada" if permitir_primordial else "Primordial: desabilitada"
+        resumo += f"\nSingular: {singular.name}"
+        await interaction.response.send_message(
+            f"Recompensas do desafio **{desafio['name']}** atualizadas.\n{resumo}", ephemeral=True
+        )
+
+    @sl_admin.command(name="recompensas_listar", description="[MOD] Lista IDs e recompensas configuradas dos desafios Soulslike.")
+    async def recompensas_listar(self, interaction: discord.Interaction):
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("Apenas moderadores com Gerenciar servidor.", ephemeral=True)
+        rows = await self.bot.db._all(
+            "SELECT id,name,coliseu_primordial_drop,coliseu_singular_card_id FROM sl_challenges ORDER BY name LIMIT 80"
+        )
+        if not rows:
+            return await interaction.response.send_message("Nenhum desafio cadastrado.", ephemeral=True)
+        linhas = ["**ID · Desafio · Recompensas**"]
+        for row in rows:
+            cfg = int(row["coliseu_primordial_drop"] if row["coliseu_primordial_drop"] is not None else -1)
+            primordial = "Primordial 0,1%" if cfg == 1 else "Primordial desativada" if cfg == 0 else "Primordial automática"
+            singular = str(row["coliseu_singular_card_id"] or "")
+            singular_label = singular.replace("gwent_singular_", "") if singular and singular != "none" else "nenhuma" if singular == "none" else "automática"
+            linhas.append(f"`{row['id']}` · **{row['name']}** — {primordial}; Singular: {singular_label}")
+        await interaction.response.send_message("\n".join(linhas)[:1900], ephemeral=True)
+
     @sl_admin.command(name="invalidar", description="[MOD] Retira do ranking uma run aprovada e registra o motivo no log.")
     @app_commands.describe(numero="Número da run", motivo="Motivo (fica no log)")
     async def invalidar(self, interaction: discord.Interaction, numero: int, motivo: str = ""):
@@ -644,6 +704,15 @@ class Soulslike(commands.Cog):
                     f"**Posição no ranking:** {pos}º" + ("" if melhorou else " _(melhor tempo pessoal)_"),
                     f"**Recompensa:** +{resultado['xp_awarded']} XP",
                 ]
+                if resultado.get("card_outcome") == "carta":
+                    linhas.append(f"🃏 **Drop:** {resultado.get('card_name')} · {resultado.get('card_rarity')}")
+                elif resultado.get("card_outcome") == "almas":
+                    linhas.append(f"✨ **Duplicata:** +{resultado.get('card_almas', 0)} Almas")
+                elif resultado.get("card_outcome") == "fragmentos":
+                    linhas.append(f"🧩 **Duplicata:** +{resultado.get('card_fragmentos', 0)} fragmentos")
+                if (resultado.get("singular_drop") or {}).get("outcome") == "singular":
+                    nome_singular = (resultado.get("singular_drop") or {}).get("card_name", "uma carta Singular")
+                    linhas.append(f"🌟 **Feito extraordinário: {nome_singular} (Singular) conquistada!**")
                 if run["rating"] is not None:
                     linhas.insert(4, f"**Nota do jogo:** ⭐ {int(run['rating'])}/10")
                 if run["difficulty"] is not None:
@@ -672,7 +741,11 @@ class Soulslike(commands.Cog):
         await notificar_usuario(
             self.bot, interaction.guild_id, int(run["user_id"]), "approvals",
             f"✅ Sua run de **{run['jogo']} — {run['desafio']}** foi aprovada. "
-            f"Tempo registrado: {fmt_tempo(run['seconds'])}. Recompensa: +{resultado['xp_awarded']} XP."
+            f"Tempo registrado: {fmt_tempo(run['seconds'])}. Recompensa: +{resultado['xp_awarded']} XP. "
+            + (f"Drop: **{resultado.get('card_name')}** ({resultado.get('card_rarity')})."
+               if resultado.get("card_outcome") == "carta" else
+               "A duplicata virou recursos." if resultado.get("card_outcome") in ("almas", "fragmentos") else "")
+            + (" Você também conquistou uma carta Singular!" if (resultado.get("singular_drop") or {}).get("outcome") == "singular" else "")
         )
 
     async def rejeitar(self, interaction: discord.Interaction):

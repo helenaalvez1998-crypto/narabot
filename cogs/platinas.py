@@ -159,6 +159,12 @@ class RevisaoView(discord.ui.View):
                         f"[📸 Ver comprovante]({p['proof_url']})",
                         f"**Recompensa:** +{int(xp_plat)} XP · +{int(den_plat)} Denários",
                     ]
+                    if decision.get("card_outcome") == "carta":
+                        linhas.append(f"🃏 **Drop:** {decision.get('card_name')} · {decision.get('card_rarity')}")
+                    elif decision.get("card_outcome") == "almas":
+                        linhas.append("✨ **Duplicata:** convertida em Almas.")
+                    elif decision.get("card_outcome") == "fragmentos":
+                        linhas.append("🧩 **Duplicata:** convertida em fragmentos de evolução.")
                     if p["rating"] is not None:
                         linhas.insert(3, f"**Nota do jogo:** ⭐ {int(p['rating'])}/10")
                     if p["difficulty"] is not None:
@@ -252,7 +258,13 @@ class RevisaoView(discord.ui.View):
             await notificar_usuario(
                 self.bot, interaction.guild_id, user_id, "approvals",
                 f"✅ Sua platina de **{p['game']}** foi aprovada e publicada no Coliseu. "
-                "Ela também foi reconhecida em Jogos Zerados."
+                "Ela também foi reconhecida em Jogos Zerados. "
+                + (f"Você recebeu **{decision.get('card_name')}** ({decision.get('card_rarity')})."
+                   if decision.get("card_outcome") == "carta" else
+                   f"Sua duplicata virou {decision.get('card_almas', 0)} Almas."
+                   if decision.get("card_outcome") == "almas" else
+                   f"Sua duplicata virou {decision.get('card_fragmentos', 0)} fragmentos."
+                   if decision.get("card_outcome") == "fragmentos" else "")
             )
         else:
             from utils import notificar_usuario

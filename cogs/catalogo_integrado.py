@@ -22,6 +22,7 @@ import math
 import json
 import os
 import sqlite3
+import logging
 import uuid
 import re
 import unicodedata
@@ -916,6 +917,35 @@ async def avisar_autor(jogo, texto):
         pass  # DMs fechadas, tudo bem
 
 
+async def conceder_drop_catalogo(tipo: str, registro):
+    """Premia somente envios comunitários pendentes que foram aprovados."""
+    autor_id = int(registro["autor_id"] or 0)
+    if not autor_id or bot is None or getattr(bot, "db", None) is None:
+        return None
+    try:
+        return await bot.db.coliseu_conceder_drop(
+            autor_id, f"catalogo:{tipo}:{int(registro['id'])}", origem=tipo
+        )
+    except Exception:
+        logging.getLogger("catalogo").exception(
+            "Falha ao entregar drop de %s aprovado #%s para %s.", tipo, registro["id"], autor_id
+        )
+        return None
+
+
+def texto_recompensa_catalogo(drop) -> str:
+    if not drop:
+        return "\n⚠️ O envio foi aprovado, mas o drop não pôde ser confirmado. Avise a moderação para conferirem a recompensa."
+    outcome = str(drop.get("outcome") or "")
+    if outcome == "carta":
+        return f"\n🃏 Recompensa: **{drop.get('card_name', 'Carta')}** · {drop.get('card_rarity', 'Comum')}."
+    if outcome == "almas":
+        return f"\n✨ Duplicata convertida em **{drop.get('card_almas', 0)} Almas**."
+    if outcome == "fragmentos":
+        return f"\n🧩 Duplicata convertida em **{drop.get('card_fragmentos', 0)} fragmentos**."
+    return ""
+
+
 class VoltarPendentesView(discord.ui.View):
     def __init__(self, estado):
         super().__init__(timeout=900)
@@ -952,9 +982,20 @@ class PendenteView(discord.ui.View):
             await interaction.response.send_message("⛔ Sem permissão.", ephemeral=True)
             return
         with db() as conn:
-            conn.execute("UPDATE jogos SET status = 'aprovado' WHERE id = ?", (self.jogo["id"],))
-        await avisar_autor(self.jogo, f"✅ Seu port **{self.jogo['nome']}** foi aprovado e já está no catálogo!")
-        texto = f"## ✅ Port aprovado\n**{self.jogo['nome']}** já está no catálogo."
+            cur = conn.execute(
+                "UPDATE jogos SET status = 'aprovado' WHERE id = ? AND status='pendente'",
+                (self.jogo["id"],),
+            )
+        if cur.rowcount != 1:
+            await interaction.response.send_message("Esse envio já foi processado.", ephemeral=True)
+            return
+        drop = await conceder_drop_catalogo("port", self.jogo)
+        recompensa = texto_recompensa_catalogo(drop)
+        await avisar_autor(
+            self.jogo,
+            f"✅ Seu port **{self.jogo['nome']}** foi aprovado e já está no catálogo!{recompensa}",
+        )
+        texto = f"## ✅ Port aprovado\n**{self.jogo['nome']}** já está no catálogo.{recompensa}"
         await interaction.response.edit_message(content=texto, embed=None, attachments=[], view=VoltarPendentesView(self.estado))
 
     async def rejeitar(self, interaction: discord.Interaction):
@@ -1764,8 +1805,22 @@ class ModDecisaoView(discord.ui.View):
         if not eh_admin(interaction):
             await interaction.response.send_message("⛔ Apenas administradores podem moderar mods.", ephemeral=True); return
         with db() as conn:
-            conn.execute("UPDATE mods SET status='aprovado' WHERE id=?", (self.mod["id"],))
-        await interaction.response.edit_message(content=f"## ✅ Mod aprovado\n**{self.mod['mod_nome']}** já aparece no catálogo de mods.", embed=None, attachments=[], view=ModPendentesView())
+            cur = conn.execute(
+                "UPDATE mods SET status='aprovado' WHERE id=? AND status='pendente'", (self.mod["id"],)
+            )
+        if cur.rowcount != 1:
+            await interaction.response.send_message("Esse envio já foi processado.", ephemeral=True)
+            return
+        drop = await conceder_drop_catalogo("mod", self.mod)
+        recompensa = texto_recompensa_catalogo(drop)
+        await avisar_autor(
+            self.mod,
+            f"✅ Seu mod **{self.mod['mod_nome']}** foi aprovado e já aparece no catálogo!{recompensa}",
+        )
+        await interaction.response.edit_message(
+            content=f"## ✅ Mod aprovado\n**{self.mod['mod_nome']}** já aparece no catálogo de mods.{recompensa}",
+            embed=None, attachments=[], view=ModPendentesView(),
+        )
 
     @discord.ui.button(label="Rejeitar", emoji="❌", style=discord.ButtonStyle.danger)
     async def rejeitar(self, interaction: discord.Interaction, button: discord.ui.Button):

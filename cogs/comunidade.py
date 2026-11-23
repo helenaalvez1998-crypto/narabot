@@ -1469,7 +1469,7 @@ class Comunidade(commands.Cog):
                 except discord.HTTPException:
                     pass
         row_atual = await self.bot.db.get_contribuicao(contribution_id) or result["contribution"]
-        await self.notificar_autor(row_atual, status, note, result["xp_awarded"])
+        await self.notificar_autor(row_atual, status, note, result["xp_awarded"], result)
         if interaction.message:
             try:
                 embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed(title=f"Contribuição #{contribution_id}")
@@ -1655,23 +1655,30 @@ class Comunidade(commands.Cog):
         except (discord.Forbidden, discord.HTTPException):
             log.info("Thread automática indisponível para contribuição #%s; o botão de discussão permanece ativo.", row["id"])
 
-    async def notificar_autor(self, row, status: str, note: str, xp: int):
+    async def notificar_autor(self, row, status: str, note: str, xp: int, resultado=None):
         if status == "approved":
             if row["published_message_id"] and row["published_channel_id"]:
                 link = f"https://discord.com/channels/{row['guild_id']}/{row['published_channel_id']}/{row['published_message_id']}"
-                msg = f"✅ Sua contribuição **#{row['id']} — {row['title']}** foi aprovada e publicada.\n{link}"
+                msg = f"✅ Sua contribuição **#{row['id']} — {row['title']}** foi aprovada e publicada.\\n{link}"
             else:
                 msg = f"✅ Sua contribuição **#{row['id']} — {row['title']}** foi aprovada. A publicação ainda está pendente de conclusão pela equipe."
+            drop = resultado or {}
+            if drop.get("card_outcome") == "carta":
+                msg += f"\\n🃏 Drop recebido: **{drop.get('card_name')}** ({drop.get('card_rarity', 'Comum')})."
+            elif drop.get("card_outcome") == "almas":
+                msg += f"\\n✨ Duplicata convertida em **{drop.get('card_almas', 0)} Almas**."
+            elif drop.get("card_outcome") == "fragmentos":
+                msg += f"\\n🧩 Duplicata convertida em **{drop.get('card_fragmentos', 0)} fragmentos**."
             if xp:
                 msg += f" Você recebeu **+{xp} XP**."
             else:
                 msg += " O limite semanal de XP comunitário já foi atingido; não houve crédito adicional."
             categoria = "approvals"
         elif status == "changes_requested":
-            msg = f"📝 A equipe solicitou ajustes na contribuição **#{row['id']} — {row['title']}**.\nOrientação: {note}"
+            msg = f"📝 A equipe solicitou ajustes na contribuição **#{row['id']} — {row['title']}**.\\nOrientação: {note}"
             categoria = "replies"
         else:
-            msg = f"❌ Sua contribuição **#{row['id']} — {row['title']}** foi rejeitada.\nMotivo: {note}"
+            msg = f"❌ Sua contribuição **#{row['id']} — {row['title']}** foi rejeitada.\\nMotivo: {note}"
             categoria = "rejections"
         from utils import notificar_usuario
         await notificar_usuario(self.bot, row["guild_id"], int(row["user_id"]), categoria, msg)

@@ -108,7 +108,7 @@ class RemoverZeradoModal(discord.ui.Modal, title="Remover registro de jogo zerad
 
 GUIA_MEMBROS = {
     "jogos": ("🎮 Começar pelos jogos", "**Minha biblioteca:** registre e consulte platinas, zerados e runs.\n**Meus registros:** acompanhe aprovações e corrija envios rejeitados.\n**Ports & Mods:** explore o catálogo da comunidade."),
-    "coliseu": ("⚔️ Como funciona o Coliseu", "Seu deck inicial aparece na própria central. Abra **Meu deck** para ver cartas, editar sua formação, personalizar artes e desafiar um membro online."),
+    "coliseu": ("⚔️ Como funciona o Coliseu", "Use **Cartas do Coliseu** no painel de Jogos ou o comando `/jogo` para abrir sua coleção e consultar seu deck, drops e estatísticas. As conquistas de platinas, zerados e runs ficam em **Conquistas e jornadas**."),
     "progresso": ("🏆 Progresso e recompensas", "Consulte nível, patente, XP e ranking. Os Denários ficam na carteira e podem ser usados na loja e nos pacotes do Coliseu."),
     "comunidade": ("📡 Participar da comunidade", "Envie lore, teorias, descobertas, guias e propostas. Acompanhe o estado de cada contribuição e responda a pedidos de ajuste."),
 }
@@ -146,7 +146,8 @@ MEMBROS_CATEGORIAS = {
         "titulo": "🎮 Jogos e biblioteca",
         "descricao": "Acesse seus registros de platinas, jogos zerados, Runs e desafios. Consulte o que já foi aprovado, acompanhe pendências e explore os catálogos.",
         "acoes": [
-            ("coliseu", "Central de conquistas", "🏛️", discord.ButtonStyle.primary),
+            ("cartas_coliseu", "Cartas do Coliseu", "🃏", discord.ButtonStyle.primary),
+            ("coliseu", "Conquistas e jornadas", "🏛️", discord.ButtonStyle.primary),
             ("zerados", "Jogos zerados", "✅", discord.ButtonStyle.success),
             ("meus_registros", "Meus registros", "📬", discord.ButtonStyle.secondary),
             ("catalogos", "Ports & Mods", "🎮", discord.ButtonStyle.primary),
@@ -249,7 +250,7 @@ async def _montar_embed_central_nara(bot: commands.Bot, user_id: int):
             "📬 **Meus registros** para acompanhar aprovações · "
             "🔔 **Notificações** para escolher avisos · "
             "👤 **Meu perfil** para consultar sua trajetória.\\n"
-            "🃏 **Meu deck** para abrir sua coleção e visualizar ou editar suas cartas."
+            "🃏 **Cartas do Coliseu** para consultar sua coleção, deck, drops e estatísticas."
         ),
         inline=False,
     )
@@ -655,6 +656,12 @@ async def _executar_acao_membro(
 
     def com_voltar(view):
         return _view_com_navegacao_nara(view, voltar, user_id or interaction.user.id, interaction.message)
+
+    if action == "cartas_coliseu":
+        cog = bot.get_cog("PainelJogo")
+        if cog is None:
+            return await interaction.response.send_message("O painel de Cartas do Coliseu está indisponível no momento.", ephemeral=True)
+        return await cog.abrir_painel(interaction, callback_voltar=voltar)
 
     if action == "coliseu":
         cog = bot.get_cog("Platinas")

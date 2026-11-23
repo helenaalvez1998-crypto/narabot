@@ -95,6 +95,8 @@ class Zerados(commands.Cog):
         removido = await db.remover_zerado_com_recompensa(registro)
         if removido is None:
             return await interaction.response.send_message("Este registro já foi removido por outra ação.", ephemeral=True)
+        if isinstance(removido, dict) and removido.get("erro"):
+            return await interaction.response.send_message(removido["erro"], ephemeral=True)
         if removido["status"] == "pending" and removido["proof_msg_id"]:
             try:
                 mod_ch_id = await GuildConfig.get(db, interaction.guild_id, "mod_channel")
@@ -121,6 +123,8 @@ class Zerados(commands.Cog):
             if membro:
                 await sincronizar_patente(interaction.guild, membro, novo)
             extra = f" A recompensa (−{z['xp_awarded']} XP, −{z['denarios_awarded']} Denários) foi devolvida."
+        if removido.get("recompensa_drop_revertida"):
+            extra += " O drop de carta/recursos desse registro também foi revertido."
         await interaction.response.send_message(f"🗑️ Registro #{registro} (**{z['game']}**) removido.{extra}", ephemeral=True)
 
     async def cog_app_command_error(self, interaction, error):
@@ -438,14 +442,15 @@ class ZeradoRevisaoView(discord.ui.View):
             embed = discord.Embed.from_dict(mensagem_revisao.embeds[0].to_dict())
             embed.color = discord.Color.green()
             embed.set_footer(text=f"ZeradoID:{zerado_id} · APROVADO")
-            status_carta = (
-                (
-                    f"🃏 **Carta entregue:** {resultado['card_name']} · {resultado['card_rarity']}"
-                    if resultado.get("card_added") else
-                    f"🃏 **Carta já existente:** {resultado['card_name']} · {resultado['card_rarity']}"
-                ) if carta_confirmada else
-                f"⚠️ **Carta pendente de verificação:** {resultado['card_name']}"
-            )
+            outcome = resultado.get("card_outcome")
+            if outcome == "carta":
+                status_carta = f"🃏 **Drop recebido:** {resultado['card_name']} · {resultado['card_rarity']}"
+            elif outcome == "almas":
+                status_carta = f"✨ **Duplicata convertida:** +{resultado.get('card_almas', 0)} Almas"
+            elif outcome == "fragmentos":
+                status_carta = f"🧩 **Duplicata convertida:** +{resultado.get('card_fragmentos', 0)} fragmentos de evolução"
+            else:
+                status_carta = f"🃏 **Recompensa:** {resultado.get('card_name', 'Carta')} · {resultado.get('card_rarity', '')}"
             embed.add_field(
                 name="Resultado",
                 value=(
@@ -497,12 +502,13 @@ class ZeradoRevisaoView(discord.ui.View):
                     log.exception("Falha ao atualizar santuário após aprovação do zerado #%s", zerado_id)
             from utils import notificar_usuario
             aviso_carta = (
-                (
-                    f"🃏 Você recebeu **{resultado['card_name']}** ({resultado['card_rarity']}) na sua coleção!"
-                    if resultado.get("card_added") else
-                    f"🃏 A carta **{resultado['card_name']}** ({resultado['card_rarity']}) já estava na sua coleção."
-                ) if carta_confirmada else
-                "⚠️ A aprovação foi salva; a equipe está verificando a entrega da carta."
+                f"🃏 Você recebeu **{resultado['card_name']}** ({resultado['card_rarity']})!"
+                if outcome == "carta" else
+                f"✨ Sua duplicata virou **{resultado.get('card_almas', 0)} Almas**."
+                if outcome == "almas" else
+                f"🧩 Sua duplicata virou **{resultado.get('card_fragmentos', 0)} fragmentos de evolução**."
+                if outcome == "fragmentos" else
+                "⚠️ A recompensa foi registrada; consulte sua coleção."
             )
             await notificar_usuario(
                 self.cog.bot, interaction.guild_id, int(resultado["user_id"]), "approvals",

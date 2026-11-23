@@ -978,6 +978,103 @@ class CentralRunsView(_ViewDeModerador):
         await type(cog).publicar_central.callback(cog, interaction, self.canal)
 
 
+class CentralRecompensasDesafioView(_ViewDeModerador):
+    """Configura no painel /adm as recompensas especiais dos desafios Soulslike."""
+
+    SINGULARES = [
+        ("auto", "Automática pelo nome do desafio"),
+        ("none", "Nenhuma Singular"),
+        ("gwent_singular_primeiro", "O Primeiro Juramento"),
+        ("gwent_singular_intocavel", "A Lâmina Intocada · No-hit"),
+        ("gwent_singular_nivel1", "A Vontade Inquebrável · Nível 1"),
+        ("gwent_singular_cacador_chefes", "A Coroa dos Vencidos · Todos os chefes"),
+    ]
+
+    def __init__(self, bot, user_id: int, desafios):
+        super().__init__(bot, user_id)
+        self.desafios = desafios[:25]
+        self.challenge_id = int(self.desafios[0]["id"]) if self.desafios else 0
+        self.primordial_value = int(self.desafios[0]["coliseu_primordial_drop"] if self.desafios and self.desafios[0]["coliseu_primordial_drop"] is not None else -1)
+        singular_atual = str(self.desafios[0]["coliseu_singular_card_id"] or "") if self.desafios else ""
+        self.singular_value = singular_atual or "auto"
+        options = [discord.SelectOption(
+            label=f"{int(row['id'])} · {str(row['name'])}"[:100],
+            value=str(row["id"]), default=index == 0,
+        ) for index, row in enumerate(self.desafios)]
+        self.challenge_select = discord.ui.Select(
+            placeholder="1. Escolha o desafio", min_values=1, max_values=1,
+            options=options or [discord.SelectOption(label="Nenhum desafio cadastrado", value="0")],
+            disabled=not options, row=0,
+        )
+        self.challenge_select.callback = self._choose_challenge
+        self.add_item(self.challenge_select)
+        self.primordial_select = discord.ui.Select(
+            placeholder="2. Chance de drop Primordial",
+            options=[
+                discord.SelectOption(label="Automática pelo nome do desafio", value="-1", default=self.primordial_value == -1),
+                discord.SelectOption(label="Desativada", value="0", default=self.primordial_value == 0),
+                discord.SelectOption(label="Habilitar 0,1%", value="1", default=self.primordial_value == 1),
+            ], min_values=1, max_values=1, row=1,
+        )
+        self.primordial_select.callback = self._choose_primordial
+        self.add_item(self.primordial_select)
+        self.singular_select = discord.ui.Select(
+            placeholder="3. Singular concedida na aprovação",
+            options=[discord.SelectOption(label=label, value=value, default=value == self.singular_value) for value, label in self.SINGULARES],
+            min_values=1, max_values=1, row=2,
+        )
+        self.singular_select.callback = self._choose_singular
+        self.add_item(self.singular_select)
+
+    async def _choose_challenge(self, interaction: discord.Interaction):
+        self.challenge_id = int(self.challenge_select.values[0])
+        row = next((item for item in self.desafios if int(item["id"]) == self.challenge_id), None)
+        if row:
+            self.primordial_value = int(row["coliseu_primordial_drop"] if row["coliseu_primordial_drop"] is not None else -1)
+            self.singular_value = str(row["coliseu_singular_card_id"] or "") or "auto"
+            for option in self.primordial_select.options:
+                option.default = option.value == str(self.primordial_value)
+            for option in self.singular_select.options:
+                option.default = option.value == self.singular_value
+        await interaction.response.edit_message(view=self)
+
+    async def _choose_primordial(self, interaction: discord.Interaction):
+        self.primordial_value = int(self.primordial_select.values[0])
+        await interaction.response.defer()
+
+    async def _choose_singular(self, interaction: discord.Interaction):
+        self.singular_value = self.singular_select.values[0]
+        await interaction.response.defer()
+
+    @discord.ui.button(label="Salvar recompensas", emoji="💾", style=discord.ButtonStyle.success, row=3)
+    async def salvar(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.challenge_id:
+            return await interaction.response.send_message("Nenhum desafio selecionado.", ephemeral=True)
+        # Os valores iniciais dos selects são respeitados mesmo se o usuário não os alterar.
+        primordial = self.primordial_value
+        singular = self.singular_value
+        if singular == "auto":
+            singular = ""  # mantém detecção automática por nome até escolha explícita
+        row = await self.bot.db._one("SELECT name FROM sl_challenges WHERE id=?", (self.challenge_id,))
+        if not row:
+            return await interaction.response.send_message("Esse desafio não existe mais. Atualize o painel.", ephemeral=True)
+        await self.bot.db.conn.execute(
+            "UPDATE sl_challenges SET coliseu_primordial_drop=?,coliseu_singular_card_id=? WHERE id=?",
+            (primordial, singular, self.challenge_id),
+        )
+        await self.bot.db.conn.commit()
+        await self.bot.db.log(
+            interaction.user.id, "sl_recompensa_desafio_configurada",
+            f"challenge={self.challenge_id};primordial={primordial};singular={singular or 'automatica'}",
+        )
+        primordial_label = "automática pelo nome" if primordial == -1 else "desativada" if primordial == 0 else "chance de 0,1%"
+        singular_label = dict(self.SINGULARES).get(singular, "detecção automática pelo nome" if not singular else singular)
+        await interaction.response.edit_message(
+            content=f"## Recompensas atualizadas — {row['name']}\nPrimordial: **{primordial_label}**\nSingular: **{singular_label}**",
+            embed=None, view=self,
+        )
+
+
 class CargoOpcoesView(_ViewDeModerador):
     """Adiciona, edita ou remove uma opção (botão) do painel de cargos."""
 
@@ -1076,6 +1173,7 @@ ADMIN_CATEGORIAS = {
             ("sl_central", "Publicar central de runs", "📌"),
             ("sl_jogo", "Adicionar jogo Soulslike", "🎮"),
             ("sl_desafio", "Criar desafio Soulslike", "🏅"),
+            ("sl_rewards", "Configurar drops especiais dos desafios", "🃏"),
             ("sl_invalidar", "Invalidar run", "🚫"),
         ],
     },
@@ -1314,7 +1412,7 @@ async def _executar_acao_admin(interaction: discord.Interaction, bot, action: st
         "ofertas_status", "ofertas_preview", "ia_relatorio", "ia_provedores",
         "post_ajuda", "post_verificacao", "post_cargos", "post_coliseu",
         "post_loja", "post_santuario",
-        "sl_central", "sl_jogo", "sl_desafio", "sl_invalidar",
+        "sl_central", "sl_jogo", "sl_desafio", "sl_rewards", "sl_invalidar",
         "cargos_texto", "cargos_opcoes", "transmissao_video", "colizeu_atualizar",
     }
     if action in acoes_restritas and not await _eh_admin_painel(bot, interaction.user):
@@ -1361,10 +1459,20 @@ async def _executar_acao_admin(interaction: discord.Interaction, bot, action: st
         if cog is None:
             return await interaction.response.send_message("O módulo de santuários não está carregado.", ephemeral=True)
         return await type(cog).painel_santuarios.callback(cog, interaction)
-    if action in ("sl_central", "sl_jogo", "sl_desafio", "sl_invalidar"):
+    if action in ("sl_central", "sl_jogo", "sl_desafio", "sl_rewards", "sl_invalidar"):
         cog = bot.get_cog("Soulslike")
         if cog is None:
             return await interaction.response.send_message("O módulo de runs Soulslike não está carregado.", ephemeral=True)
+        if action == "sl_rewards":
+            desafios = await bot.db._all(
+                "SELECT id,name,coliseu_primordial_drop,coliseu_singular_card_id FROM sl_challenges ORDER BY name LIMIT 25"
+            )
+            return await interaction.response.edit_message(
+                content="## 🃏 Recompensas especiais do Coliseu\nEscolha um desafio, defina a chance de Primordial e a Singular entregue quando uma run for aprovada.",
+                embed=None, attachments=[], view=com_voltar(
+                    CentralRecompensasDesafioView(bot, interaction.user.id, desafios)
+                ),
+            )
         if action == "sl_central":
             return await interaction.response.edit_message(
                 content="## ⚔️ Central de runs Soulslike\nEscolha o canal e clique em **Publicar central**. Se já existir, a mensagem será atualizada.",
