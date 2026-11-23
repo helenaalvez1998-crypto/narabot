@@ -767,6 +767,8 @@ class NaraBot(commands.Bot):
         app.router.add_get("/api/gwent/matches/{match_id}", self._api_gwent_match_detail)
         app.router.add_post("/api/gwent/matches/{match_id}/action", self._api_gwent_match_action)
         app.router.add_post("/auth/logout", self._oauth_logout)
+        from site_hub import registrar_rotas as _registrar_hub
+        _registrar_hub(self, app)
         runner = web.AppRunner(app, access_log=None)
         try:
             await runner.setup()
@@ -1939,11 +1941,15 @@ class NaraBot(commands.Bot):
         if not card_id or len(card_id) > 120:
             raise web.HTTPNotFound(text="Carta não encontrada.")
         try:
-            # Arte aprovada substitui somente a ilustração-base. A moldura, os
-            # textos, o poder, a facção, a raridade e a habilidade continuam sendo
-            # compostos pelo renderizador oficial da carta.
+            # Arte aprovada no Ateliê é global por modelo e substitui a ilustração-base.
             official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
-            official_illustration = bytes(official_art["image_data"]) if official_art else None
+            if official_art:
+                return web.Response(
+                    body=bytes(official_art["image_data"]),
+                    content_type=str(official_art["mime_type"] or "image/jpeg"),
+                    headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300",
+                             "X-Content-Type-Options": "nosniff"},
+                )
             # A imagem deve funcionar também para cartas do adversário no campo.
             # A posse local continua exigida para abrir imagens fora de uma partida.
             rows = await self.db.coliseu_listar_colecao(user_id)
@@ -1989,7 +1995,7 @@ class NaraBot(commands.Bot):
             if card is None:
                 raise web.HTTPNotFound(text="Carta não encontrada no catálogo.")
             from sistemas.gwent import preparar_carta
-            from sistemas.arte_cartas import render_carta, render_carta_bytes
+            from sistemas.arte_cartas import render_carta
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
             if owned_row is not None and owned_row["rarity"]:
                 from sistemas.cartas import CUSTO_RARIDADE
@@ -2008,14 +2014,9 @@ class NaraBot(commands.Bot):
                 "habilidade_nome": gwent["habilidade_nome"],
                 "habilidade_texto": gwent["habilidade_texto"],
             })
-            if official_illustration:
-                rendered = render_carta_bytes(source, official_illustration)
-                image_data = rendered.getvalue()
-            else:
-                image_path = render_carta(source)
-                image_data = image_path.read_bytes()
+            image_path = render_carta(source)
             return web.Response(
-                body=image_data, content_type="image/png",
+                body=image_path.read_bytes(), content_type="image/png",
                 headers={"Content-Disposition": "inline", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
             )
         except web.HTTPException:
