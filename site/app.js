@@ -80,6 +80,9 @@ function renderGwentLeaderOptions(selected = '') {
   select.innerHTML = info.leaders.map(([id, name]) => `<option value="${id}">${escapeHTML(name)}</option>`).join('');
   select.value = info.leaders.some(([id]) => id === selected) ? selected : info.leaders[0][0];
   $('#gwent-faction-description').textContent = info.description;
+  const leader = info.leaders.find(([id]) => id === select.value) || info.leaders[0];
+  const leaderHelp = $('#gwent-leader-description');
+  if (leaderHelp) leaderHelp.textContent = `${leader[1]}: ${leader[2]}`;
 }
 function renderGwentBuilder() {
   const selected = gwentDeckIds.map(id => collection.find(c => c.id === id)).filter(Boolean);
@@ -478,7 +481,7 @@ document.addEventListener('click', event => {
 });
 
 $('#gwent-faction').addEventListener('change', () => { renderGwentLeaderOptions(); renderGwentBuilder(); });
-$('#gwent-leader').addEventListener('change', renderGwentBuilder);
+$('#gwent-leader').addEventListener('change', () => { renderGwentLeaderOptions($('#gwent-leader').value); renderGwentBuilder(); });
 $('#gwent-card-search').addEventListener('input', renderGwentBuilder);
 $('#gwent-filter-faction').addEventListener('change', renderGwentBuilder);
 $('#gwent-filter-rarity').addEventListener('change', renderGwentBuilder);
