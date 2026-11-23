@@ -668,6 +668,55 @@ CREATE INDEX IF NOT EXISTS idx_cartas_atelie_user_card_status
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cartas_atelie_pending_unique
     ON cartas_atelie_artes(user_id, card_id)
     WHERE status IN ('uploading','pending');
+CREATE TABLE IF NOT EXISTS cartas_gwent_kit_inicial (
+    user_id INTEGER PRIMARY KEY,
+    delivered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS cartas_gwent_especiais_kit (
+    user_id INTEGER PRIMARY KEY,
+    delivered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS cartas_gwent_decks (
+    user_id INTEGER PRIMARY KEY,
+    card_ids_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS cartas_gwent_matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    creator_id INTEGER NOT NULL,
+    opponent_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    state_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(creator_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(opponent_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_gwent_match_players ON cartas_gwent_matches(creator_id, opponent_id, status);
+CREATE TABLE IF NOT EXISTS cartas_gwent_rankings (
+    user_id INTEGER PRIMARY KEY,
+    mmr INTEGER NOT NULL DEFAULT 1000,
+    wins INTEGER NOT NULL DEFAULT 0,
+    losses INTEGER NOT NULL DEFAULT 0,
+    draws INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS cartas_gwent_rewards (
+    match_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    reward_denarios INTEGER NOT NULL DEFAULT 0,
+    mmr_delta INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(match_id, user_id),
+    FOREIGN KEY(match_id) REFERENCES cartas_gwent_matches(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+
 """
 
 
@@ -2662,6 +2711,38 @@ class Database:
                     (int(user_id), str(card_id)),
                 )
                 novas += max(0, cur.rowcount)
+            return novas
+
+    async def coliseu_entregar_kit_especial_gwent(self, user_id: int, card_ids: list[str]) -> int:
+        """Entrega o kit de cartas especiais uma única vez, inclusive a contas antigas."""
+        async with self.transaction() as tx:
+            await tx.conn.execute("INSERT OR IGNORE INTO users(user_id) VALUES (?)", (int(user_id),))
+            cur = await tx.conn.execute("INSERT OR IGNORE INTO cartas_gwent_especiais_kit(user_id) VALUES (?)", (int(user_id),))
+            if cur.rowcount != 1:
+                return 0
+            total = 0
+            for card_id in card_ids:
+                added = await tx.conn.execute(
+                    "INSERT OR IGNORE INTO cartas_colecao(user_id,card_id,quantidade,source) VALUES (?,?,1,'gwent_especial_discord')",
+                    (int(user_id), str(card_id)),
+                )
+                total += max(0, added.rowcount)
+            return total
+
+    async def coliseu_entregar_kit_gwent(self, user_id: int, card_ids: list[str]) -> int:
+        """Recompensa única do Discord para permitir montar o primeiro deck Gwent de 10 cartas."""
+        async with self.transaction() as tx:
+            await tx.conn.execute("INSERT OR IGNORE INTO users(user_id) VALUES (?)", (int(user_id),))
+            cur = await tx.conn.execute("INSERT OR IGNORE INTO cartas_gwent_kit_inicial(user_id) VALUES (?)", (int(user_id),))
+            if cur.rowcount != 1:
+                return 0
+            novas = 0
+            for card_id in card_ids:
+                added = await tx.conn.execute(
+                    "INSERT OR IGNORE INTO cartas_colecao(user_id,card_id,quantidade,source) VALUES (?,?,1,'gwent_kit_discord')",
+                    (int(user_id), str(card_id)),
+                )
+                novas += max(0, added.rowcount)
             return novas
 
     async def coliseu_entregar_kit_inicial(self, user_id: int, card_ids: list[str]) -> int:

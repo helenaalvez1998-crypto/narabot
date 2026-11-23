@@ -36,3 +36,12 @@ Só dois slash commands são publicados: **`/nara`** (central dos membros, por b
 ## Dados
 Banco em `DATA_DIR/colizeu.db` (nome mantido). Faça backup de `data/` antes de atualizar e nunca
 substitua `.env` nem `data/` ao copiar o código novo.
+
+## Arena Gwent (site)
+A Arena Gwent foi adicionada como modo independente do duelo clássico. Ela usa a mesma coleção de cartas do Discord, mas possui deck próprio de 10 cartas (`cartas_gwent_decks`) e partidas próprias (`cartas_gwent_matches`). O deck clássico de cinco cartas e as recompensas/loja do Discord permanecem separados.
+
+Ao abrir o painel de cartas no Discord, o membro recebe uma recompensa única de cinco unidades comuns extras (`gwent_kit_discord`), somadas ao kit inicial já existente, para alcançar as 10 cartas necessárias sem comprar um pacote. Recompensas por conquistas, patentes, pacotes, forja e compras atuais permanecem no fluxo original.
+
+Regras implementadas: três fileiras (Força/corpo a corpo, Destreza/longa distância, Magia/cerco), alternância de turnos validada no servidor, unidades que permanecem no campo, passar rodada, melhor de três, habilidade de líder uma vez por partida e clima por fileira. As ações e o estado da partida são persistidos no SQLite; o navegador nunca define pontuação ou vencedor.
+
+Novas rotas autenticadas: `GET/POST /api/gwent/deck`, `GET/POST /api/gwent/matches`, `GET /api/gwent/matches/{match_id}` e `POST /api/gwent/matches/{match_id}/action`. As tabelas novas são criadas automaticamente pela inicialização do banco. O sistema clássico continua disponível.
