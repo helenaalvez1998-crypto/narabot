@@ -3666,10 +3666,18 @@ class Database:
                VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (str(event_key), user_id, carta.id, raridade, outcome, almas, fragmentos,
              exemplar_id or None, power, str(origem)[:48]))
-        return {"status": "ok", "card_id": carta.id, "card_name": carta.nome,
+        resultado = {"status": "ok", "card_id": carta.id, "card_name": carta.nome,
                 "card_rarity": raridade, "card_power": power, "exemplar_id": exemplar_id,
                 "outcome": outcome, "almas": almas, "fragmentos": fragmentos,
                 "card_almas": almas, "card_fragmentos": fragmentos}
+        # Fila de anúncios públicos (drena em bot._loop_anuncios_drops)
+        org = str(origem).lower()
+        if outcome == "carta" and not any(x in org for x in ("pacote", "vitoria", "gwent", "loja", "atividade")):
+            if not hasattr(self, "fila_anuncios"):
+                self.fila_anuncios = []
+            self.fila_anuncios.append({"user_id": int(user_id), "origem": org, "card_name": carta.nome,
+                                       "rarity": raridade, "power": power})
+        return resultado
 
     async def _coliseu_conceder_singular_tx(self, tx, user_id: int, event_key: str,
                                              card_id: str = "gwent_singular_primeiro"):

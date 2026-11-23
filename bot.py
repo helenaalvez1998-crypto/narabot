@@ -579,6 +579,7 @@ class NaraBot(commands.Bot):
         self._slash_sync_done = False
         self._tarefas_auto_defer: set[asyncio.Task] = set()
         self._tarefa_lag: asyncio.Task | None = None
+        self._tarefa_anuncios: asyncio.Task | None = None
         self._web_runner: web.AppRunner | None = None
         self._web_presence: dict[int, float] = {}
         self._gwent_bootstrapped: set[int] = set()
@@ -592,10 +593,49 @@ class NaraBot(commands.Bot):
         else:
             log.error("%s | contexto=%s", message, {k: str(v)[:300] for k, v in context.items() if k != "task"})
 
+    async def _loop_anuncios_drops(self) -> None:
+        """Anuncia no canal do Coliseu quando um membro ganha carta por contribuir."""
+        from admin_config import GuildConfig
+        ROTULOS = {"zerado": "zerar um jogo", "platina": "conquistar uma platina", "run": "concluir uma run Soulslike",
+                   "soulslike": "concluir uma run Soulslike", "port": "enviar um port", "mod": "enviar um mod",
+                   "comunidade": "contribuir com a comunidade", "boas": "entrar na comunidade", "patente": "subir de patente"}
+        CORES = {"comum": 0xB9A888, "rara": 0x6FB4EE, "epica": 0xB07AF0, "lendaria": 0xFFD36B,
+                 "mitica": 0xFF6FB4, "primordial": 0xFFB84D, "singular": 0x6FF5E1}
+        import unicodedata
+        while True:
+            try:
+                await asyncio.sleep(6)
+                fila = getattr(self.db, "fila_anuncios", None)
+                if not fila:
+                    continue
+                itens, fila[:] = list(fila), []
+                for it in itens:
+                    for guild in self.guilds:
+                        canal_id = await GuildConfig.get(self.db, guild.id, "colizeu_channel") or config.COLIZEU_CHANNEL_ID
+                        canal = self.get_channel(int(canal_id)) if canal_id else None
+                        membro = guild.get_member(it["user_id"])
+                        if canal is None or membro is None:
+                            continue
+                        motivo = next((v for k, v in ROTULOS.items() if k in it["origem"]), "contribuir com a comunidade")
+                        raridade = str(it["rarity"])
+                        chave = unicodedata.normalize("NFD", raridade.lower()).encode("ascii", "ignore").decode()
+                        emb = discord.Embed(
+                            title="🃏 Nova carta no Coliseu!",
+                            description=f"{membro.mention} ganhou **{it['card_name']}** ({raridade}) por {motivo}.\n"
+                                        "Contribua também — zerados, platinas, mods e ports rendem cartas. Veja o Mercado do Gwent!",
+                            color=CORES.get(chave, 0xD4AF37))
+                        await canal.send(embed=emb, allowed_mentions=discord.AllowedMentions(users=[membro]))
+                        break
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("Falha ao anunciar drops.")
+
     async def setup_hook(self) -> None:
         loop = asyncio.get_running_loop()
         loop.set_exception_handler(self._handle_asyncio_exception)
         self._tarefa_lag = loop.create_task(self._monitorar_lag_loop())
+        self._tarefa_anuncios = loop.create_task(self._loop_anuncios_drops())
 
         await self.db.connect()
         log.info("SQLite conectado: %s", config.DB_PATH)
