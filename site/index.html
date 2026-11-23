@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0d0a07"><title>SoulsBot — Gwent do Coliseu</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#07080d"><title>SoulsBot — Gwent do Coliseu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Cormorant+Garamond:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -11,7 +11,8 @@
 <canvas id="embers"></canvas>
 <script>
 (()=>{const sp=document.getElementById('splash');const go=()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),1000);banner('QUE COMECE A BATALHA')};
-if(sessionStorage.getItem('sp')){sp.remove()}else{sp.onclick=()=>{try{sessionStorage.setItem('sp',1)}catch(e){};go()}}
+const dia=new Date().toDateString();let vis=0;try{vis=localStorage.getItem('sp')===dia}catch(e){}
+if(vis){sp.remove()}else{sp.onclick=()=>{try{localStorage.setItem('sp',dia)}catch(e){};go()};addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')sp.click()},{once:true})}
 function banner(t){const b=document.createElement('div');b.id='turn-banner';b.textContent=t;document.body.appendChild(b);setTimeout(()=>b.remove(),2300)}
 window.gwentBanner=banner;
 // brasas
@@ -37,11 +38,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   <div class="hud">
   <div class="brand"><div class="sigil">⚜</div><div><b>SOULSBOT</b><small>GWENT DO COLISEU</small></div></div>
   <nav>
-    <button class="nav active" data-tab="arena"><i>⚔</i><span>Arena</span><em class="nbadge" id="nb-arena" hidden>!</em></button>
-    <button class="nav" data-tab="deck"><i>🂠</i><span>Deck</span><em class="nbadge" id="nb-deck">0/12</em></button>
-    <button class="nav" data-tab="market"><i>◈</i><span>Mercado</span></button>
-    <button class="nav" data-tab="atelier"><i>🎨</i><span>Ateliê</span></button>
-    <button class="nav" data-tab="guide"><i>📜</i><span>Guia</span></button>
+    <button class="nav active" data-tab="arena"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M9.5 6.5 21 18v3h-3L6.5 9.5"/></svg></i><span>Arena</span><em class="nbadge" id="nb-arena" hidden>!</em></button>
+    <button class="nav" data-tab="deck"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="13" height="18" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2"/></svg></i><span>Deck</span><em class="nbadge" id="nb-deck">0/12</em></button>
+    <button class="nav" data-tab="market"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 22 12 12 22 2 12z"/></svg></i><span>Mercado</span></button>
+    <button class="nav" data-tab="atelier"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1 1.5-2-.6-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16.5" cy="9.5" r="1"/></svg></i><span>Ateliê</span></button>
+    <button class="nav" data-tab="guide"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M9 8h6M9 12h6"/></svg></i><span>Guia</span></button>
   </nav>
   <div class="wallet"><span title="Almas">✦ <b id="souls">—</b></span><span title="Fragmentos">✧ <b id="fragments">—</b></span><span title="Denários">◈ <b id="denarios">—</b></span><span title="XP">⚑ <b id="gwent-xp">—</b></span></div>
   <div class="player"><div class="profile"><div class="avatar">S</div><div><b id="profile-name">Visitante</b><small id="profile-status">Conecte sua conta Discord</small></div></div>
@@ -201,5 +202,10 @@ document.addEventListener('keydown',e=>{if(!ov||ov.hidden)return;if(e.key==='Esc
 document.addEventListener('click',e=>{if(e.target.closest('#cd [data-gwent-evolve],#cd [data-gwent-upgrade]'))setTimeout(close,250)});
 window.openCardDetail=open;
 })();
+</script>
+<script>
+(()=>{const n=document.getElementById('notice');if(n){let busy=0;const f=()=>{if(busy)return;busy=1;const t=n.textContent;if(/entre com sua conta/i.test(t)&&!n.querySelector('a.nl')){const a=document.createElement('a');a.className='nl';a.href='/auth/discord/login';a.textContent='Entrar com Discord';a.title='Entre para montar deck, abrir pacotes e jogar partidas';n.appendChild(a)}busy=0};new MutationObserver(f).observe(n,{childList:true,characterData:true,subtree:true});f()}
+let to;const mark=()=>document.querySelectorAll('main p,main span,main small').forEach(e=>{if(e.children.length)return;e.classList.toggle('is-loading',/^carregando/i.test(e.textContent.trim()))});
+new MutationObserver(()=>{clearTimeout(to);to=setTimeout(mark,100)}).observe(document.body,{childList:true,subtree:true,characterData:true});mark()})();
 </script>
 </body></html>
