@@ -13,7 +13,7 @@ from typing import Any
 
 from levels import PATENTES
 
-VERSAO_ARTES = 9
+VERSAO_ARTES = 10
 
 TIPOS = ("Destreza", "Força", "Magia")
 EMOJIS_TIPO = {"Destreza": "🌀", "Força": "⚔️", "Magia": "🔮"}
@@ -102,27 +102,34 @@ class Carta:
     jogo_origem: str = ""
 
     def para_dict(self) -> dict[str, Any]:
-        """Serializa a carta no padrão atual do Gwent sem alterar seu ID histórico.
-
-        categoria_arte preserva a identidade visual de origem para o renderizador;
-        categoria passa a representar somente os tipos aceitos no Gwent.
-        """
+        """Serializa somente campos canônicos do Gwent; nunca expõe categorias antigas."""
         data = asdict(self)
-        categoria_origem = str(self.categoria or "Unidade")
         faccoes = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
         fileiras = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
         papeis = {
-            "Chefe": "Elite", "Arma": "Combatente", "Magia": "Místico",
-            "Covenant": "Aliado", "Jogo": "Campeão", "Patente": "Veterano",
-            "Relíquia": "Primordial", "Especial": "Tática",
+            ("Força", "melee"): "Vanguarda",
+            ("Força", "ranged"): "Batedor de Guerra",
+            ("Força", "siege"): "Artilheiro",
+            ("Destreza", "melee"): "Duelista",
+            ("Destreza", "ranged"): "Batedor",
+            ("Destreza", "siege"): "Atirador de Elite",
+            ("Magia", "melee"): "Guardião Rúnico",
+            ("Magia", "ranged"): "Invocador",
+            ("Magia", "siege"): "Arcanista",
         }
-        data["categoria_arte"] = categoria_origem
-        data["categoria_origem"] = categoria_origem
-        data["categoria"] = "Especial" if categoria_origem.casefold() == "especial" else "Unidade"
-        data["faccao"] = faccoes.get(self.tipo, "Ordem de Ferro")
-        data["fileira"] = fileiras.get(self.tipo, "melee")
-        data["papel_gwent"] = papeis.get(categoria_origem, "Unidade")
-        data["jogo_origem"] = self.jogo_origem
+        especial = str(self.categoria or "").casefold() == "especial"
+        faccao = faccoes.get(self.tipo, "Ordem de Ferro")
+        fileira = fileiras.get(self.tipo, "melee")
+        data.update({
+            "categoria": "Especial" if especial else "Unidade",
+            "faccao": faccao,
+            "fileira": fileira,
+            "papel_gwent": "Tática" if especial else papeis[(self.tipo, fileira)],
+            # Campos de compatibilidade não carregam mais nomes de categorias antigas.
+            "categoria_arte": "Especial" if especial else "Unidade",
+            "categoria_origem": "Especial" if especial else "Unidade",
+            "jogo_origem": "",
+        })
         return data
 
 
@@ -215,36 +222,31 @@ def _hash_int(valor: str) -> int:
 
 
 def carta_jogo(nome_jogo: str, marco: str) -> Carta:
-    """Gera carta fixa por jogo/marco: zerado e platina nunca compartilham ID."""
+    """Gera recompensa temática do universo Gwent sem expor o título do jogo externo."""
     marco = "platina" if str(marco).lower() == "platina" else "zerado"
     slug = slug_jogo(nome_jogo)
-    seed = f"{slug}:{marco}:soulsbot-card-v1"
-    n = _hash_int(seed)
+    n = _hash_int(f"{slug}:{marco}:gwent-reward-v2")
     tipo = TIPOS[n % len(TIPOS)]
     habilidade = HABILIDADES_COMUNS[(n // 7) % len(HABILIDADES_COMUNS)]
-    if marco == "zerado":
-        raridade = "Rara"
-        minimo, maximo = FAIXA_PODER[raridade]
-        poder = minimo + ((n // 11) % (maximo - minimo + 1))
-        sufixo = "Alma Desperta"
-    else:
-        raridade = "Épica"
-        minimo, maximo = FAIXA_PODER[raridade]
-        poder = minimo + ((n // 13) % (maximo - minimo + 1))
-        sufixo = "Eco da Platina"
-    titulo = str(nome_jogo or "Jogo")[:62]
+    raridade = "Épica" if marco == "platina" else "Rara"
+    minimo, maximo = FAIXA_PODER[raridade]
+    poder = minimo + ((n // 11) % (maximo - minimo + 1))
+    nomes = {
+        "Força": ("Campeão da Fornalha", "Vanguarda de Ferro", "Juramentado da Coroa"),
+        "Destreza": ("Lâmina Errante", "Batedor do Véu", "Dançarina das Cinzas"),
+        "Magia": ("Oráculo do Eclipse", "Invocador Astral", "Guardião das Runas"),
+    }
+    epitetos = ("da Aurora", "do Último Bastião", "das Sete Chamas", "do Véu Partido", "da Vigília")
+    titulo = nomes[tipo][(n // 13) % len(nomes[tipo])] + " " + epitetos[(n // 19) % len(epitetos)]
     return Carta(
-        id=f"jogo_{slug}_{marco}",
-        nome=f"Campeão de {titulo} — {sufixo}"[:95],
-        categoria="Jogo",
-        tipo=tipo,
-        poder=int(poder),
-        raridade=raridade,
-        custo=CUSTO_RARIDADE[raridade],
+        id=f"jogo_{slug}_{marco}", nome=titulo[:95], categoria="Chefe", tipo=tipo,
+        poder=int(poder), raridade=raridade, custo=CUSTO_RARIDADE[raridade],
         habilidade=habilidade,
-        descricao=f"Carta exclusiva por {('zerar' if marco == 'zerado' else 'platinar')} {titulo}.",
-        jogo_origem=titulo,
+        descricao=("Recompensa de domínio: unidade de elite do Gwent." if marco == "platina"
+                   else "Recompensa de conquista: unidade veterana do Gwent."),
+        jogo_origem="",
     )
+
 
 
 def carta_patente(indice: int, nivel_minimo: int, nome_patente: str) -> Carta:
@@ -265,14 +267,14 @@ def carta_patente(indice: int, nivel_minimo: int, nome_patente: str) -> Carta:
     card_id = f"patente_{indice + 1}"
     return Carta(
         id=card_id,
-        nome=f"Veterano da Ordem — {nome_patente}"[:95],
+        nome=("Marechal da Ordem" if nivel_minimo >= 75 else "Veterano da Ordem" if nivel_minimo >= 30 else "Escudeiro da Ordem" if nivel_minimo >= 10 else "Recruta da Ordem"),
         categoria="Patente",
         tipo=tipo,
         poder=int(poder),
         raridade=raridade,
         custo=CUSTO_RARIDADE[raridade],
         habilidade=habilidade,
-        descricao=f"Desbloqueada ao alcançar o nível {nivel_minimo}.",
+        descricao=f"Recompensa de progressão do Gwent — nível {nivel_minimo}.",
     )
 
 
@@ -315,3 +317,222 @@ def carta_dict(card_id: str, nome_jogo: str | None = None) -> dict[str, Any] | N
         except ValueError:
             return None
     return carta.para_dict() if carta else None
+
+
+def vantagem_tipo(tipo_a: str, tipo_b: str) -> int:
+    """Retorna +3 se A vence B, -3 se B vence A, ou 0."""
+    if CICLO_TIPOS.get(tipo_a) == tipo_b:
+        return 3
+    if CICLO_TIPOS.get(tipo_b) == tipo_a:
+        return -3
+    return 0
+
+
+def _efeito_habilidade(
+    carta: dict[str, Any], round_no: int, resultado_anterior: str | None,
+    tem_desvantagem: bool, tem_vantagem: bool, *, tipo_anterior: str | None = None,
+    tipo_oponente: str | None = None, tipo_anterior_oponente: str | None = None,
+    poder_oponente: int | None = None,
+) -> dict[str, Any]:
+    """Calcula o efeito da habilidade sem alterar o estado do duelo."""
+    habilidade = str(carta.get("habilidade", ""))
+    poder_proprio = int(carta.get("poder", 0) or 0)
+    poder_rival = int(poder_oponente if poder_oponente is not None else poder_proprio)
+    bonus = 0
+    reducao_tipo_rival = 0
+    ativada = False
+
+    if habilidade == "primeira_luz" and round_no == 1:
+        bonus, ativada = 1, True
+    elif habilidade == "retaliacao" and resultado_anterior == "perdeu":
+        bonus, ativada = 1, True
+    elif habilidade == "impeto" and resultado_anterior == "venceu":
+        bonus, ativada = 1, True
+    elif habilidade == "ultimo_folego" and round_no == 5:
+        bonus, ativada = 1, True
+    elif habilidade == "contragolpe" and tem_desvantagem:
+        bonus, ativada = 1, True
+    elif habilidade == "encadeamento" and resultado_anterior == "venceu" and tipo_anterior == carta.get("tipo"):
+        bonus, ativada = 2, True
+    elif habilidade == "adaptacao" and tipo_anterior and tipo_anterior != carta.get("tipo"):
+        bonus, ativada = 1, True
+    elif habilidade == "sangue_frio" and resultado_anterior == "empatou":
+        bonus, ativada = 2, True
+    elif habilidade == "instinto" and poder_proprio <= poder_rival - 2:
+        bonus, ativada = 1, True
+    elif habilidade == "precisao" and round_no in (2, 4):
+        bonus, ativada = 1, True
+    elif habilidade == "drenagem" and tem_desvantagem:
+        reducao_tipo_rival, ativada = 1, True
+    elif habilidade == "cacador_arcano" and tipo_oponente == "Magia":
+        bonus, ativada = 1, True
+    elif habilidade == "quebra_ritmo" and tipo_anterior_oponente and tipo_oponente == tipo_anterior_oponente:
+        bonus, ativada = 1, True
+    elif habilidade == "lei_primeva" and round_no == 1:
+        bonus, ativada = 2, True
+    elif habilidade == "decreto_soberano" and tem_desvantagem:
+        reducao_tipo_rival, ativada = 2, True
+    elif habilidade == "olho_tempestade" and tem_vantagem:
+        bonus, ativada = 2, True
+    elif habilidade == "fome_abismo" and (tem_desvantagem or poder_proprio <= poder_rival - 2):
+        bonus, ativada = 2, True
+    elif habilidade == "paradoxo_eterno" and round_no == 5 and resultado_anterior == "perdeu":
+        bonus, ativada = 2, True
+
+    nome = HABILIDADES.get(habilidade, {}).get("nome", "Habilidade")
+    detalhes = ""
+    if ativada:
+        partes = []
+        if bonus:
+            partes.append(f"+{bonus} de poder")
+        if reducao_tipo_rival:
+            partes.append(f"- {reducao_tipo_rival} no bônus de tipo rival")
+        detalhes = f"{nome}: " + "; ".join(partes)
+    return {
+        "bonus": bonus,
+        "reducao_tipo_rival": reducao_tipo_rival,
+        "ativada": ativada,
+        "texto": detalhes,
+    }
+
+
+def _bonus_triada_elemental(
+    tipos_anteriores: list[str] | tuple[str, ...] | None,
+    tipo_atual: str,
+    combo_ja_usado: bool,
+) -> dict[str, Any]:
+    """Premia uma única vez a primeira sequência que completa os três tipos.
+
+    A tríade exige que o jogador já tenha usado exatamente dois tipos diferentes e
+    escolha o terceiro. O bônus é pequeno e limitado a uma ativação por duelo, para
+    recompensar planejamento sem criar uma vantagem acumulativa.
+    """
+    usados = {str(tipo) for tipo in (tipos_anteriores or ()) if str(tipo) in TIPOS}
+    if not combo_ja_usado and len(usados) == 2 and tipo_atual in TIPOS and tipo_atual not in usados:
+        return {
+            "bonus": 2,
+            "nome": "Tríade Elemental",
+            "texto": "Tríade Elemental: +2 de poder ao completar Destreza, Força e Magia (uma vez por duelo).",
+        }
+    return {"bonus": 0, "nome": "", "texto": ""}
+
+
+def resolver_rodada(
+    carta_a: dict[str, Any], carta_b: dict[str, Any], round_no: int,
+    resultado_a_anterior: str | None, resultado_b_anterior: str | None,
+    tipo_anterior_a: str | None = None, tipo_anterior_b: str | None = None,
+    *, tipos_anteriores_a: list[str] | tuple[str, ...] | None = None,
+    tipos_anteriores_b: list[str] | tuple[str, ...] | None = None,
+    combo_ja_usado_a: bool = False, combo_ja_usado_b: bool = False,
+) -> dict[str, Any]:
+    """Resolve o confronto no servidor; habilidades e combos são calculados aqui."""
+    vantagem_a = vantagem_tipo(carta_a["tipo"], carta_b["tipo"])
+    tipo_a_base = max(0, vantagem_a)
+    tipo_b_base = max(0, -vantagem_a)
+    efeito_a = _efeito_habilidade(
+        carta_a, round_no, resultado_a_anterior, vantagem_a < 0, vantagem_a > 0,
+        tipo_anterior=tipo_anterior_a, tipo_oponente=carta_b.get("tipo"),
+        tipo_anterior_oponente=tipo_anterior_b, poder_oponente=int(carta_b.get("poder", 0) or 0),
+    )
+    efeito_b = _efeito_habilidade(
+        carta_b, round_no, resultado_b_anterior, vantagem_a > 0, vantagem_a < 0,
+        tipo_anterior=tipo_anterior_b, tipo_oponente=carta_a.get("tipo"),
+        tipo_anterior_oponente=tipo_anterior_a, poder_oponente=int(carta_a.get("poder", 0) or 0),
+    )
+    # A redução é aplicada ao bônus de tipo do adversário, nunca abaixo de zero.
+    tipo_a = max(0, tipo_a_base - int(efeito_b["reducao_tipo_rival"]))
+    tipo_b = max(0, tipo_b_base - int(efeito_a["reducao_tipo_rival"]))
+    habilidade_a = int(efeito_a["bonus"])
+    habilidade_b = int(efeito_b["bonus"])
+    combo_a = _bonus_triada_elemental(tipos_anteriores_a, str(carta_a.get("tipo", "")), combo_ja_usado_a)
+    combo_b = _bonus_triada_elemental(tipos_anteriores_b, str(carta_b.get("tipo", "")), combo_ja_usado_b)
+    combo_bonus_a = int(combo_a["bonus"])
+    combo_bonus_b = int(combo_b["bonus"])
+    poder_a = int(carta_a["poder"]) + tipo_a + habilidade_a + combo_bonus_a
+    poder_b = int(carta_b["poder"]) + tipo_b + habilidade_b + combo_bonus_b
+    vencedor = "a" if poder_a > poder_b else "b" if poder_b > poder_a else "empate"
+    return {
+        "power_a": poder_a,
+        "power_b": poder_b,
+        "type_bonus_a": tipo_a,
+        "type_bonus_b": tipo_b,
+        "skill_bonus_a": habilidade_a,
+        "skill_bonus_b": habilidade_b,
+        "skill_text_a": efeito_a["texto"],
+        "skill_text_b": efeito_b["texto"],
+        "combo_bonus_a": combo_bonus_a,
+        "combo_bonus_b": combo_bonus_b,
+        "combo_name_a": str(combo_a["nome"]),
+        "combo_name_b": str(combo_b["nome"]),
+        "combo_text_a": str(combo_a["texto"]),
+        "combo_text_b": str(combo_b["texto"]),
+        "winner": vencedor,
+    }
+
+def narrar_rodada(round_no: int, carta_a: dict[str, Any], carta_b: dict[str, Any], resultado: dict[str, Any]) -> str:
+    """Narração local determinística e curta; não chama IA nem serviços externos."""
+    nomes = [
+        "As lâminas se cruzam e a arena prende a respiração.",
+        "A fogueira estala enquanto os poderes colidem.",
+        "Um movimento calculado muda o ritmo do confronto.",
+        "A arquibancada sente que a decisão se aproxima.",
+        "Última rodada. Não há espaço para hesitação.",
+    ]
+    texto = nomes[min(max(round_no - 1, 0), 4)]
+    if resultado["winner"] == "a":
+        decisao = f"**{carta_a['nome']}** supera **{carta_b['nome']}**."
+    elif resultado["winner"] == "b":
+        decisao = f"**{carta_b['nome']}** supera **{carta_a['nome']}**."
+    else:
+        decisao = f"**{carta_a['nome']}** e **{carta_b['nome']}** empatam."
+    efeitos = []
+    if resultado.get("skill_text_a"):
+        efeitos.append(f"**{carta_a['nome']}** ativa {resultado['skill_text_a']}.")
+    if resultado.get("skill_text_b"):
+        efeitos.append(f"**{carta_b['nome']}** ativa {resultado['skill_text_b']}.")
+    if resultado.get("combo_text_a"):
+        efeitos.append(f"✨ **{carta_a['nome']}** ativa o combo {resultado['combo_text_a']}.")
+    if resultado.get("combo_text_b"):
+        efeitos.append(f"✨ **{carta_b['nome']}** ativa o combo {resultado['combo_text_b']}.")
+    if resultado.get("match_note"):
+        efeitos.append(f"🏟️ **{resultado['match_note']}**")
+    complemento = "\n" + "\n".join(efeitos) if efeitos else ""
+    return f"{texto}\n{decisao}{complemento}"
+
+
+def vencedor_matematicamente_garantido(
+    vitorias_a: int,
+    vitorias_b: int,
+    rodada_atual: int,
+    total_rodadas: int = 5,
+) -> str | None:
+    """Retorna o lado que já não pode ser alcançado, ou None se a partida segue."""
+    restantes = max(0, int(total_rodadas) - int(rodada_atual))
+    a, b = int(vitorias_a), int(vitorias_b)
+    if a > b + restantes:
+        return "a"
+    if b > a + restantes:
+        return "b"
+    return None
+
+
+def poder_total_deck(cards: list[dict[str, Any]]) -> int:
+    """Soma o poder base das cinco cartas para pareamento de força aproximada."""
+    return sum(int(c.get("poder", 0)) for c in cards)
+
+
+def cards_em_deck_validos(cards: list[dict[str, Any]]) -> tuple[bool, str]:
+    if len(cards) != 5:
+        return False, "O deck precisa ter exatamente cinco cartas."
+    if any(str(c.get("categoria", "")).casefold() == "especial" for c in cards):
+        return False, "Cartas especiais são exclusivas da Arena Gwent."
+    ids = [c["id"] for c in cards]
+    if len(set(ids)) != 5:
+        return False, "Não é permitido repetir uma carta no mesmo deck."
+    custo = sum(int(c["custo"]) for c in cards)
+    if custo > 12:
+        return False, f"Seu deck custa {custo} pontos; o limite é 12."
+    lendarias = sum(1 for c in cards if c["raridade"] == "Lendária")
+    if lendarias > 1:
+        return False, "O deck pode conter no máximo uma carta Lendária."
+    return True, "Deck válido."

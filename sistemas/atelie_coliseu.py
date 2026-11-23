@@ -209,7 +209,8 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
     habilidade = _valor_prompt(carta.get("habilidade") or "", 60).casefold()
     raridade = _valor_prompt(carta.get("raridade") or "Rara", 30)
     tipo = _valor_prompt(carta.get("tipo") or "", 30)
-    jogo = _valor_prompt(carta.get("jogo_origem") or carta.get("game_name") or "", 100)
+    faccao = _valor_prompt(carta.get("faccao") or "Ordem de Ferro", 60)
+    fileira = _valor_prompt(carta.get("fileira") or "melee", 30)
     descricao = _valor_prompt(carta.get("descricao") or "", 500)
 
     diretriz = next(
@@ -220,39 +221,25 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
     raridade_prompt = DIRETRIZES_RARIDADE.get(raridade, DIRETRIZES_RARIDADE["Rara"])
     habilidade_prompt = HABILIDADE_VISUAL.get(habilidade, "")
 
-    if jogo:
-        origem = (
-            f'SOURCE GAME: "{jogo}". Use this title as a thematic and worldbuilding reference. '
-            "Identify its broad genre, emotional tone, environmental motifs, architecture, climate, "
-            "materials and symbolic themes. Translate those broad qualities into the SoulsBot hybrid "
-            "dark-fantasy / epic-anime art direction. Create an original scene and original design. "
-            "Do not reproduce official key art, screenshots, logos, exact locations, named copyrighted "
-            "characters, signature costumes or a recognizable composition."
-        )
-    else:
-        origem = (
-            "SOURCE GAME: none. Invent a distinctive original mythic dark-fantasy subject that belongs "
-            "to the SoulsBot Coliseum universe. Give it a specific story hook, not a generic fantasy trope."
-        )
+    diretrizes_faccao = {
+        "Ordem de Ferro": "FACTION IDENTITY: disciplined iron-clad soldiers, fortress heraldry, forged steel, ember-orange accents, military formations and grounded martial realism.",
+        "Errantes do Véu": "FACTION IDENTITY: agile wanderers, veiled scouts, wind-worn cloaks, teal spectral light, curved blades, misty passes and motion.",
+        "Conclave Arcano": "FACTION IDENTITY: arcane scholars and battle-mages, runic geometry, violet astral light, ancient observatories and controlled magic.",
+    }
+    origem = "SOURCE: original SoulsBot Gwent universe only. Do not reference, depict or name an external video game, franchise, copyrighted character, logo, costume or location."
+    diretriz_fileira = {
+        "melee": "TACTICAL ROLE: close-combat frontline unit; communicate physical presence and a readable melee weapon or defensive stance.",
+        "ranged": "TACTICAL ROLE: ranged specialist; communicate precision, scouting, bow, crossbow or long-range tool.",
+        "siege": "TACTICAL ROLE: siege or arcane artillery specialist; communicate scale, range, machinery or focused spellcasting.",
+    }.get(fileira, "TACTICAL ROLE: elite battlefield unit with a clear combat purpose.")
 
-    contexto = f'CARD CONCEPT: "{nome}".\nCATEGORY: {categoria_raw}.\nTYPE: {tipo or "unassigned"}.\nRARITY: {raridade}.'
+    contexto = f'CARD CONCEPT: "{nome}".\nGWENT CATEGORY: {categoria_raw}.\nFACTION: {faccao}.\nROW: {fileira}.\nTYPE: {tipo or "unassigned"}.\nRARITY: {raridade}.'
     if descricao:
         contexto += f'\nLORE / CONTEXT: "{descricao}".'
 
     extras: list[str] = []
-    card_id = _valor_prompt(carta.get("id") or "", 120).casefold()
-    if "jogo" in categoria and (card_id.endswith("_platina") or "eco da platina" in nome.casefold()):
-        extras.append(
-            "MILESTONE STORY: communicate complete mastery after overcoming the world's hardest trials. "
-            "Show a solemn earned aftermath, a transformed landmark or a meaningful relic; never draw a trophy icon or completion UI."
-        )
-    elif "jogo" in categoria and (card_id.endswith("_zerado") or "alma desperta" in nome.casefold()):
-        extras.append(
-            "MILESTONE STORY: communicate the emotional end of a difficult journey. Show the protagonist's "
-            "silhouette facing the consequence of victory, a final threshold, or a quiet world after the battle; avoid generic victory poses."
-        )
 
-    blocos = [DIRECAO_ARTE, origem, contexto, diretriz, raridade_prompt]
+    blocos = [DIRECAO_ARTE, origem, contexto, diretrizes_faccao.get(faccao, diretrizes_faccao["Ordem de Ferro"]), diretriz_fileira, diretriz, raridade_prompt]
     if habilidade_prompt:
         blocos.append(f"ABILITY VISUAL STORYTELLING: {habilidade_prompt} This is a visual metaphor only; do not add text or symbols that resemble UI.")
     blocos.extend(extras)

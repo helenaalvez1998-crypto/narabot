@@ -1,7 +1,6 @@
 """Motor estratégico Gwent do SoulsBot: regras puras, sem dependência do Discord."""
 from __future__ import annotations
 from copy import deepcopy
-import random
 
 ROWS = ("melee", "ranged", "siege")
 ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
@@ -23,22 +22,6 @@ DEFAULT_LEADERS = {
 }
 
 
-
-def calcular_delta_mmr(rating_a: int, rating_b: int, resultado_a: float, k: int = 32) -> int:
-    """Delta Elo de soma zero para o jogador A (resultado: 1, 0.5 ou 0)."""
-    resultado = max(0.0, min(1.0, float(resultado_a)))
-    expoente = max(-20.0, min(20.0, (int(rating_b) - int(rating_a)) / 400.0))
-    esperado = 1.0 / (1.0 + 10 ** expoente)
-    return int(round(int(k) * (resultado - esperado)))
-
-
-def calcular_xp_partida(resultado: str, xp_ultimas_24h: int, limite_diario: int = 30) -> int:
-    """XP por resultado, respeitando um teto móvel por jogador nas últimas 24 horas."""
-    base = {"win": 20, "draw": 15, "loss": 10}.get(str(resultado), 0)
-    restante = max(0, int(limite_diario) - max(0, int(xp_ultimas_24h)))
-    return min(base, restante)
-
-
 def preparar_carta(card: dict) -> dict:
     special = str(card.get("categoria", "")).casefold() == "especial"
     skill = str(card.get("habilidade", ""))
@@ -55,8 +38,8 @@ def preparar_carta(card: dict) -> dict:
     category = "Especial" if special else "Unidade"
     return {
         "id": str(card["id"]), "nome": str(card.get("nome", "Carta")),
-        "categoria": category, "categoria_origem": str(card.get("categoria_origem", card.get("categoria_arte", "Unidade"))),
-        "papel_gwent": str(card.get("papel_gwent", "Tática" if special else "Combatente")),
+        "categoria": category,
+        "papel_gwent": str(card.get("papel_gwent", "Tática" if special else ROW_LABELS[row])),
         "especial": special,
         "poder": 0 if special else max(1, min(15, int(card.get("poder", 1)))),
         "raridade": str(card.get("raridade", "Comum")), "tipo": kind,
@@ -79,20 +62,11 @@ def _faction(cards):
     return FACTIONS[max(counts, key=lambda k: (counts[k], k))]
 
 
-def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[str, list[dict]], deck_configs: dict[str, dict] | None = None, *, rng=None) -> dict:
-    """Cria uma partida e embaralha cada deck no servidor antes de distribuir 10+2."""
-    if int(creator_id) <= 0 or int(opponent_id) <= 0 or int(creator_id) == int(opponent_id):
-        raise ValueError("A partida exige dois jogadores diferentes.")
+def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[str, list[dict]], deck_configs: dict[str, dict] | None = None) -> dict:
     players = {}
     deck_configs = deck_configs or {}
-    shuffler = rng or random.SystemRandom()
     for uid in (str(creator_id), str(opponent_id)):
-        if uid not in decks:
-            raise ValueError(f"Deck ausente para o jogador {uid}.")
         deck = deepcopy(decks[uid])
-        if len(deck) != 12 or len({str(card.get("id", "")) for card in deck}) != 12:
-            raise ValueError("Cada deck precisa conter 12 cartas únicas.")
-        shuffler.shuffle(deck)
         config = deck_configs.get(uid, {})
         faction = config.get("faction") if config.get("faction") in FACTION_TYPES else _faction(deck)
         leader_id = config.get("leader_id") or DEFAULT_LEADERS[faction]
@@ -109,34 +83,24 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
         "players": players, "turn": str(creator_id),
         "weather": {row: 0 for row in ROWS},
         "crowns": {str(creator_id): 0, str(opponent_id): 0},
-        "rounds": [], "event_log": [], "winner_id": None,
+        "rounds": [], "winner_id": None,
         "last_event": "Preparação: cada jogador pode trocar até duas cartas.",
     }
 
 
-def poder_efetivo(carta: dict, weather: dict | None = None) -> int:
-    """Poder final de uma unidade após bônus, resistência e clima."""
-    weather = weather or {}
-    row = str(carta.get("row", "melee"))
-    penalidade = max(0, int(weather.get(row, 0) or 0) - int(carta.get("weather_resist", 0)))
-    return max(1, int(carta.get("poder", 0)) + int(carta.get("bonus", 0)) - penalidade)
-
-
 def pontuacao(player: dict, weather: dict | None = None) -> int:
     weather = weather or {}
-    return sum(poder_efetivo(carta, weather) for carta in player.get("board", []))
+    return sum(max(1, int(c["poder"]) + int(c.get("bonus", 0)) -
+                   max(0, int(weather.get(c["row"], 0) or 0) - int(c.get("weather_resist", 0))))
+               for c in player["board"])
 
 
 def placar(state: dict) -> dict:
     return {uid: {
         "score": pontuacao(player, state.get("weather")),
-        "row_scores": {row: sum(poder_efetivo(c, state.get("weather")) for c in player.get("board", []) if c.get("row") == row) for row in ROWS},
         "passed": player["passed"], "hand": len(player["hand"]),
-        "crowns": state["crowns"][uid],
-        "board": [{**deepcopy(c), "poder_final": poder_efetivo(c, state.get("weather"))} for c in player.get("board", [])],
+        "crowns": state["crowns"][uid], "board": deepcopy(player["board"]),
         "faction": player.get("faction", ""),
-        "leader_id": player.get("leader_id", ""),
-        "leader_name": player.get("leader_name", ""),
     } for uid, player in state["players"].items()}
 
 
@@ -152,11 +116,6 @@ def _resolve_round(state: dict) -> None:
     else:
         state["last_event"] = f"Rodada {state['round']} empatada ({sa} × {sb})."
     state["rounds"].append({"round": state["round"], "score_a": sa, "score_b": sb, "winner_id": winner})
-    # Unidades que sobreviveram à rodada vão para o descarte. Isso habilita
-    # efeitos de recuperação sem permitir que permaneçam no campo entre rodadas.
-    for player in state["players"].values():
-        player.setdefault("discard", []).extend(deepcopy(player.get("board", [])))
-        player["board"] = []
     if max(state["crowns"].values()) >= 2 or state["round"] >= 3:
         ca, cb = state["crowns"][a], state["crowns"][b]
         state["status"] = "finished"
@@ -167,6 +126,10 @@ def _resolve_round(state: dict) -> None:
     state["round"] += 1
     state["weather"] = {row: 0 for row in ROWS}
     for player in state["players"].values():
+        # Unidades sobrevivem à rodada no descarte: isso habilita recuperação
+        # por Médico de Campanha e mantém o histórico completo da partida.
+        player.setdefault("discard", []).extend(deepcopy(player.get("board", [])))
+        player["board"] = []
         player["passed"] = False
         player["faction_boost_used"] = False
         player["last_row"] = None
@@ -196,15 +159,18 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
     if uid not in state["players"]:
         return {"error": "Você não participa desta partida."}
     player = state["players"][uid]
-    # Concessão é permitida fora da vez: não exige que o jogador esteja com o turno.
-    if action == "forfeit":
+
+    # Rendição pode ser declarada mesmo fora do turno; todas as outras ações
+    # continuam protegidas pela validação de turno abaixo.
+    if action == "surrender":
         opponent_id = next(x for x in state["players"] if x != uid)
         state["status"] = "finished"
         state["phase"] = "finished"
         state["winner_id"] = opponent_id
-        state["last_event"] = f"{uid} abandonou a partida. Vitória por concessão."
-        state.setdefault("event_log", []).append({"round": state.get("round", 1), "player_id": uid, "event": state["last_event"]})
+        state["surrendered_by"] = uid
+        state["last_event"] = f"Jogador {uid} se rendeu. Vitória de {opponent_id}."
         return {"state": state}
+
     if state["turn"] != uid:
         return {"error": "Aguarde a jogada do adversário."}
 
@@ -234,8 +200,6 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         else:
             state["turn"] = other
             state["last_event"] = "Preparação concluída por um jogador. Aguardando o adversário."
-        state.setdefault("event_log", []).append({"round": 1, "player_id": uid, "event": state["last_event"]})
-        state["event_log"] = state["event_log"][-60:]
         return {"state": state}
 
     if player["passed"]:
@@ -250,8 +214,6 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         else:
             state["turn"] = other_id
             state["last_event"] = "Jogador passou. O adversário ainda pode jogar."
-        state.setdefault("event_log", []).append({"round": state.get("round", 1), "player_id": uid, "event": state["last_event"]})
-        state["event_log"] = state["event_log"][-60:]
         return {"state": state}
 
     if action == "leader":
@@ -324,7 +286,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             elif skill == "gwent_queima":
                 for side in (player, other):
                     if side["board"]:
-                        strongest = max(side["board"], key=lambda c: poder_efetivo(c, state.get("weather")))
+                        strongest = max(side["board"], key=lambda c: int(c["poder"]) + int(c.get("bonus", 0)))
                         side["board"].remove(strongest)
                         side["discard"].append(strongest)
             elif skill == "gwent_purificar":
@@ -425,11 +387,6 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
     else:
         return {"error": "Ação desconhecida."}
 
-    state.setdefault("event_log", []).append({
-        "round": state.get("round", 1), "player_id": uid,
-        "event": str(state.get("last_event", "")),
-    })
-    state["event_log"] = state["event_log"][-60:]
     if state["status"] == "active" and not other["passed"]:
         state["turn"] = other_id
     elif state["status"] == "active" and other["passed"]:
