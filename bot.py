@@ -1864,7 +1864,9 @@ class NaraBot(commands.Bot):
                 source["poder"] = int(owned_row["exemplar_power"] or source.get("poder", 0))
             elif snapshot is not None:
                 source["poder"] = int(snapshot.get("poder", source.get("poder", 0)) or 0)
-            source["custo"] = int(CUSTO_RARIDADE.get(source["rariedade"], source.get("custo", 0)))
+            rarity_key = str(source.get("rariedade") or rarity or "Comum")
+            source["rariedade"] = rarity_key
+            source["custo"] = int(CUSTO_RARIDADE.get(rarity_key, source.get("custo", 0)))
             gwent = preparar_carta(source)
             source.update({
                 "gwent_mode": True,
