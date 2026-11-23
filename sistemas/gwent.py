@@ -7,6 +7,22 @@ ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
 FACTIONS = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
 FACTION_TYPES = {value: key for key, value in FACTIONS.items()}
+
+# Contrato de cobertura: cada habilidade declarada no catálogo precisa estar ligada
+# a um ramo do motor (unidade, Primordial ou carta tática especial).
+HABILIDADES_UNIDADE_IMPLEMENTADAS = frozenset({
+    "primeira_luz", "retaliacao", "impeto", "ultimo_folego", "contragolpe",
+    "encadeamento", "adaptacao", "sangue_frio", "instinto", "precisao",
+    "drenagem", "cacador_arcano", "quebra_ritmo", "lei_primeva",
+    "decreto_soberano", "olho_tempestade", "fome_abismo", "paradoxo_eterno",
+    "guardiao_fileira", "cacador_solitario", "estandarte", "resistencia_climatica",
+    "eco_arcano", "dupla_fornalha", "irmandade_veu", "circulo_arcano",
+})
+HABILIDADES_ESPECIAIS_IMPLEMENTADAS = frozenset({
+    "gwent_nevoa", "gwent_geada", "gwent_chuva", "gwent_chifre", "gwent_medico",
+    "gwent_queima", "gwent_purificar", "gwent_execucao", "gwent_vinculo",
+    "gwent_batedor", "gwent_muralha",
+})
 FACTION_ARCHETYPES = {
     "Ordem de Ferro": {"name": "Formação e Resistência", "description": "Proteção de fileira, fortalecimento de aliados e conversão de resistência em pressão."},
     "Errantes do Véu": {"name": "Mobilidade e Encadeamento", "description": "Reposicionamento, ataques coordenados e vantagens por alternar fileiras."},
@@ -262,7 +278,18 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
         "crowns": {str(creator_id): 0, str(opponent_id): 0},
         "rounds": [], "winner_id": None,
         "last_event": "Preparação: cada jogador pode trocar até duas cartas.",
+        "event_log": ["Partida criada. Preparação: cada jogador pode trocar até duas cartas."],
     }
+
+
+def _registrar_evento(state: dict) -> dict:
+    """Acrescenta o último evento ao histórico persistido da partida."""
+    history = state.setdefault("event_log", [])
+    event = str(state.get("last_event", "")).strip()
+    if event and (not history or history[-1] != event):
+        history.append(event[:500])
+    state["event_log"] = history[-20:]
+    return {"state": state}
 
 
 def _aplicar_combo_de_cartas(player: dict, card: dict) -> str | None:
@@ -355,6 +382,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
     # Compatibilidade com partidas iniciadas na versão anterior do motor.
     state.setdefault("phase", "battle")
     state.setdefault("weather", {row: 0 for row in ROWS})
+    state.setdefault("event_log", [])
     for legacy_player in state.get("players", {}).values():
         legacy_player.setdefault("discard", [])
         legacy_player.setdefault("draw_pile", [])
@@ -381,7 +409,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         state["winner_id"] = opponent_id
         state["surrendered_by"] = uid
         state["last_event"] = f"Jogador {uid} se rendeu. Vitória de {opponent_id}."
-        return {"state": state}
+        return _registrar_evento(state)
 
     if state["turn"] != uid:
         return {"error": "Aguarde a jogada do adversário."}
@@ -412,7 +440,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         else:
             state["turn"] = other
             state["last_event"] = "Preparação concluída por um jogador. Aguardando o adversário."
-        return {"state": state}
+        return _registrar_evento(state)
 
     if player["passed"]:
         return {"error": "Você já passou nesta rodada."}
@@ -426,7 +454,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         else:
             state["turn"] = other_id
             state["last_event"] = "Jogador passou. O adversário ainda pode jogar."
-        return {"state": state}
+        return _registrar_evento(state)
 
     if action == "leader":
         if player["leader_used"]:
@@ -614,4 +642,4 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         state["turn"] = other_id
     elif state["status"] == "active" and other["passed"]:
         state["turn"] = uid
-    return {"state": state}
+    return _registrar_evento(state)

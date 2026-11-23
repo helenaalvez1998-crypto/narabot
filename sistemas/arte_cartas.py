@@ -27,7 +27,9 @@ CORES_RARIDADE = {
     "Rara": ((17, 56, 76), (72, 190, 218)),
     "Épica": ((54, 34, 83), (188, 119, 239)),
     "Lendária": ((83, 52, 18), (246, 194, 83)),
+    "Mítica": ((62, 24, 75), (255, 105, 190)),
     "Primordial": ((35, 28, 12), (255, 238, 145)),
+    "Singular": ((15, 58, 63), (103, 245, 226)),
 }
 CORES_TIPO = {
     "Destreza": (75, 211, 177),
@@ -568,7 +570,7 @@ def _draw_rarity_frame(draw: ImageDraw.ImageDraw, width: int, height: int, rarit
         for cx, cy in ((30, 30), (width - 30, 30), (30, height - 30), (width - 30, height - 30)):
             draw.polygon([(cx, cy - 9), (cx + 9, cy), (cx, cy + 9), (cx - 9, cy)],
                          fill=(*rarity_accent, 230), outline=(255, 244, 255, 220))
-    else:  # Lendária e Primordial: moldura tripla; Primordial recebe acabamento dourado claro.
+    elif rarity == "Lendária":
         draw.rounded_rectangle((4, 4, width - 5, height - 5), radius=24,
                                fill=(8, 8, 12, 255), outline=(*rarity_accent, 255), width=7)
         draw.rounded_rectangle((13, 13, width - 14, height - 14), radius=19,
@@ -582,12 +584,71 @@ def _draw_rarity_frame(draw: ImageDraw.ImageDraw, width: int, height: int, rarit
                 draw.arc((x - 14, y - 17, x + 14, y + 17), 205 if side == 1 else -25,
                          335 if side == 1 else 105, fill=(*rarity_accent, 165), width=2)
                 draw.ellipse((x - 3, y - 3, x + 3, y + 3), fill=(255, 230, 164, 220))
-        # Pequena coroa no topo da moldura, sem invadir o título.
         cx = width // 2
         draw.polygon([(cx - 22, 17), (cx - 15, 7), (cx, 18), (cx + 15, 7),
                       (cx + 22, 17), (cx + 17, 27), (cx - 17, 27)],
                      fill=(*rarity_base, 250), outline=(255, 231, 165, 255))
         draw.ellipse((cx - 3, 14, cx + 3, 20), fill=(255, 245, 205, 255))
+    elif rarity == "Mítica":
+        # Moldura estrelada: raios e gemas orbitais, distinta da coroa lendária.
+        draw.rounded_rectangle((4, 4, width - 5, height - 5), radius=18,
+                               fill=(10, 7, 16, 255), outline=(*rarity_accent, 255), width=7)
+        draw.rounded_rectangle((15, 15, width - 16, height - 16), radius=13,
+                               outline=(255, 190, 235, 190), width=2)
+        cx = width // 2
+        for x, y, r in ((cx, 18, 12), (cx, height - 18, 12), (20, height // 2, 8),
+                        (width - 20, height // 2, 8), (24, 24, 6), (width - 24, 24, 6),
+                        (24, height - 24, 6), (width - 24, height - 24, 6)):
+            pts = []
+            for i in range(10):
+                angle = -math.pi / 2 + i * math.pi / 5
+                radius = r if i % 2 == 0 else r * .38
+                pts.append((x + math.cos(angle) * radius, y + math.sin(angle) * radius))
+            draw.polygon(pts, fill=(*rarity_base, 245), outline=(*rarity_accent, 255))
+        for y in range(92, height - 92, 86):
+            for x in (18, width - 18):
+                draw.line((x, y - 12, x, y + 12), fill=(*rarity_accent, 185), width=2)
+                draw.line((x - 7, y, x + 7, y), fill=(*rarity_accent, 185), width=2)
+    elif rarity == "Primordial":
+        # Moldura de relíquia ancestral: octógonos, discos solares e runas laterais.
+        draw.rectangle((4, 4, width - 5, height - 5), fill=(11, 9, 5, 255),
+                       outline=(*rarity_accent, 255), width=7)
+        octagon = [(width // 2, 9), (width - 9, 34), (width - 9, height - 34),
+                   (width // 2, height - 9), (9, height - 34), (9, 34), (width // 2, 9)]
+        draw.line(octagon, fill=(255, 244, 190, 220), width=3)
+        cx = width // 2
+        for cy in (28, height - 28):
+            draw.ellipse((cx - 15, cy - 15, cx + 15, cy + 15), outline=(*rarity_accent, 255), width=3)
+            draw.ellipse((cx - 6, cy - 6, cx + 6, cy + 6), fill=(255, 245, 190, 245))
+            for i in range(8):
+                angle = math.pi * i / 4
+                x1, y1 = cx + math.cos(angle) * 19, cy + math.sin(angle) * 19
+                x2, y2 = cx + math.cos(angle) * 27, cy + math.sin(angle) * 27
+                draw.line((x1, y1, x2, y2), fill=(*rarity_accent, 220), width=2)
+        for side in (1, -1):
+            x = 24 if side == 1 else width - 24
+            for i in range(5):
+                y = 150 + i * 72
+                draw.polygon([(x, y - 9), (x + side * 7, y), (x, y + 9), (x - side * 7, y)],
+                             outline=(255, 244, 190, 220), fill=(*rarity_base, 170))
+    elif rarity == "Singular":
+        # Moldura assimétrica: uma assinatura única, sem coroa ou simetria de conjunto.
+        draw.rounded_rectangle((4, 4, width - 5, height - 5), radius=30,
+                               fill=(5, 13, 15, 255), outline=(*rarity_accent, 255), width=7)
+        draw.line([(15, 70), (15, 15), (width - 15, 15), (width - 15, height - 15),
+                   (65, height - 15), (15, height - 65)], fill=(190, 255, 245, 210), width=2)
+        draw.arc((width // 2 - 24, 4, width // 2 + 24, 52), 195, 345,
+                 fill=(*rarity_accent, 255), width=4)
+        draw.polygon([(width // 2, 8), (width // 2 + 10, 25), (width // 2, 42),
+                      (width // 2 - 10, 25)], fill=(*rarity_base, 250), outline=(215, 255, 249, 255))
+        for i in range(4):
+            y = 170 + i * 80
+            draw.arc((8, y - 18, 44, y + 18), 270, 90, fill=(*rarity_accent, 220), width=3)
+            draw.arc((width - 44, y - 18, width - 8, y + 18), 90, 270, fill=(*rarity_accent, 220), width=3)
+        draw.line((25, height - 90, 25, height - 35, 80, height - 35),
+                  fill=(*rarity_accent, 220), width=3)
+    else:
+        draw.rectangle((5, 5, width - 6, height - 6), outline=(*rarity_accent, 255), width=5)
 
 
 def _draw_gwent_unit(draw: ImageDraw.ImageDraw, box, faction: str, row: str, accent, rng: random.Random):
@@ -660,7 +721,9 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
         "Rara": ((30,82,105),(91,184,210)),
         "Épica": ((75,43,103),(193,132,224)),
         "Lendária": ((112,72,27),(236,187,91)),
+        "Mítica": ((78,32,91),(255,116,198)),
         "Primordial": ((116,94,36),(255,229,151)),
+        "Singular": ((20,82,86),(118,255,230)),
     }
     rdark, rlight = rarity_colors.get(rarity, rarity_colors["Comum"])
     sx, sy = width/420, height/620
@@ -835,14 +898,40 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     # Cantoneiras rebitadas e filetes laterais.
     for xx,yy in ((23,23),(397,23),(23,597),(397,597)):
         d.ellipse(B(xx-3,yy-3,xx+3,yy+3),fill=(*rlight,240),outline=(*metal,255))
-    if rarity in ("Épica","Lendária","Primordial"):
+    if rarity in ("Épica","Lendária","Mítica","Primordial","Singular"):
         for side in (1,-1):
             xx=X(23 if side==1 else 397)
             d.line((xx,Y(125),xx,Y(405)),fill=(*rlight,110),width=max(1,X(2)))
             for yy in range(150,400,48):
                 d.polygon([(xx,Y(yy-5)),(xx+X(5*side),Y(yy)),(xx,Y(yy+5)),(xx-X(5*side),Y(yy))],fill=(*rlight,180))
-    if rarity=="Primordial":
+    if rarity in ("Primordial", "Singular"):
         d.rounded_rectangle(B(2,2,418,618),radius=X(21),outline=(255,235,170,255),width=max(2,X(3)))
+    if rarity == "Mítica":
+        # Quatro constelações de oito pontas identificam a raridade Mítica.
+        for cx, cy in ((31, 94), (389, 94), (31, 526), (389, 526)):
+            points = []
+            for i in range(16):
+                angle = -math.pi / 2 + i * math.pi / 8
+                radius = 11 if i % 2 == 0 else 4
+                points.append((X(cx) + math.cos(angle) * X(radius),
+                               Y(cy) + math.sin(angle) * Y(radius)))
+            d.polygon(points, fill=(*rdark, 245), outline=(*rlight, 255))
+    elif rarity == "Primordial":
+        # Selos solares ancestrais no eixo da carta, acima e abaixo da arte.
+        for cx, cy in ((210, 94), (210, 526)):
+            d.ellipse(B(cx-13,cy-13,cx+13,cy+13), outline=(*rlight,255), width=max(2,X(2)))
+            d.ellipse(B(cx-5,cy-5,cx+5,cy+5), fill=(255,245,190,245))
+            for angle in range(0,360,45):
+                rad=math.radians(angle)
+                d.line((X(cx+16*math.cos(rad)),Y(cy+16*math.sin(rad)),
+                        X(cx+24*math.cos(rad)),Y(cy+24*math.sin(rad))),
+                       fill=(*rlight,235), width=max(1,X(2)))
+    elif rarity == "Singular":
+        # Assinatura assimétrica e um único losango: não se confunde com a moldura Primordial.
+        d.line((X(12),Y(175),X(12),Y(445),X(28),Y(461)), fill=(*rlight,230), width=max(2,X(3)))
+        d.line((X(408),Y(145),X(408),Y(420)), fill=(*accent,220), width=max(1,X(2)))
+        d.polygon([ (X(210),Y(7)), (X(220),Y(22)), (X(210),Y(37)), (X(200),Y(22)) ],
+                  fill=(*rdark,255), outline=(*rlight,255))
     # Placa superior.
     d.rounded_rectangle(B(24,22,396,83),radius=X(7),fill=(11,13,15,235),outline=(*rlight,185),width=max(1,X(2)))
     d.text((X(35),Y(27)),"COLISEU  ·  CRÔNICAS DE GUERRA",font=_font(max(8,X(10)),True),fill=(*metal,215))

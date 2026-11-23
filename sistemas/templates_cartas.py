@@ -25,7 +25,9 @@ RARIDADES_TEMPLATE = {
     "Rara": "rara",
     "Épica": "epica",
     "Lendária": "lendaria",
+    "Mítica": "mitica",
     "Primordial": "primordial",
+    "Singular": "singular",
 }
 TAMANHO_TEMPLATE = (840, 1240)
 TAMANHO_MINIMO = (420, 620)

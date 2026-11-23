@@ -13,24 +13,45 @@ from typing import Any
 
 from levels import PATENTES
 
-VERSAO_ARTES = 13
+VERSAO_ARTES = 15
 
 TIPOS = ("Destreza", "Força", "Magia")
 EMOJIS_TIPO = {"Destreza": "🌀", "Força": "⚔️", "Magia": "🔮"}
 CICLO_TIPOS = {"Destreza": "Força", "Força": "Magia", "Magia": "Destreza"}
 
-RARIDADES = ("Comum", "Rara", "Épica", "Lendária", "Primordial")
-PESOS_RARIDADE = {"Comum": 70, "Rara": 22, "Épica": 7, "Lendária": 1, "Primordial": 0}
-CUSTO_RARIDADE = {"Comum": 1, "Rara": 2, "Épica": 3, "Lendária": 4, "Primordial": 4}
+RARIDADES = ("Comum", "Rara", "Épica", "Lendária", "Mítica", "Primordial", "Singular")
+PESOS_RARIDADE = {"Comum": 69.47, "Rara": 22.02, "Épica": 7.01, "Lendária": 1.00, "Mítica": 0.50, "Primordial": 0.0, "Singular": 0.0}
+CUSTO_RARIDADE = {"Comum": 1, "Rara": 2, "Épica": 3, "Lendária": 4, "Mítica": 5, "Primordial": 6, "Singular": 0}
 FAIXA_PODER = {
     "Comum": (3, 5),
     "Rara": (4, 6),
     "Épica": (5, 7),
     "Lendária": (6, 8),
-    "Primordial": (8, 8),
+    "Mítica": (8, 9),
+    "Primordial": (8, 9),
+    "Singular": (8, 10),
 }
-ALMAS_DUPLICATA = {"Comum": 5, "Rara": 15, "Épica": 40, "Lendária": 100, "Primordial": 0}
-CUSTO_FORJA = {"Comum": 40, "Rara": 120, "Épica": 320, "Lendária": 800, "Primordial": 0}
+ALMAS_DUPLICATA = {"Comum": 5, "Rara": 15, "Épica": 40, "Lendária": 100, "Mítica": 180, "Primordial": 250, "Singular": 0}
+BONUS_EVOLUCAO_FRAGMENTOS = {"Comum": 20, "Rara": 40, "Épica": 80, "Lendária": 160}
+CUSTO_APRIMORAMENTO_ALMAS = {"Comum": 10, "Rara": 20, "Épica": 40, "Lendária": 80, "Mítica": 150, "Primordial": 250}
+
+
+def limite_poder_modelo(carta: "Carta") -> int:
+    """Teto individual do modelo: parte do poder-base e nunca ultrapassa 12."""
+    if str(getattr(carta, "categoria", "")).casefold() == "especial":
+        return 0
+    return min(12, max(5, int(getattr(carta, "poder", 1)) + 6))
+
+
+def faixa_poder_exemplar(carta: "Carta", raridade: str) -> tuple[int, int]:
+    """Faixa inicial da raridade limitada pelo teto próprio do modelo."""
+    if str(getattr(carta, "categoria", "")).casefold() == "especial":
+        return (0, 0)
+    minimo, maximo = FAIXA_PODER.get(str(raridade), FAIXA_PODER["Comum"])
+    maximo = min(int(maximo), limite_poder_modelo(carta))
+    minimo = min(int(minimo), maximo)
+    return (minimo, maximo)
+CUSTO_FORJA = {"Comum": 0, "Rara": 0, "Épica": 0, "Lendária": 0, "Mítica": 0, "Primordial": 0, "Singular": 0}
 PRECO_PACOTE_FOGUEIRA = 120
 CARTAS_POR_PACOTE = 3
 PITY_CARTAS = 10
@@ -196,14 +217,19 @@ _CARTAS_BASE = [
     Carta("gwent_unidade_mestre_forja", "Mestre da Forja Rubra", "Chefe", "Força", 5, "Rara", 2, "dupla_fornalha", "Luta melhor ao lado de outra unidade da Ordem de Ferro."),
     Carta("gwent_unidade_dupla_veu", "Gêmea das Passagens", "Covenant", "Destreza", 5, "Rara", 2, "irmandade_veu", "Coordena ataques com aliados posicionados em outra fileira."),
     Carta("gwent_unidade_circulo", "Adepto do Círculo", "Magia", "Magia", 5, "Rara", 2, "circulo_arcano", "Amplifica a magia quando encontra aliados ou resíduos arcanos."),
+    Carta("gwent_mitica_coroa", "Herdeiro da Coroa Velada", "Relíquia", "Força", 8, "Mítica", 5, "estandarte", "Uma presença mítica que fortalece a formação aliada."),
+    Carta("gwent_singular_primeiro", "O Primeiro Juramento", "Relíquia", "Destreza", 10, "Singular", 0, "cacador_solitario", "Exemplar singular conquistado por um feito extraordinário."),
+    Carta("gwent_singular_intocavel", "A Lâmina Intocada", "Relíquia", "Destreza", 9, "Singular", 0, "precisao", "Conquistada ao concluir um desafio sem sofrer dano."),
+    Carta("gwent_singular_nivel1", "A Vontade Inquebrável", "Relíquia", "Força", 10, "Singular", 0, "ultimo_folego", "Conquistada ao vencer um desafio no nível um."),
+    Carta("gwent_singular_cacador_chefes", "A Coroa dos Vencidos", "Relíquia", "Magia", 9, "Singular", 0, "paradoxo_eterno", "Conquistada ao derrotar todos os chefes de um desafio."),
 ]
 
 CARTAS_PRIMORDIAIS = [
-    Carta("primordial_origem", "Avatar da Origem Inominável", "Relíquia", "Magia", 8, "Primordial", 4, "lei_primeva", "Única do servidor. Sua habilidade é a Lei Primeva."),
-    Carta("primordial_trono", "Soberano do Primeiro Trono", "Relíquia", "Força", 8, "Primordial", 4, "decreto_soberano", "Única do servidor. Seu decreto enfraquece a vantagem de tipo rival."),
-    Carta("primordial_tempestade", "Arauto do Coração da Tempestade", "Relíquia", "Destreza", 8, "Primordial", 4, "olho_tempestade", "Única do servidor. Amplifica a vantagem de tipo."),
-    Carta("primordial_abismo", "Entidade do Abismo Onírico", "Relíquia", "Magia", 8, "Primordial", 4, "fome_abismo", "Única do servidor. Cresce quando está atrás no confronto."),
-    Carta("primordial_eternidade", "Guardião da Eternidade Partida", "Relíquia", "Força", 8, "Primordial", 4, "paradoxo_eterno", "Única do servidor. Pode inverter a última rodada."),
+    Carta("primordial_origem", "Avatar da Origem Inominável", "Relíquia", "Magia", 8, "Primordial", 4, "lei_primeva", "Uma cópia por jogador. Sua habilidade é a Lei Primeva."),
+    Carta("primordial_trono", "Soberano do Primeiro Trono", "Relíquia", "Força", 8, "Primordial", 4, "decreto_soberano", "Uma cópia por jogador. Seu decreto enfraquece a vantagem de tipo rival."),
+    Carta("primordial_tempestade", "Arauto do Coração da Tempestade", "Relíquia", "Destreza", 8, "Primordial", 4, "olho_tempestade", "Uma cópia por jogador. Amplifica a vantagem de tipo."),
+    Carta("primordial_abismo", "Entidade do Abismo Onírico", "Relíquia", "Magia", 8, "Primordial", 4, "fome_abismo", "Uma cópia por jogador. Cresce quando está atrás no confronto."),
+    Carta("primordial_eternidade", "Guardião da Eternidade Partida", "Relíquia", "Força", 8, "Primordial", 4, "paradoxo_eterno", "Uma cópia por jogador. Pode inverter a última rodada."),
 ]
 CARTAS_POR_ID: dict[str, Carta] = {c.id: c for c in [*_CARTAS_BASE, *CARTAS_PRIMORDIAIS]}
 
@@ -281,7 +307,8 @@ def carta_patente(indice: int, nivel_minimo: int, nome_patente: str) -> Carta:
 CARTAS_PATENTE = [carta_patente(i, nivel, nome) for i, (nivel, nome) in enumerate(PATENTES)]
 CARTAS_POR_ID.update({c.id: c for c in CARTAS_PATENTE})
 
-# Pacotes não entregam cartas de patente ou de jogos: essas são recompensas de marcos.
+# Catálogo estático global usado pelos drops. Patentes e cartas dinâmicas de jogos antigos
+# ficam fora do pool; Singular e Primordial possuem fluxos especiais.
 CARTAS_PACOTE = [c for c in _CARTAS_BASE]
 CARTAS_PACOTE_POR_RARIDADE = {
     raridade: [c for c in [*CARTAS_PACOTE, *CARTAS_PRIMORDIAIS] if c.raridade == raridade]
@@ -532,7 +559,8 @@ def cards_em_deck_validos(cards: list[dict[str, Any]]) -> tuple[bool, str]:
     custo = sum(int(c["custo"]) for c in cards)
     if custo > 12:
         return False, f"Seu deck custa {custo} pontos; o limite é 12."
-    lendarias = sum(1 for c in cards if c["raridade"] == "Lendária")
-    if lendarias > 1:
-        return False, "O deck pode conter no máximo uma carta Lendária."
+    for raridade, limite in (("Lendária", 1), ("Mítica", 1), ("Primordial", 1), ("Singular", 1)):
+        quantidade = sum(1 for c in cards if c.get("raridade") == raridade)
+        if quantidade > limite:
+            return False, f"O deck pode conter no máximo uma carta {raridade}."
     return True, "Deck válido."
