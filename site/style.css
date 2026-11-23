@@ -1026,3 +1026,358 @@ main {
   #gwent-card-pool .gwent-unit > small,
   #gwent-deck-selected .gwent-unit > small { font-size: 9px; }
 }
+
+
+/* NARABOT — painel inicial / comunidade: refinamento medieval */
+@media (min-width: 1251px) {
+  .hud {
+    grid-template-columns: minmax(150px, auto) minmax(0, 1fr) auto auto minmax(150px, auto) !important;
+    grid-template-rows: minmax(62px, auto) !important;
+    align-items: center;
+  }
+  .hud > .brand { grid-column: 1; grid-row: 1; }
+  .hud > nav { grid-column: 2; grid-row: 1; min-width: 0; overflow: hidden; }
+  .hud > .wallet { grid-column: 3; grid-row: 1; }
+  .hud > .vis-btn { grid-column: 4; grid-row: 1; }
+  .hud > .player { grid-column: 5; grid-row: 1; justify-self: end; }
+}
+
+/* Painel inicial usa a largura útil sem esticar excessivamente os textos. */
+#tab-home {
+  width: 100%;
+  max-width: none;
+}
+#tab-home .hub-hero {
+  min-height: 210px;
+  padding: clamp(24px, 2.4vw, 42px);
+  border: 1px solid rgba(201,168,107,.62);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 94% 20%, rgba(201,168,107,.12), transparent 25%),
+    linear-gradient(110deg, rgba(91,48,23,.78), rgba(27,20,15,.96) 56%, rgba(17,19,29,.98));
+  box-shadow: 0 14px 38px rgba(0,0,0,.3), inset 0 1px rgba(255,226,173,.08);
+}
+#tab-home .hub-hero h2 { color: #f2d49b; }
+#tab-home .hub-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 18px;
+  margin: 0 0 24px;
+}
+#tab-home .hub-card {
+  min-width: 0;
+  min-height: 250px;
+  padding: clamp(16px, 1.35vw, 24px);
+  border: 1px solid rgba(201,168,107,.38);
+  border-radius: 8px;
+  background: linear-gradient(155deg, rgba(35,27,20,.98), rgba(17,16,17,.98));
+  box-shadow: 0 8px 24px rgba(0,0,0,.2), inset 0 1px rgba(255,226,173,.04);
+}
+#tab-home .hub-card .section-head,
+#tab-home > .section-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(201,168,107,.2);
+}
+#tab-home .hub-tops {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+#tab-home .hub-tops > .hub-card {
+  min-height: 0;
+}
+#tab-home .nara-log {
+  height: clamp(230px, 22vh, 320px);
+  padding: 8px 4px 12px;
+  gap: 12px;
+}
+#tab-home .nara-msg {
+  max-width: min(92%, 620px);
+  padding: 11px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  border-radius: 4px 12px 12px 12px;
+}
+#tab-home .nara-msg.bot {
+  border-color: rgba(201,168,107,.28);
+  background: rgba(201,168,107,.07);
+}
+#tab-home .nara-msg.me {
+  border-color: rgba(201,168,107,.35);
+  background: rgba(125,78,35,.25);
+}
+#tab-home .nara-form input {
+  min-height: 44px;
+  border-radius: 4px;
+  border-color: rgba(201,168,107,.42);
+}
+#tab-home .nara-form .primary,
+#tab-home .hub-cta .big {
+  border-radius: 4px;
+}
+#tab-home .rank-row {
+  min-height: 48px;
+  border-color: rgba(201,168,107,.18);
+  background: linear-gradient(90deg, rgba(201,168,107,.07), rgba(30,25,21,.92));
+}
+#tab-home .rank-row.top1 { border-color: rgba(230,190,112,.65); }
+#tab-home .rank-row.top2 { border-color: rgba(185,185,185,.38); }
+#tab-home .rank-row.top3 { border-color: rgba(190,123,68,.45); }
+
+@media (max-width: 1250px) {
+  #tab-home .hub-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #tab-home .hub-tops { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 800px) {
+  #tab-home .hub-grid,
+  #tab-home .hub-tops { grid-template-columns: minmax(0, 1fr); }
+  #tab-home .hub-card { min-height: 0; }
+  #tab-home .nara-log { height: 230px; }
+  #tab-home .hub-hero { min-height: 0; }
+}
+
+/* ======================================================================
+   NARABOT — sistema visual unificado do Coliseu
+   Refinamento transversal: hierarquia, navegação, painéis e responsividade.
+   Não altera IDs, eventos, regras de jogo ou integração com a API.
+   ====================================================================== */
+:root {
+  --coliseum-gold: #c9a86b;
+  --coliseum-gold-light: #f0d69b;
+  --coliseum-gold-soft: rgba(201,168,107,.22);
+  --coliseum-blue: #26334d;
+  --coliseum-blue-deep: #0c1220;
+  --coliseum-surface: #151a27;
+  --coliseum-surface-2: #1b2030;
+  --coliseum-shadow: 0 14px 34px rgba(0,0,0,.34);
+}
+
+html { scroll-padding-top: 90px; }
+body {
+  background:
+    radial-gradient(ellipse at 50% -18%, rgba(117,91,57,.17), transparent 48%),
+    radial-gradient(ellipse at 100% 42%, rgba(36,53,83,.12), transparent 42%),
+    var(--bg, #090a10);
+}
+
+/* Cabeçalho: perfil permanece na primeira linha; navegação rola sem quebrar. */
+.hud {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: minmax(132px, auto) minmax(0, 1fr) auto auto auto;
+  grid-template-rows: minmax(58px, auto);
+  align-items: center;
+  gap: clamp(7px, .8vw, 14px);
+  min-height: 64px;
+  height: auto;
+  padding: 6px clamp(10px, 1.35vw, 22px);
+  background: linear-gradient(180deg, rgba(20,27,43,.98), rgba(8,12,21,.98));
+  border-bottom: 2px solid var(--coliseum-gold);
+  box-shadow: 0 8px 24px rgba(0,0,0,.38);
+  backdrop-filter: blur(14px);
+}
+.hud > .brand { grid-column: 1; grid-row: 1; min-width: 0; padding: 0; }
+.hud > nav {
+  grid-column: 2; grid-row: 1;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 0; height: 100%; gap: 2px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.hud > nav::-webkit-scrollbar { display: none; }
+.hud > .wallet { grid-column: 3; grid-row: 1; display: flex; flex-wrap: nowrap; justify-content: flex-end; gap: 5px; min-width: 0; }
+.hud > .vis-btn { grid-column: 4; grid-row: 1; margin: 0; }
+.hud > .player { grid-column: 5; grid-row: 1; display: flex; align-items: center; justify-self: end; min-width: 0; gap: 7px; }
+.hud .nav {
+  display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center;
+  min-height: 40px; padding: 0 clamp(6px, .7vw, 12px);
+  font-size: 10px; letter-spacing: .8px; white-space: nowrap;
+}
+.hud .nav i { font-size: 14px; }
+.hud .nav span { margin-left: 6px; font-size: 10px; }
+.hud .wallet span { padding: 5px 7px; font-size: 10px; }
+.hud .player .profile { max-width: 142px; padding: 0; border: 0; gap: 7px; }
+.hud .player .profile b, .hud .player .profile small { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud .player .profile small { font-size: 9px; }
+.hud .player .avatar { width: 36px; height: 36px; flex: 0 0 36px; }
+.hud .discord-btn, .hud .logout-btn { min-height: 34px; padding: 7px 10px; font-size: 10px; white-space: nowrap; }
+
+/* Área principal ocupa a largura útil sem virar uma linha de texto infinita. */
+main {
+  width: min(calc(100% - 48px), 1720px);
+  max-width: 1720px;
+  padding: clamp(20px, 2vw, 32px) 0 48px;
+}
+#gwent, .tab, #tab-home, #tab-community, #tab-arena, #tab-deck, #tab-market, #tab-atelier, #tab-guide { min-width: 0; width: 100%; }
+.screen-title { margin: 4px 0 18px; }
+.screen-title h1 { letter-spacing: .12em; text-shadow: 0 2px 12px rgba(201,168,107,.18); }
+.notice { max-width: min(100%, 920px); margin: 0 auto 22px; font-size: 13px; }
+
+/* Superfícies consistentes em todas as páginas. */
+.hub-card, .gwent-builder > div, .gwent-arena, .challenge-panel,
+.atelier-panel, .gwent-store, .gwent-drop-history, .duel-room,
+.gwent-event-history, .gwent-reward-panel {
+  border-color: rgba(201,168,107,.42);
+  box-shadow: var(--coliseum-shadow), inset 0 1px rgba(255,235,190,.035);
+}
+.section-head { min-width: 0; }
+.section-head h3, .hub-card h3 { overflow-wrap: anywhere; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; }
+
+/* Início: hero, perfil e Nara com proporções estáveis. */
+#tab-home .hub-hero {
+  display: flex; align-items: center;
+  min-height: 218px;
+  padding: clamp(22px, 2.4vw, 40px);
+  border: 1px solid rgba(201,168,107,.62);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 92% 18%, rgba(201,168,107,.13), transparent 24%),
+    linear-gradient(112deg, rgba(83,45,23,.78), rgba(28,21,17,.97) 58%, rgba(16,20,31,.98));
+}
+#tab-home .hub-hero-txt { position: relative; z-index: 1; max-width: 980px; }
+#tab-home .hub-hero p { max-width: 650px; line-height: 1.65; }
+#tab-home .hub-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: stretch; }
+#tab-home .hub-card {
+  min-width: 0; min-height: 270px; padding: clamp(16px, 1.5vw, 24px);
+  border: 1px solid rgba(201,168,107,.38); border-radius: 8px;
+  background: linear-gradient(155deg, rgba(34,27,21,.98), rgba(16,17,22,.98));
+}
+#tab-home .hub-card .section-head, #tab-home > .section-head {
+  padding-bottom: 10px; border-bottom: 1px solid rgba(201,168,107,.24);
+}
+#tab-home .nara-log { height: clamp(230px, 25vh, 340px); overflow-y: auto; overscroll-behavior: contain; }
+#tab-home .nara-form { align-items: stretch; margin-top: 10px; }
+#tab-home .nara-form input { min-height: 44px; }
+#tab-home .hub-tops { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+#tab-home .hub-tops > .hub-card { min-height: 0; }
+#tab-home .rank-row { min-width: 0; }
+#tab-home .hub-recent { padding-top: 4px; }
+
+/* Comunidade: ranking legível e lista de membros com bom espaçamento. */
+#tab-community .rank-list { gap: 8px; }
+#tab-community .rank-row {
+  min-height: 54px; padding: 10px 14px;
+  border: 1px solid rgba(201,168,107,.2);
+  background: linear-gradient(90deg, rgba(201,168,107,.07), rgba(20,23,33,.94));
+}
+#tab-community .players-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 10px; }
+#tab-community .player-chip { min-width: 0; border-color: rgba(201,168,107,.22); background: rgba(23,25,35,.88); }
+#tab-community .seg { flex-wrap: wrap; }
+
+/* Arena: desafio e partida recebem largura de leitura confortável. */
+#tab-arena .stage { border-radius: 5px; }
+#tab-arena .challenge-panel { max-width: none; margin: 20px 0 24px; text-align: left; }
+#tab-arena .challenge-form { max-width: 100%; justify-content: stretch; }
+#tab-arena .challenge-form select { max-width: none; }
+#tab-arena .gwent-arena { margin-top: 20px; }
+#tab-arena .gwent-hand { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+
+/* Deck e coleção: deck compacto, coleção ganha prioridade visual. */
+#tab-deck .gwent-builder { grid-template-columns: minmax(330px, .78fr) minmax(0, 1.22fr); gap: clamp(14px, 1.4vw, 22px); }
+#tab-deck .gwent-builder > div { min-width: 0; }
+#tab-deck #gwent-card-pool { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); }
+#tab-deck #gwent-deck-selected { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+#tab-deck .gwent-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, .58fr) minmax(130px, .58fr); }
+#tab-deck .gwent-filters input { min-width: 0; width: 100%; }
+
+/* Mercado: cartões com leitura e ações alinhadas. */
+#tab-market .market-cols { grid-template-columns: minmax(0, 1.5fr) minmax(280px, .85fr); align-items: start; gap: 18px; }
+#tab-market .gwent-store-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+#tab-market .gwent-store-card { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+#tab-market .gwent-store-card p { line-height: 1.65; }
+#tab-market .gwent-pack-card .primary { align-self: flex-start; margin-top: auto; white-space: normal; }
+#tab-market .earn-grid { gap: 12px; }
+
+/* Ateliê: três etapas equilibradas e campos que não estouram o painel. */
+#tab-atelier .atelier-panel { padding: clamp(16px, 2vw, 28px); }
+#tab-atelier .atelier-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+#tab-atelier .atelier-col { min-width: 0; padding: clamp(12px, 1.2vw, 18px); }
+#tab-atelier .atelier-col textarea, #tab-atelier input, #tab-atelier select { max-width: 100%; }
+#tab-atelier .atelier-preview { max-width: 100%; }
+
+/* Guia: blocos com leitura consistente. */
+#tab-guide .factions, #tab-guide .steps { gap: 14px; }
+#tab-guide .faction-card, #tab-guide .step { min-width: 0; }
+#tab-guide p { line-height: 1.65; }
+
+/* Inputs e estados de foco coerentes com o tema do Coliseu. */
+input, select, textarea {
+  max-width: 100%;
+  border-color: rgba(201,168,107,.34) !important;
+}
+input::placeholder, textarea::placeholder { color: #958b7e; opacity: 1; }
+:focus-visible { outline: 2px solid var(--coliseum-gold-light) !important; outline-offset: 3px; }
+.empty-state { border-color: rgba(201,168,107,.35); background: rgba(201,168,107,.035); }
+
+/* Breakpoints: tablet em duas faixas; mobile com navegação inferior existente. */
+@media (max-width: 1450px) and (min-width: 1101px) {
+  .hud { grid-template-columns: minmax(120px, auto) minmax(0, 1fr) auto auto; }
+  .hud > .player { grid-column: 4; }
+  .hud > .vis-btn { display: none; }
+  .hud .player .profile { max-width: 40px; }
+  .hud .player .profile > div:not(.avatar) { display: none; }
+  .hud .wallet span { padding: 4px 6px; }
+  .hud .nav span { display: none; }
+  .hud .nav { min-width: 38px; }
+  main { width: min(calc(100% - 40px), 1500px); }
+}
+@media (max-width: 1100px) {
+  .hud {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 52px 44px;
+    gap: 4px 10px; padding: 5px 12px;
+  }
+  .hud > .brand { grid-column: 1; grid-row: 1; }
+  .hud > .player { grid-column: 2; grid-row: 1; display: flex; }
+  .hud > .player .profile { display: none; }
+  .hud > .nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; overflow-x: auto; }
+  .hud > .wallet, .hud > .vis-btn { display: none; }
+  .hud .nav { min-height: 38px; padding-inline: 11px; }
+  .hud .nav span { display: inline; font-size: 10px; }
+  main { width: min(calc(100% - 36px), 1100px); padding-top: 22px; }
+  #tab-deck .gwent-builder, #tab-market .market-cols { grid-template-columns: minmax(0, 1fr); }
+  #tab-atelier .atelier-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tab-home .hub-tops { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  main { width: calc(100% - 26px); padding: 18px 0 92px; }
+  .screen-title { margin-bottom: 14px; }
+  .screen-title h1 { font-size: clamp(22px, 6vw, 32px); letter-spacing: .1em; }
+  .notice { padding: 10px 12px; font-size: 12px; }
+  #tab-home .hub-grid, #tab-home .hub-tops { grid-template-columns: minmax(0, 1fr); }
+  #tab-home .hub-card { min-height: 0; }
+  #tab-home .hub-hero { min-height: 0; padding: 22px 18px; }
+  #tab-home .hub-hero-txt { width: 100%; }
+  #tab-home .nara-log { height: 240px; }
+  #tab-home .hub-cta { flex-wrap: wrap; }
+  #tab-home .hub-cta > * { flex: 1 1 145px; }
+  #tab-community .section-head { align-items: flex-start; flex-wrap: wrap; }
+  #tab-community .players-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tab-arena .stage { min-height: 0; padding: 26px 14px; }
+  #tab-arena .stage-cards { display: none; }
+  #tab-arena .stage-txt { font-size: 15px; }
+  #tab-arena .challenge-panel { padding: 16px; }
+  #tab-deck .gwent-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #tab-deck .gwent-filters input { grid-column: 1 / -1; }
+  #tab-deck #gwent-card-pool { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tab-market .gwent-store-grid { grid-template-columns: minmax(0, 1fr); }
+  #tab-atelier .atelier-steps { grid-template-columns: minmax(0, 1fr); }
+  .modal { max-width: min(94vw, 520px); }
+}
+@media (max-width: 420px) {
+  main { width: calc(100% - 20px); }
+  .hud { padding-inline: 8px; }
+  .hud .brand .sigil { width: 34px; height: 34px; flex-basis: 34px; }
+  .hud .brand b { font-size: 12px; letter-spacing: 1.5px; }
+  .hud .nav { padding-inline: 9px; }
+  .hud .nav span { font-size: 9px; }
+  #tab-community .players-list { grid-template-columns: minmax(0, 1fr); }
+  #tab-deck #gwent-card-pool { gap: 8px; }
+  #tab-deck #gwent-card-pool .gwent-unit > b { font-size: 9px; }
+  .me-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
