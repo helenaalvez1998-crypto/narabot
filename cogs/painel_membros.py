@@ -203,7 +203,7 @@ def _embed_categoria_membro(categoria: str) -> discord.Embed:
 
 
 async def _montar_embed_central_nara(bot: commands.Bot, user_id: int):
-    """Monta a central inicial de forma concisa e com a prévia do deck do membro."""
+    """Monta a central inicial sem consultar nem renderizar o deck do membro."""
     db = bot.db
     resumo = await db.resumo_painel_nara(int(user_id))
     xp = resumo["xp"]
@@ -219,8 +219,8 @@ async def _montar_embed_central_nara(bot: commands.Bot, user_id: int):
     embed.add_field(
         name="🛡️ Seu progresso",
         value=(
-            f"**Nível {nivel_atual} · {patente_por_nivel(nivel_atual)}**\n"
-            f"{barra_progresso(xp)}\n"
+            f"**Nível {nivel_atual} · {patente_por_nivel(nivel_atual)}**\\n"
+            f"{barra_progresso(xp)}\\n"
             f"🏆 {resumo['platinas']} platinas · ✅ {resumo['zerados']} zerados · ⚔️ {resumo['runs']} runs"
         ),
         inline=False,
@@ -245,46 +245,17 @@ async def _montar_embed_central_nara(bot: commands.Bot, user_id: int):
 
     embed.add_field(
         name="Atalhos rápidos",
-        value="📬 **Meus registros** para acompanhar aprovações · 🔔 **Notificações** para escolher avisos · 👤 **Meu perfil** para consultar sua trajetória.",
+        value=(
+            "📬 **Meus registros** para acompanhar aprovações · "
+            "🔔 **Notificações** para escolher avisos · "
+            "👤 **Meu perfil** para consultar sua trajetória.\\n"
+            "🃏 **Meu deck** para abrir sua coleção e visualizar ou editar suas cartas."
+        ),
         inline=False,
     )
 
-    deck_file = None
-    coliseu = bot.get_cog("ColiseuCartas") if hasattr(bot, "get_cog") else None
-    if coliseu is not None:
-        try:
-            deck = await coliseu.preparar_deck_inicial(int(user_id))
-            if deck:
-                from sistemas.arte_cartas import render_deck_preview_bytes
-                # Pillow é CPU-bound: não deve bloquear o event loop do bot durante
-                # a composição da prévia das cinco cartas.
-                preview = await asyncio.to_thread(render_deck_preview_bytes, deck)
-                deck_file = discord.File(preview, filename="meu_deck.png")
-                custo_deck = sum(int(c.get("custo", 0) or 0) for c in deck)
-                poder_deck = sum(int(c.get("poder", 0) or 0) for c in deck)
-                raridades = {str(c.get("raridade", "Comum")) for c in deck}
-                embed.add_field(
-                    name="🃏 Seu deck está pronto",
-                    value=(
-                        f"**{len(deck)}/5 cartas** · custo **{custo_deck}/12** · poder-base **{poder_deck}**\n"
-                        f"Raridades no deck: {', '.join(sorted(raridades)) or '—'}\n"
-                        "Sua formação aparece abaixo. Em **Meu deck**, você pode editar, abrir pacotes, personalizar artes ou desafiar alguém online."
-                    ),
-                    inline=False,
-                )
-                embed.set_image(url="attachment://meu_deck.png")
-            else:
-                embed.add_field(
-                    name="🃏 Prepare seu primeiro deck",
-                    value="Abra **Meu deck** para receber sua formação inicial e conhecer a coleção.",
-                    inline=False,
-                )
-        except Exception:
-            log.exception("Não foi possível montar a prévia do deck na central /nara para user=%s", user_id)
-            embed.add_field(name="🃏 Seu deck", value="Sua coleção está disponível no botão **Meu deck** abaixo.", inline=False)
-
     embed.set_footer(text="NARA • Painel privado · Voltar retorna uma etapa; Fechar encerra esta sessão")
-    return embed, deck_file
+    return embed, None
 
 
 def _retorno_categoria_membro(bot: commands.Bot, user_id: int, categoria: str):

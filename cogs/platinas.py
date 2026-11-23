@@ -591,7 +591,7 @@ class PainelView(discord.ui.View):
         if callback_voltar is not None:
             from utils import adicionar_botao_voltar
             adicionar_botao_voltar(self, callback_voltar, label="Voltar", emoji="↩️")
-        self.sel_membro = discord.ui.UserSelect(placeholder="🔎 Consultar outro membro (opcional)", row=0)
+        self.sel_membro = discord.ui.UserSelect(placeholder="🔎 Consultar outro membro (opcional)", row=4 if callback_voltar is not None else 0)
         self.sel_membro.callback = self.trocar_membro
         self.add_item(self.sel_membro)
         from cogs.comunidade import adicionar_botao_contribuicao_contextual
