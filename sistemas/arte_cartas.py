@@ -639,163 +639,257 @@ def _draw_gwent_unit(draw: ImageDraw.ImageDraw, box, faction: str, row: str, acc
         draw.ellipse((px-r, py-r, px+r, py+r), fill=(*accent, rng.randint(70, 170)))
 
 
+
 def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = ALTURA_PADRAO,
                illustration_bytes: bytes | None = None) -> Image.Image:
-    # Carta com arte enviada pelo membro: usa o template completo da raridade, se houver.
-    # Sem arte enviada (ou sem template configurado) segue o desenho por código abaixo.
-    if illustration_bytes:
-        com_template = _draw_card_com_template(card, illustration_bytes)
-        if com_template is not None:
-            return com_template
+    """Carta narrativa V11: arte ampla, moldura heráldica e leitura tática clara."""
     rarity = str(card.get("raridade", "Comum"))
-    category_label = str(card.get("categoria", "Unidade"))
-    card_type = str(card.get("tipo", "Magia"))
-    faction = str(card.get("faccao") or {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}.get(card_type, "Ordem de Ferro"))
-    row = str(card.get("fileira") or {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}.get(card_type, "melee"))
-    category = "Especial" if category_label.casefold() == "especial" else "Unidade"
-    rarity_base, rarity_accent = CORES_RARIDADE.get(rarity, CORES_RARIDADE["Comum"])
-    type_accent = CORES_FACCAO.get(faction, ((21, 29, 39), (44, 47, 61)))[1]
-    category_top, category_bottom = CORES_FACCAO.get(faction, ((21, 29, 39), (44, 47, 61)))
-    accent = _mix(rarity_accent, type_accent, 0.34)
-    rng = random.Random(_seed(card))
+    category = "Especial" if str(card.get("categoria", "Unidade")).casefold() == "especial" else "Unidade"
+    ctype = str(card.get("tipo", "Magia"))
+    faction = str(card.get("faccao") or {"Força":"Ordem de Ferro","Destreza":"Errantes do Véu","Magia":"Conclave Arcano"}.get(ctype,"Ordem de Ferro"))
+    row = str(card.get("fileira") or {"Força":"melee","Destreza":"ranged","Magia":"siege"}.get(ctype,"melee"))
+    seed = _seed(card); rng = random.Random(seed)
+    palettes = {
+        "Ordem de Ferro": ((31,25,22),(104,61,40),(215,153,88),(202,194,173)),
+        "Errantes do Véu": ((13,31,34),(31,76,76),(101,190,170),(195,218,202)),
+        "Conclave Arcano": ((27,21,45),(67,46,96),(173,143,230),(220,210,241)),
+    }
+    top, mid, accent, metal = palettes.get(faction, palettes["Ordem de Ferro"])
+    rarity_colors = {
+        "Comum": ((79,88,88),(172,180,172)),
+        "Rara": ((30,82,105),(91,184,210)),
+        "Épica": ((75,43,103),(193,132,224)),
+        "Lendária": ((112,72,27),(236,187,91)),
+        "Primordial": ((116,94,36),(255,229,151)),
+    }
+    rdark, rlight = rarity_colors.get(rarity, rarity_colors["Comum"])
+    sx, sy = width/420, height/620
+    X=lambda v:int(v*sx); Y=lambda v:int(v*sy)
+    B=lambda a,b,c,d:(X(a),Y(b),X(c),Y(d))
+    im=Image.new("RGBA",(width,height),(7,8,10,255))
+    d=ImageDraw.Draw(im,"RGBA")
 
-    image = _gradient(width, height, _mix(category_top, rarity_base, .25), (7, 10, 16))
-    draw = ImageDraw.Draw(image, "RGBA")
-
-    # Textura de fundo determinística: poeira, brasas e riscos finos.
-    for _ in range(190):
-        x = rng.randint(12, width - 13)
-        y = rng.randint(12, height - 13)
-        radius = rng.choice((1, 1, 2, 3))
-        alpha = rng.randint(16, 75)
-        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=(*accent, alpha))
-    for _ in range(18):
-        x = rng.randint(25, width - 25)
-        y = rng.randint(140, 390)
-        draw.line((x, y, x + rng.randint(-16, 16), y - rng.randint(8, 26)),
-                  fill=(*accent, rng.randint(18, 55)), width=1)
-
-    # Luz difusa atrás da ilustração.
-    glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(glow)
-    glow_draw.ellipse((width * .17, height * .22, width * .83, height * .69),
-                      fill=(*accent, 92))
-    glow = glow.filter(ImageFilter.GaussianBlur(max(12, width // 18)))
-    image = Image.alpha_composite(image.convert("RGBA"), glow)
-    draw = ImageDraw.Draw(image, "RGBA")
-
-    _draw_rarity_frame(draw, width, height, rarity, rarity_base, rarity_accent)
-    draw.rounded_rectangle((21, 21, width - 22, height - 22), radius=14,
-                           outline=(238, 231, 211, 38), width=1)
-
-    # Cabeçalho editorial.
-    brand_font = _font(11, True)
-    small_font = _font(13, True)
-    title_font = _font(25, True)
-    draw.text((31, 29), "SOULSBOT  /  COLISEU", font=brand_font, fill=(200, 203, 207, 190))
-    rarity_label = rarity.upper()
-    rarity_box = draw.textbbox((0, 0), rarity_label, font=small_font)
-    pill_w = rarity_box[2] - rarity_box[0] + 22
-    draw.rounded_rectangle((width - 31 - pill_w, 22, width - 31, 48), radius=9,
-                           fill=(*rarity_base, 245), outline=(*rarity_accent, 230), width=1)
-    draw.text((width - 31 - pill_w + 11, 27), rarity_label, font=small_font, fill=(255, 249, 231, 255))
-
-    title = str(card.get("nome", "Carta"))
-    title_lines = _wrap(draw, title, title_font, width - 62)[:2]
-    title_y = 58
-    for line in title_lines:
-        draw.text((31, title_y), line, font=title_font, fill=(245, 241, 229, 255),
-                  stroke_width=0)
-        title_y += 30
-
-    # Janela de ilustração: a composição depende da categoria, não só de um símbolo.
-    art_box = (28, 128, width - 28, 423)
-    x1, y1, x2, y2 = art_box
-    draw.rounded_rectangle(art_box, radius=17, fill=(*category_top, 220), outline=(*accent, 185), width=2)
-    # Delimita a arte com luz periférica.
-    draw.arc((x1 + 12, y1 + 12, x2 - 12, y2 - 12), 190, 350, fill=(*accent, 100), width=2)
+    # Pintura procedural com atmosfera, ruínas e profundidade em camadas.
+    aw,ah=X(384),Y(430)
+    art=Image.new("RGBA",(aw,ah),(*top,255)); a=ImageDraw.Draw(art,"RGBA")
+    for yy in range(ah):
+        t=yy/max(1,ah-1); col=_mix(top,mid,t*.82)
+        a.line((0,yy,aw,yy),fill=(*col,255))
+    sx0=rng.randint(int(aw*.28),int(aw*.72)); sy0=rng.randint(int(ah*.16),int(ah*.37))
+    rad=rng.randint(int(ah*.10),int(ah*.18))
+    for mul,alpha in ((2.1,12),(1.5,24),(1,76)):
+        rr=int(rad*mul); a.ellipse((sx0-rr,sy0-rr,sx0+rr,sy0+rr),fill=(*accent,alpha))
+    # Silhuetas de serras e muralhas.
+    for layer in range(3):
+        pts=[(0,ah)]; base_y=int(ah*(.51+layer*.105))
+        for xx in range(-20,aw+45,max(26,aw//8)):
+            peak=base_y-rng.randint(int(ah*.04),int(ah*.19))
+            pts.extend([(xx,peak),(xx+max(18,aw//13),base_y+rng.randint(-8,9))])
+        pts.append((aw,ah))
+        shade=_mix(top,(7,10,13),.28+layer*.18)
+        a.polygon(pts,fill=(*shade,250))
+    # Torres, paliçadas, bandeiras e fumaça.
+    for i in range(5):
+        bx=rng.randint(-8,max(0,aw-24)); by=rng.randint(int(ah*.55),int(ah*.75))
+        bw=rng.randint(max(12,aw//20),max(20,aw//9)); bh=rng.randint(int(ah*.10),int(ah*.27))
+        stone=_mix(mid,(7,10,12),.52)
+        a.rectangle((bx,by-bh,bx+bw,by),fill=(*stone,235))
+        a.polygon([(bx-4,by-bh),(bx+bw//2,by-bh-8),(bx+bw+4,by-bh)],fill=(*stone,235))
+        for wx in range(bx+5,bx+bw-3,10):
+            a.rectangle((wx,by-bh+8,wx+3,by-bh+16),fill=(*accent,65))
+    for side in (-1,1):
+        pole=int(aw*(.13 if side<0 else .86)); py=int(ah*rng.uniform(.29,.47))
+        a.line((pole,py,pole,int(ah*.82)),fill=(*metal,165),width=max(2,X(3)))
+        fw=int(aw*.12); fh=int(ah*.12)
+        a.polygon([(pole,py),(pole+side*fw,py+Y(7)),(pole+side*fw*.82,py+fh),(pole,py+fh-Y(5))],
+                  fill=(*accent,115),outline=(*metal,150))
+    for i in range(8):
+        yy=rng.randint(int(ah*.63),int(ah*.96))
+        a.line((0,yy,aw,yy+rng.randint(-8,8)),fill=(*metal,rng.randint(12,34)),width=max(1,Y(5)))
+    # Arte enviada pelo jogador ocupa a janela toda, mas recebe a moldura nova.
+    custom=False
     if illustration_bytes:
-        # A ilustração personalizada é aplicada somente na janela de arte. A moldura,
-        # raridade, título, poder e habilidade continuam sendo renderizados pelo bot.
         try:
-            with Image.open(io.BytesIO(illustration_bytes)) as custom_source:
-                custom_art = ImageOps.fit(
-                    custom_source.convert("RGB"),
-                    (x2 - x1, y2 - y1),
-                    method=Image.Resampling.LANCZOS,
-                    centering=(0.5, 0.48),
-                ).convert("RGBA")
-            mask = Image.new("L", (x2 - x1, y2 - y1), 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.rounded_rectangle((0, 0, x2 - x1 - 1, y2 - y1 - 1), radius=17, fill=255)
-            image.paste(custom_art, (x1, y1), mask)
-            draw = ImageDraw.Draw(image, "RGBA")
-            draw.rounded_rectangle(art_box, radius=17, outline=(*accent, 205), width=2)
-            # Overlay sutil integra a arte externa à paleta do Coliseu sem alterar a composição.
-            shade = Image.new("RGBA", (x2 - x1, y2 - y1), (5, 8, 13, 22))
-            image.alpha_composite(shade, (x1, y1))
-            draw = ImageDraw.Draw(image, "RGBA")
-        except (OSError, ValueError):
-            # Se uma imagem antiga do Discord estiver corrompida, mantém a arte oficial.
-            _draw_gwent_unit(draw, art_box, faction, row, accent, rng)
+            with Image.open(io.BytesIO(illustration_bytes)) as src:
+                art=ImageOps.fit(src.convert("RGB"),(aw,ah),method=Image.Resampling.LANCZOS,
+                                 centering=(.5,.46)).convert("RGBA")
+            tint=Image.new("RGBA",art.size,(*top,18)); art=Image.alpha_composite(art,tint); custom=True
+        except (OSError,ValueError):
+            custom=False
+    if not custom and category=="Unidade":
+        a=ImageDraw.Draw(art,"RGBA")
+        cx=int(aw*rng.uniform(.44,.57)); ground=int(ah*.94)
+        archetype=seed%8
+        body=_mix((12,16,20),accent,.22); cloth=_mix(top,metal,.18)
+        # capa, com pontas e dobras ao vento
+        cape=cx+rng.choice((-1,1))*int(aw*.27)
+        a.polygon([(cx-X(20),int(ah*.38)),(cx+X(20),int(ah*.38)),(cape,ground),
+                   (cx+X(9),int(ah*.82)),(cx-X(18),ground-Y(8))],
+                  fill=(*_mix(top,(4,6,9),.25),245),outline=(*accent,175))
+        head_y=int(ah*(.30 if archetype!=3 else .38)); hr=int(ah*(.064 if archetype!=3 else .105))
+        if archetype==3: # fera / criatura
+            a.ellipse((cx-hr,head_y-hr,cx+hr,head_y+hr),fill=(*body,255),outline=(*metal,235),width=max(2,X(3)))
+            a.polygon([(cx-hr+4,head_y-hr+8),(cx-hr-X(24),head_y-hr-Y(38)),(cx-hr//3,head_y-hr+3)],
+                      fill=(*body,255),outline=(*accent,245))
+            a.polygon([(cx+hr-4,head_y-hr+8),(cx+hr+X(24),head_y-hr-Y(38)),(cx+hr//3,head_y-hr+3)],
+                      fill=(*body,255),outline=(*accent,245))
+            a.ellipse((cx-hr//2,head_y-2,cx-hr//2+X(7),head_y+Y(6)),fill=(*accent,255))
+            a.ellipse((cx+hr//2-X(7),head_y-2,cx+hr//2,head_y+Y(6)),fill=(*accent,255))
+            a.polygon([(cx-hr,head_y+hr//2),(cx+hr,head_y+hr//2),(cx+int(aw*.21),ground),
+                       (cx-int(aw*.21),ground)],fill=(*body,255),outline=(*metal,180))
+        else:
+            # elmo/rosto e pescoço
+            a.ellipse((cx-hr,head_y-hr,cx+hr,head_y+hr),fill=(151,119,96,255),outline=(*metal,220),width=max(1,X(2)))
+            a.pieslice((cx-hr-X(5),head_y-hr-Y(10),cx+hr+X(5),head_y+hr),180,360,
+                       fill=(*body,255),outline=(*metal,210))
+            if archetype in (1,7):
+                a.polygon([(cx,head_y-hr-Y(20)),(cx-hr-X(17),head_y-hr+Y(5)),
+                           (cx+hr+X(17),head_y-hr+Y(5))],fill=(*_mix(body,accent,.15),255),outline=(*accent,220))
+            shoulder=int(aw*(.17 if archetype not in (2,5) else .14))
+            torso_top=head_y+hr; torso_bottom=int(ah*(.75 if archetype!=2 else .84))
+            waist=int(shoulder*.58)
+            if archetype==2: # arcanista de manto
+                shape=[(cx-shoulder,torso_top),(cx+shoulder,torso_top),(cx+int(aw*.22),ground),
+                       (cx-int(aw*.22),ground)]
+            elif archetype==5: # assassino leve
+                shape=[(cx-int(shoulder*.8),torso_top),(cx+int(shoulder*.8),torso_top),
+                       (cx+waist,torso_bottom),(cx-waist,torso_bottom)]
+            else:
+                shape=[(cx-shoulder,torso_top+8),(cx-int(shoulder*.7),torso_top-2),
+                       (cx+int(shoulder*.7),torso_top-2),(cx+shoulder,torso_top+8),
+                       (cx+waist,torso_bottom),(cx-waist,torso_bottom)]
+            a.polygon(shape,fill=(*body,255),outline=(*metal,235),width=max(2,X(3)))
+            a.polygon([(cx-int(shoulder*.64),torso_top+8),(cx+int(shoulder*.64),torso_top+8),
+                       (cx+int(shoulder*.42),torso_top+int(ah*.19)),(cx,torso_bottom-Y(10)),
+                       (cx-int(shoulder*.42),torso_top+int(ah*.19))],
+                      fill=(*cloth,255),outline=(*accent,245),width=max(1,X(2)))
+            # placas de ombro, rebites, brasão e cintura
+            for side in (-1,1):
+                qx=cx+side*int(shoulder*.82)
+                a.polygon([(qx-side*X(13),torso_top+5),(qx+side*X(16),torso_top+8),
+                           (qx+side*X(22),torso_top+Y(31)),(qx,torso_top+Y(39)),
+                           (qx-side*X(17),torso_top+Y(24))],fill=(*_mix(body,metal,.22),255),
+                          outline=(*metal,230))
+                a.ellipse((qx-X(3),torso_top+Y(18),qx+X(3),torso_top+Y(24)),fill=(*accent,255))
+            a.polygon([(cx,torso_top+Y(15)),(cx+X(15),torso_top+Y(31)),
+                       (cx,torso_top+Y(48)),(cx-X(15),torso_top+Y(31))],
+                      fill=(*accent,245),outline=(*metal,255))
+            a.line((cx-int(shoulder*.5),torso_top+int(ah*.24),cx+int(shoulder*.5),torso_top+int(ah*.24)),
+                   fill=(*metal,185),width=max(2,X(3)))
+            # braços em pose assimétrica e pernas em passada
+            arm_l=(cx-int(shoulder*.84),torso_top+Y(12)); elbow_l=(cx-int(shoulder*1.16),int(ah*.57))
+            hand_l=(cx-int(shoulder*.72),int(ah*.66)); arm_r=(cx+int(shoulder*.82),torso_top+Y(10))
+            elbow_r=(cx+int(shoulder*1.12),int(ah*.48)); hand_r=(cx+int(aw*.19),int(ah*.58))
+            for aa,bb,cc in ((arm_l,elbow_l,hand_l),(arm_r,elbow_r,hand_r)):
+                a.line((aa[0],aa[1],bb[0],bb[1]),fill=(*body,255),width=max(8,X(17)))
+                a.line((bb[0],bb[1],cc[0],cc[1]),fill=(*body,255),width=max(7,X(14)))
+                a.ellipse((bb[0]-X(9),bb[1]-Y(9),bb[0]+X(9),bb[1]+Y(9)),
+                          fill=(*_mix(body,metal,.3),255),outline=(*metal,235),width=max(1,X(2)))
+            hip=int(ah*.74)
+            for side in (-1,1):
+                hx=cx+side*int(waist*.55); kx=cx+side*int(aw*.07); ky=int(ah*(.80 if side<0 else .77))
+                bx=cx+side*int(aw*(.12 if side<0 else .085))
+                a.line((hx,hip,kx,ky),fill=(*body,255),width=max(10,X(19)))
+                a.line((kx,ky,bx,ground),fill=(*body,255),width=max(9,X(16)))
+                a.polygon([(kx-X(12),ky-Y(10)),(kx+X(12),ky-Y(10)),
+                           (kx+X(14),ky+Y(12)),(kx-X(14),ky+Y(12))],
+                          fill=(*_mix(body,metal,.25),255),outline=(*metal,230))
+                a.line((bx-X(9),ground-Y(3),bx+X(14),ground-Y(3)),fill=(*metal,225),width=max(2,X(4)))
+            # armas e adereços distintos por fileira
+            hx,hy=hand_r
+            if row=="melee":
+                a.line((hx,hy,cx+int(aw*.28),int(ah*.16)),fill=(211,215,210,255),width=max(4,X(7)))
+                a.line((hx-X(13),hy-Y(12),hx+X(13),hy+Y(10)),fill=(*accent,255),width=max(3,X(5)))
+            elif row=="ranged":
+                bx=cx+int(aw*.23)
+                a.arc((bx-int(aw*.10),int(ah*.27),bx+int(aw*.10),int(ah*.69)),270,90,fill=(*accent,255),width=max(4,X(6)))
+                a.line((bx,int(ah*.28),bx,int(ah*.70)),fill=(*metal,255),width=max(2,X(2)))
+            else:
+                ox=cx+int(aw*.24); oy=int(ah*.17)
+                a.line((hx,hy,ox,oy),fill=(*metal,255),width=max(5,X(8)))
+                rr=int(aw*.06); a.ellipse((ox-rr,oy-rr,ox+rr,oy+rr),fill=(*accent,215),outline=(*metal,255),width=max(2,X(3)))
+            # partículas, runas e luz de recorte
+            for _ in range(42):
+                qx=rng.randint(4,aw-4); qy=rng.randint(int(ah*.18),ah-4); rr=rng.choice((1,2,3))
+                a.ellipse((qx-rr,qy-rr,qx+rr,qy+rr),fill=(*accent,rng.randint(35,125)))
+    elif not custom:
+        # Especiais: tempestade, selo, fogo ou ruptura arcana.
+        a=ImageDraw.Draw(art,"RGBA"); cx,cy=aw//2,int(ah*.5); motif=seed%6
+        for i in range(6):
+            rr=int(min(aw,ah)*(.11+i*.065))
+            a.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline=(*accent,max(28,135-i*17)),width=max(1,X(2)))
+        for ang in range(0,360,30 if motif%2==0 else 45):
+            rad=math.radians(ang+rng.randint(-5,5))
+            ex=cx+int(math.cos(rad)*aw*.46); ey=cy+int(math.sin(rad)*ah*.43)
+            a.line((cx,cy,ex,ey),fill=(*metal,105),width=max(1,X(2)))
+        a.polygon([(cx,cy-int(ah*.28)),(cx+int(aw*.18),cy),
+                   (cx,cy+int(ah*.28)),(cx-int(aw*.18),cy)],
+                  fill=(*accent,75),outline=(*metal,235),width=max(2,X(3)))
+        rr=int(aw*.07); a.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),fill=(*accent,180),outline=(*metal,255),width=max(2,X(3)))
+    im.alpha_composite(art,(X(18),Y(92)))
+    d=ImageDraw.Draw(im,"RGBA")
+    # Moldura de metal envelhecido e acabamento diferente por raridade.
+    d.rounded_rectangle(B(5,5,415,615),radius=X(18),fill=(8,9,11,255),outline=(*rdark,255),width=max(4,X(7)))
+    d.rounded_rectangle(B(12,12,408,608),radius=X(14),outline=(*rlight,255),width=max(1,X(2)))
+    d.rounded_rectangle(B(18,18,402,602),radius=X(10),outline=(*metal,95),width=max(1,X(1)))
+    # Cantoneiras rebitadas e filetes laterais.
+    for xx,yy in ((23,23),(397,23),(23,597),(397,597)):
+        d.ellipse(B(xx-3,yy-3,xx+3,yy+3),fill=(*rlight,240),outline=(*metal,255))
+    if rarity in ("Épica","Lendária","Primordial"):
+        for side in (1,-1):
+            xx=X(23 if side==1 else 397)
+            d.line((xx,Y(125),xx,Y(405)),fill=(*rlight,110),width=max(1,X(2)))
+            for yy in range(150,400,48):
+                d.polygon([(xx,Y(yy-5)),(xx+X(5*side),Y(yy)),(xx,Y(yy+5)),(xx-X(5*side),Y(yy))],fill=(*rlight,180))
+    if rarity=="Primordial":
+        d.rounded_rectangle(B(2,2,418,618),radius=X(21),outline=(255,235,170,255),width=max(2,X(3)))
+    # Placa superior.
+    d.rounded_rectangle(B(24,22,396,83),radius=X(7),fill=(11,13,15,235),outline=(*rlight,185),width=max(1,X(2)))
+    d.text((X(35),Y(27)),"COLISEU  ·  CRÔNICAS DE GUERRA",font=_font(max(8,X(10)),True),fill=(*metal,215))
+    title=str(card.get("nome","Carta")); title_font=_font(max(12,X(22)),True)
+    for i,line in enumerate(_wrap(d,title,title_font,X(340))[:2]):
+        d.text((X(35),Y(45+i*22)),line,font=title_font,fill=(246,239,221,255))
+    # Medalhão de poder.
+    px,py=X(48),Y(119); pr=X(28)
+    d.polygon([(px,py-pr),(px+pr,py-Y(13)),(px+pr,py+Y(13)),(px,py+pr),(px-pr,py+Y(13)),(px-pr,py-Y(13))],
+              fill=(*rdark,255),outline=(*rlight,255))
+    d.text((px,py-Y(1)),str(int(card.get("poder",0) or 0)),font=_font(max(14,X(25)),True),
+           fill=(255,248,225,255),anchor="mm",stroke_width=max(1,X(1)),stroke_fill=(0,0,0,255))
+    # Brasão vetorial sem fonte de ícones.
+    ex,ey=X(370),Y(119); er=X(18)
+    d.ellipse((ex-er,ey-er,ex+er,ey+er),fill=(10,13,15,230),outline=(*accent,255),width=max(2,X(3)))
+    if faction=="Ordem de Ferro":
+        d.line((ex,ey+Y(11),ex,ey-Y(11)),fill=(*metal,255),width=max(2,X(3)))
+        d.line((ex-X(11),ey-Y(3),ex+X(11),ey-Y(3)),fill=(*metal,255),width=max(2,X(3)))
+        d.polygon([(ex,ey-Y(16)),(ex+X(5),ey-Y(5)),(ex,ey+Y(2)),(ex-X(5),ey-Y(5))],fill=(*accent,255))
+    elif faction=="Errantes do Véu":
+        for ang in range(0,360,60):
+            rr=math.radians(ang); ox=ex+int(math.cos(rr)*er*.62); oy=ey+int(math.sin(rr)*er*.62)
+            d.ellipse((ox-X(3),oy-Y(3),ox+X(3),oy+Y(3)),fill=(*metal,255))
+        d.ellipse((ex-X(5),ey-Y(5),ex+X(5),ey+Y(5)),fill=(*accent,255))
     else:
-        _draw_gwent_unit(draw, art_box, faction, row, accent, rng)
-
-    # Pequena assinatura de tipo na base da ilustração.
-    type_label = f"{faction.upper()} · {ROTULOS_FILEIRA.get(row, 'UNIDADE')}"
-    label_font = _font(12, True)
-    draw.rounded_rectangle((x1 + 12, y2 - 31, x2 - 12, y2 - 9), radius=7,
-                           fill=(5, 9, 15, 220), outline=(*accent, 140), width=1)
-    label_font = _font(10, True)
-    draw.text((x1 + 20, y2 - 27), type_label[:48], font=label_font, fill=(*accent, 255))
-
-    # Painel de atributos, com poder em selo visual destacado.
-    draw.line((28, 438, width - 28, 438), fill=(*rarity_accent, 180), width=2)
-    power = int(card.get("poder", 0) or 0)
-    cost = int(card.get("custo", 0) or 0)
-    badge_x, badge_y = 72, 493
-    draw.ellipse((badge_x - 39, badge_y - 39, badge_x + 39, badge_y + 39),
-                 fill=(*rarity_base, 255), outline=(*rarity_accent, 255), width=4)
-    draw.ellipse((badge_x - 30, badge_y - 30, badge_x + 30, badge_y + 30),
-                 outline=(255, 244, 211, 125), width=1)
-    _text_center(draw, (badge_x, badge_y - 7), str(power), _font(31, True), (255, 248, 227, 255))
-    _text_center(draw, (badge_x, badge_y + 23), "PODER", _font(9, True), (231, 221, 199, 235))
-
-    # Tipo e custo em etiquetas independentes.
-    draw.rounded_rectangle((127, 459, width - 30, 489), radius=9,
-                           fill=(15, 22, 31, 235), outline=(*type_accent, 185), width=1)
-    _draw_type_icon(draw, (145, 474), card_type, type_accent)
-    draw.text((164, 465), faction, font=_font(12, True), fill=(242, 240, 232, 255))
-    draw.rounded_rectangle((127, 496, width - 30, 526), radius=9,
-                           fill=(15, 22, 31, 235), outline=(*rarity_accent, 145), width=1)
-    draw.text((140, 502), f"CUSTO DE DECK  ·  {cost}", font=_font(13, True), fill=(231, 226, 211, 255))
-
-    # Habilidade em faixa própria, sempre legível na imagem individual e no pacote.
-    ability = HABILIDADES.get(str(card.get("habilidade", "")), {})
-    ability_name = str(ability.get("nome", "Habilidade"))
-    ability_text = str(ability.get("texto", card.get("descricao", "")))
-    draw.rounded_rectangle((28, 542, width - 28, 588), radius=10,
-                           fill=(12, 17, 25, 245), outline=(*accent, 125), width=1)
-    draw.text((40, 548), ability_name.upper()[:34], font=_font(11, True), fill=(*accent, 255))
-    ability_lines = _wrap(draw, ability_text, _font(11), width - 90)[:2]
-    for index, line in enumerate(ability_lines):
-        draw.text((40, 563 + index * 12), line, font=_font(11), fill=(225, 226, 222, 245))
-
-    if rarity in {"Lendária", "Primordial"}:
-        for i in range(5):
-            px = 35 + i * 84
-            py = 120 + (i % 2) * 8
-            draw.polygon([(px, py - 4), (px + 4, py), (px, py + 4), (px - 4, py)],
-                         fill=(255, 235, 164, 225))
-    elif rarity == "Épica":
-        for i in range(4):
-            px = 50 + i * 105
-            draw.ellipse((px - 2, 117, px + 2, 121), fill=(*rarity_accent, 220))
-
-    return image.convert("RGB")
+        d.ellipse((ex-X(10),ey-Y(10),ex+X(10),ey+Y(10)),outline=(*metal,255),width=max(1,X(2)))
+        d.line((ex,ey-Y(12),ex,ey+Y(12)),fill=(*accent,255),width=max(2,X(2)))
+        d.line((ex-X(9),ey+Y(5),ex+X(9),ey-Y(5)),fill=(*accent,255),width=max(2,X(2)))
+    # Painel inferior com tipografia e texto de efeito.
+    d.polygon([(X(22),Y(468)),(X(398),Y(468)),(X(390),Y(602)),(X(30),Y(602))],
+              fill=(13,15,16,250),outline=(*rlight,230))
+    d.line((X(29),Y(475),X(391),Y(475)),fill=(*accent,235),width=max(2,Y(2)))
+    d.text((X(37),Y(482)),faction.upper(),font=_font(max(9,X(12)),True),fill=(*accent,255))
+    row_label={"melee":"CORPO A CORPO","ranged":"LONGA DISTÂNCIA","siege":"CERCO"}.get(row,"TÁTICA") if category=="Unidade" else "CARTA ESPECIAL  ·  TÁTICA"
+    d.text((X(37),Y(501)),row_label,font=_font(max(8,X(10)),True),fill=(*metal,225))
+    ability=HABILIDADES.get(str(card.get("habilidade","")),{})
+    aname=str(ability.get("nome","Tática")); atext=str(ability.get("texto",card.get("descricao","")))
+    d.text((X(37),Y(524)),aname.upper()[:29],font=_font(max(9,X(12)),True),fill=(*rlight,255))
+    for i,line in enumerate(_wrap(d,atext,_font(max(8,X(10))),X(270))[:3]):
+        d.text((X(37),Y(543+i*13)),line,font=_font(max(8,X(10))),fill=(226,222,210,250))
+    cost=int(card.get("custo",0) or 0)
+    d.ellipse(B(340,520,391,571),fill=(*rdark,255),outline=(*rlight,255),width=max(2,X(3)))
+    d.text((X(365),Y(537)),str(cost),font=_font(max(13,X(22)),True),fill=(255,247,222,255),anchor="mm")
+    d.text((X(365),Y(556)),"PROV.",font=_font(max(7,X(8)),True),fill=(*metal,255),anchor="mm")
+    return im.convert("RGB")
 
 
-# ---------------------------------------------------------------------------
 # Cartas com template completo (somente quando o membro enviou uma arte)
 # ---------------------------------------------------------------------------
 def _ajustar_texto(draw: ImageDraw.ImageDraw, texto: str, largura: int, altura: int, *,

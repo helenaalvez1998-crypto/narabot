@@ -13,7 +13,7 @@ from typing import Any
 
 from levels import PATENTES
 
-VERSAO_ARTES = 10
+VERSAO_ARTES = 13
 
 TIPOS = ("Destreza", "Força", "Magia")
 EMOJIS_TIPO = {"Destreza": "🌀", "Força": "⚔️", "Magia": "🔮"}
