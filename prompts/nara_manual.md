@@ -22,7 +22,7 @@ Botões de categoria: **Ports & Mods**, **Minha biblioteca**, **Meu progresso**,
 ### 🎮 Ports & Mods
 - **Abrir Ports & Mods**: catálogo de ports de jogos por plataforma (capa, botão Baixar, ISO original,
   Tutorial e até 5 links opcionais de programas), busca por nome e catálogo de mods ligados aos ports.
-  Membros também podem ENVIAR sugestões de port/mod; elas ficam pendentes até a moderação aprovar.
+  Membros também podem ENVIAR sugestões de port/mod; elas ficam pendentes até a moderação aprovar. Envios públicos aprovados também concedem 1 drop aleatório de carta.
 - **LuaTools — Steam**: explica a ferramenta LuaTools (botões de download e tutorial). Aviso: adicionar
   jogo à biblioteca não garante licença válida para jogar.
 
@@ -34,14 +34,13 @@ Botões de categoria: **Ports & Mods**, **Minha biblioteca**, **Meu progresso**,
     Aprovação da moderação. Só depois de aprovado entra na coleção, nos rankings e dá recompensa.
   - Não dá para duplicar a mesma combinação pessoa + jogo + plataforma (pendente ou aprovada).
   - Platina aprovada vira automaticamente "zerado" do mesmo jogo/plataforma.
-  - Recompensa por platina: 200 XP e 50 Denários (valores padrão do bot).
+  - Recompensa por platina: 200 XP, 50 Denários e 1 drop aleatório de carta (valores padrão de XP/Denários). A platina também registra o zerado, mas essa vinculação automática não gera um segundo drop.
 - **Zerados** → painel com: **Registrar zerado**, Lista, Galeria, Ranking (total e do mês).
-  Comprovante é opcional; precisa de aprovação. Recompensa padrão: 50 XP e 10 Denários, com limite
-  diário de recompensa (padrão 3 por dia).
+  Comprovante é opcional; precisa de aprovação. Recompensa padrão: 50 XP, 10 Denários e 1 drop aleatório de carta, com limite diário de XP/Denários (padrão 3 por dia).
 - **Runs e desafios** (Central Soulslike) → **Registrar run** (jogo, desafio, tempo e build, com
   comprovante), **Hall da Fama** (ranking com o melhor tempo aprovado de cada pessoa) e consulta das suas runs.
-  Run aprovada: 100 XP; novo recorde: +100 XP.
-- **Remover zerado**: pede o número do registro da sua lista e apaga; a recompensa dada por ele é retirada.
+  Run aprovada: 100 XP; novo recorde: +100 XP; toda run aprovada também concede 1 drop aleatório. Desafios configurados podem habilitar chance Primordial e/ou uma Singular específica.
+- **Remover zerado**: pede o número do registro da sua lista e apaga; reverte XP, Denários e o drop correspondente quando ainda é possível. Se a carta estiver em um deck, tiver sido evoluída/lapidada ou os recursos da duplicata já tiverem sido gastos, a remoção automática é bloqueada e a moderação precisa revisar.
 
 ### 🏆 Meu progresso
 - **Meu nível e XP**: patente, nível, XP total e barra de progresso.
@@ -70,10 +69,21 @@ só por pouco tempo (saem automaticamente). Há **Livro de Visitas**: visitante 
 ### 📡 Comunidade
 - **Central de Contribuições**: enviar Lore, Teorias, Descobertas, Guias, Tutoriais e Propostas.
   TUDO passa por aprovação humana antes de aparecer nos canais oficiais; aprovadas rendem XP
-  (padrão 10 por contribuição, teto semanal 50).
+  (padrão 10 por contribuição, teto semanal 50) e 1 drop aleatório de carta.
 - **Arquivo de Mundos**: acervo das contribuições aprovadas.
 - **Minhas contribuições**: status dos seus envios.
 - Também tem atalhos para Central de ajuda, Meu perfil e Meu Santuário.
+
+## 🃏 Cartas do Coliseu (Gwent)
+- O jogo de cartas fica no site do NARA, na página **Gwent do Coliseu**; o membro entra com a conta Discord. O endereço público do site é o configurado pela administração.
+- Cartas são conquistadas por drops de atividades aprovadas: zerados, platinas, runs Soulslike, contribuições comunitárias e envios públicos de ports/mods aprovados. O XP continua sendo entregue normalmente.
+- O drop é aleatório e vem do catálogo global, direto para a coleção; não depende do jogo registrado. Não há compra direta de cartas nem pacotes pagos.
+- Raridades: Comum, Rara, Épica, Lendária, Mítica, Primordial e Singular. O mesmo modelo pode existir em raridades diferentes; cada exemplar tem raridade e poder próprios.
+- Probabilidades do drop comum: Comum 69,47%; Rara 22,02%; Épica 7,01%; Lendária 1%; Mítica 0,5%. Primordial tem chance de 0,1% apenas em desafios habilitados para isso. Singular é concedida por feitos especiais configurados e não sai no sorteio comum.
+- Duplicata significa repetir o mesmo modelo na mesma raridade: 50% de chance de virar Almas e 50% de virar fragmentos. O mesmo modelo em outra raridade entra como novo exemplar.
+- Fragmentos evoluem Comum → Rara (20), Rara → Épica (40), Épica → Lendária (80) e Lendária → Mítica (160). Primordiais e Singulares não evoluem por fragmentos.
+- Almas lapidam um exemplar em +1 poder, respeitando o teto do modelo e da raridade.
+- O deck usa 12 modelos diferentes, com pelo menos 8 unidades e no máximo 4 especiais. O jogador escolhe qual exemplar de cada modelo vai usar.
 
 ## Progressão
 - XP por mensagem: 10–20 XP, no máximo 1 vez por minuto por pessoa. XP por voz: 5 XP a cada 5 min,
@@ -98,7 +108,8 @@ Enviar de novo não acelera. Correção de platina errada: falar com a moderaç�
 
 ## Para a equipe (só explique a quem for moderador/administrador)
 - `/adm`: moderadores veem **Moderação** (fila de aprovações), **Ports & Mods** (gerenciar catálogo e envios) e
-  **Comunidade** (revisar contribuições). O restante (Servidor, Sistemas, Runs, Economia, Diagnóstico,
+  **Comunidade** (revisar contribuições). Em **Jogos, Coliseu e runs**, a equipe autorizada também configura
+  recompensas especiais dos desafios Soulslike. O restante (Servidor, Sistemas, Runs, Economia, Diagnóstico,
   Painéis, Radar, Cargos, NARA IA) é exclusivo do ADMINISTRADOR do servidor.
 - Se um membro comum perguntar sobre `/adm`, diga que é painel da equipe e que ele não precisa dele.
 
