@@ -243,7 +243,8 @@ async function buyGwentPack() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Não foi possível comprar o pacote.');
     const cards = Array.isArray(data.cards) ? data.cards : [];
-    $('#gwent-pack-results').innerHTML = `<div class="gwent-pack-opened"><h4>Pacote aberto</h4><div class="gwent-pack-opened-cards">${cards.map(card => `<article><b>${escapeHTML(card.card_name || card.card_id)}</b><span>${escapeHTML(card.rarity)} · ${number(card.power)} poder</span><small>${card.outcome === 'carta' ? 'Novo exemplar' : card.outcome === 'almas' ? `Duplicata · +${number(card.almas)} Almas` : `Duplicata · +${number(card.fragmentos)} fragmentos`}</small></article>`).join('')}</div></div>`;
+    $('#gwent-pack-results').innerHTML = `<div class="gwent-pack-opened"><h4>Pacote aberto</h4><div class="gwent-pack-opened-cards">${cards.map(card => `<article class="pk" data-r="${escapeHTML(String(card.rarity||'comum').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''))}"><b>${escapeHTML(card.card_name || card.card_id)}</b><span>${escapeHTML(card.rarity)} · ${number(card.power)} poder</span><small>${card.outcome === 'carta' ? 'Novo exemplar' : card.outcome === 'almas' ? `Duplicata · +${number(card.almas)} Almas` : `Duplicata · +${number(card.fragmentos)} fragmentos`}</small></article>`).join('')}</div></div>`;
+    revealPack();
     showNotice('Pacote comprado e aberto. As cartas já estão na sua coleção.', 'success');
     await loadAccount(); await loadGwentStore(); await loadDropHistory();
   } catch (error) {
@@ -554,3 +555,19 @@ loadAccount().then(async () => {
   const requested = new URLSearchParams(window.location.search).get('gwent');
   if (requested && /^\d+$/.test(requested)) openGwentMatch(requested);
 });
+
+/* Abertura de pacote: cartas viradas que se revelam uma a uma (clique para pular) */
+function revealPack() {
+  const box = document.querySelector('#gwent-pack-results .gwent-pack-opened');
+  if (!box) return;
+  const items = [...box.querySelectorAll('article.pk')];
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  items.forEach(el => el.classList.add('pk-hide'));
+  const order = items.map((el, i) => i).sort((x, y) => (RARANK[items[x].dataset.r] || 0) - (RARANK[items[y].dataset.r] || 0));
+  let timers = [];
+  const show = el => { el.classList.remove('pk-hide'); el.classList.add('pk-show'); };
+  order.forEach((idx, n) => timers.push(setTimeout(() => show(items[idx]), 500 + n * 750)));
+  box.addEventListener('click', () => { timers.forEach(clearTimeout); items.forEach(show); }, { once: true });
+  const h = box.querySelector('h4'); if (h) h.insertAdjacentHTML('afterend', '<small class="pk-skip">Clique para revelar tudo</small>');
+}
+const RARANK = { comum: 0, rara: 1, epica: 2, lendaria: 3, mitica: 4, primordial: 5, singular: 6 };

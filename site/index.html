@@ -110,7 +110,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   <div class="atelier-lower"><div><h4>Minhas submissões</h4><div id="atelier-history" class="atelier-history"><p class="muted">Entre com Discord para consultar.</p></div></div>
   <div id="atelier-review-panel" hidden><h4>Fila de aprovação</h4><div id="atelier-review-queue" class="atelier-history"></div></div></div>
 </section></div>
-  <div class="tab" id="tab-guide" data-title="Guia"><section class="sec-title reveal"><small class="eyebrow">ESCOLHA SEU DESTINO</small><h2>As Três Facções</h2></section>
+  <div class="tab" id="tab-guide" data-title="Guia"><div style="text-align:center;margin:0 0 18px"><button class="big tour-again" type="button">▶ Ver tutorial guiado</button></div><section class="sec-title reveal"><small class="eyebrow">ESCOLHA SEU DESTINO</small><h2>As Três Facções</h2></section>
       <div class="factions reveal"><article class="faction-card f1" data-s="⚔"><h3>Ordem de Ferro</h3><p>Disciplina e aço. Fileiras fortes, unidades que se protegem e avançam em formação.</p></article><article class="faction-card f2" data-s="☘"><h3>Errantes do Véu</h3><p>Agilidade e emboscadas. Ataques rápidos, truques e cartas que mudam o rumo da rodada.</p></article><article class="faction-card f3" data-s="✦"><h3>Conclave Arcano</h3><p>Magia e sinergia. Feitiços poderosos que transformam o campo inteiro de batalha.</p></article></div>
       <section class="sec-title reveal"><small class="eyebrow">GUIA DO GUERREIRO</small><h2>Como Jogar</h2></section>
       <div class="steps reveal"><div class="step"><h4>Monte o Deck</h4><p>12 cartas: no mínimo 8 unidades e até 4 especiais.</p></div><div class="step"><h4>Desafie</h4><p>Escolha um rival com deck salvo e inicie o duelo.</p></div><div class="step"><h4>Domine as Fileiras</h4><p>Jogue cartas e supere o poder do adversário na rodada.</p></div><div class="step"><h4>Conquiste 2 Coroas</h4><p>Vença duas das três rodadas e leve glória e recompensas.</p></div></div>
@@ -207,5 +207,32 @@ window.openCardDetail=open;
 (()=>{const n=document.getElementById('notice');if(n){let busy=0;const f=()=>{if(busy)return;busy=1;const t=n.textContent;if(/entre com sua conta/i.test(t)&&!n.querySelector('a.nl')){const a=document.createElement('a');a.className='nl';a.href='/auth/discord/login';a.textContent='Entrar com Discord';a.title='Entre para montar deck, abrir pacotes e jogar partidas';n.appendChild(a)}busy=0};new MutationObserver(f).observe(n,{childList:true,characterData:true,subtree:true});f()}
 let to;const mark=()=>document.querySelectorAll('main p,main span,main small').forEach(e=>{if(e.children.length)return;e.classList.toggle('is-loading',/^carregando/i.test(e.textContent.trim()))});
 new MutationObserver(()=>{clearTimeout(to);to=setTimeout(mark,100)}).observe(document.body,{childList:true,subtree:true,characterData:true});mark()})();
+</script>
+<script>
+/* Tutorial guiado: abre na 1ª visita e pelo botão "Ver tutorial" (Guia) */
+(()=>{const S=[
+{t:'arena',s:'.menu-btns .gold',h:'Jogar',p:'Aqui começa o duelo. Escolha um rival com deck salvo e inicie a partida: melhor de 3 rodadas, vence quem ganhar 2 coroas.'},
+{t:'deck',s:'.gwent-config',h:'Monte seu deck',p:'Escolha a facção e o líder, depois monte 12 cartas: no mínimo 8 unidades e até 4 especiais. Salve para poder jogar.'},
+{t:'deck',s:'#gwent-card-pool',h:'Sua coleção',p:'Todas as suas cartas aparecem aqui. Use a busca e os filtros de facção e raridade; clique numa carta para ver detalhes.'},
+{t:'market',s:'#earn-panel',h:'Ganhe cartas contribuindo',p:'Jogos zerados, platinas, runs, mods e ports aprovados rendem cartas. O bot avisa a comunidade quando você ganha.'},
+{t:'market',s:'.gwent-pack-card',h:'Pacotes da Forja',p:'Gaste Denários para abrir pacotes de 3 cartas. Há proteção de raridade após várias comuns seguidas.'},
+{t:'atelier',s:'.atelier-steps',h:'Ateliê',p:'Crie a arte oficial de uma carta em 3 passos e receba o crédito para todos verem.'}];
+let i=0,dim,box;const $=s=>document.querySelector(s);
+const tab=n=>{const b=document.querySelector('.nav[data-tab="'+n+'"]');if(b&&!b.classList.contains('active'))b.click();const t=document.getElementById('tab-'+n);t&&t.querySelectorAll('.reveal').forEach(e=>e.classList.add('in'))};
+function end(){try{localStorage.setItem('tour','1')}catch(e){}dim&&dim.remove();box&&box.remove();dim=box=null;scrollTo({top:0})}
+function step(){const d=S[i];tab(d.t);setTimeout(()=>{const el=$(d.s);if(!el){if(++i<S.length)return step();return end()}
+el.scrollIntoView({block:'center',behavior:'instant'});const r=el.getBoundingClientRect(),m=6;
+Object.assign(dim.style,{left:r.left-m+'px',top:r.top-m+'px',width:r.width+2*m+'px',height:r.height+2*m+'px'});
+box.innerHTML='<b>'+d.h+'</b><p>'+d.p+'</p><div class="tb"><em>'+(i+1)+' / '+S.length+'</em><button data-a="x">Pular</button><button class="go" data-a="n">'+(i==S.length-1?'Concluir':'Próximo')+'</button></div>';
+const bw=Math.min(340,innerWidth-24),below=r.bottom+m+14,top=below+170<innerHeight?below:Math.max(12,r.top-m-14-170);
+box.style.left=Math.max(12,Math.min(innerWidth-bw-12,r.left+r.width/2-bw/2))+'px';box.style.top=top+'px'},350)}
+function start(){end();i=0;dim=document.createElement('div');dim.id='tour-dim';box=document.createElement('div');box.id='tour-box';box.setAttribute('role','dialog');
+box.onclick=e=>{const a=e.target.dataset&&e.target.dataset.a;if(a==='x')end();if(a==='n'){if(++i>=S.length)end();else step()}};
+addEventListener('keydown',e=>{if(box&&e.key==='Escape')end()});document.body.append(dim,box);step()}
+window.startTour=start;
+document.addEventListener('click',e=>{if(e.target.closest('.tour-again'))start()});
+let seen=0;try{seen=localStorage.getItem('tour')}catch(e){}
+if(!seen){const w=setInterval(()=>{if(!document.getElementById('splash')){clearInterval(w);setTimeout(start,1600)}},400)}
+})();
 </script>
 </body></html>
