@@ -783,6 +783,10 @@ MIGRACOES_COLUNAS = {
         "skill_text_a": "TEXT NOT NULL DEFAULT ''",
         "skill_text_b": "TEXT NOT NULL DEFAULT ''",
     },
+    "cartas_gwent_decks": {
+        "faction": "TEXT NOT NULL DEFAULT ''",
+        "leader_id": "TEXT NOT NULL DEFAULT ''",
+    },
 }
 
 # Índices que precisam das colunas acima; criados depois das migrações.

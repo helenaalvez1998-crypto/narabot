@@ -1070,7 +1070,7 @@ class NaraBot(commands.Bot):
         if user_id is None:
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         import json
-        row = await self.db._one("SELECT card_ids_json FROM cartas_gwent_decks WHERE user_id=?", (user_id,))
+        row = await self.db._one("SELECT card_ids_json, faction, leader_id FROM cartas_gwent_decks WHERE user_id=?", (user_id,))
         ids = json.loads(row["card_ids_json"]) if row else []
         owned = await self.db.coliseu_listar_colecao(user_id)
         from sistemas.cartas import get_carta, carta_de_jogo_por_id
@@ -1085,18 +1085,51 @@ class NaraBot(commands.Bot):
                 except ValueError: card = None
             if card:
                 item = card.para_dict(); item["image_url"] = f"/api/cards/{card_id}/image"; cards.append(item)
-        return web.json_response({"deck": cards, "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True}})
+        from sistemas.gwent import FACTIONS, LEADERS, DEFAULT_LEADERS
+        faction = str(row["faction"] or "") if row else ""
+        if faction not in DEFAULT_LEADERS:
+            counts = {"Força": 0, "Destreza": 0, "Magia": 0}
+            for card in cards:
+                if card.get("categoria", "").casefold() != "especial" and card.get("tipo") in counts:
+                    counts[card["tipo"]] += 1
+            from sistemas.gwent import FACTIONS
+            inferred_type = max(counts, key=lambda kind: (counts[kind], kind))
+            faction = FACTIONS[inferred_type]
+        leader_id = str(row["leader_id"] or "") if row else ""
+        if leader_id not in LEADERS or LEADERS[leader_id]["faction"] != faction:
+            leader_id = DEFAULT_LEADERS[faction]
+        leaders = [{"id": key, "name": value["name"], "description": value["description"]}
+                   for key, value in LEADERS.items() if value["faction"] == faction]
+        return web.json_response({
+            "deck": cards, "faction": faction, "leader_id": leader_id,
+            "leaders": leaders,
+            "factions": [{"name": name, "preferred_type": kind,
+                          "description": {"Ordem de Ferro": "Formação e resistência na linha de frente.",
+                                          "Errantes do Véu": "Mobilidade e coordenação entre fileiras.",
+                                          "Conclave Arcano": "Controle climático e amplificação arcana."}[name]}
+                         for kind, name in FACTIONS.items()],
+            "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True}})
 
     async def _api_gwent_deck_save(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
         if user_id is None: return web.json_response({"error": "Autenticação necessária."}, status=401)
         if not self._api_origin_ok(request): return web.json_response({"error": "Origem não autorizada."}, status=403)
-        try: body = await request.json(); ids = body.get("card_ids")
-        except Exception: return web.json_response({"error": "JSON inválido."}, status=400)
+        try:
+            body = await request.json()
+            ids = body.get("card_ids")
+            faction = str(body.get("faction", "Ordem de Ferro"))
+            leader_id = str(body.get("leader_id", "comandante_fornalha"))
+        except Exception:
+            return web.json_response({"error": "JSON inválido."}, status=400)
         if (not isinstance(ids, list) or len(ids) != 12
                 or any(not isinstance(x, str) or not x or len(x) > 120 for x in ids)
                 or len(set(ids)) != 12):
             return web.json_response({"error": "O deck Gwent exige exatamente 12 cartas diferentes."}, status=400)
+        from sistemas.gwent import DEFAULT_LEADERS, LEADERS
+        if faction not in DEFAULT_LEADERS:
+            return web.json_response({"error": "Facção inválida."}, status=400)
+        if leader_id not in LEADERS or LEADERS[leader_id]["faction"] != faction:
+            return web.json_response({"error": "O líder selecionado não pertence à facção escolhida."}, status=400)
         owned = await self.db.coliseu_listar_colecao(user_id)
         owned_ids = {str(r["card_id"]) for r in owned}
         if not set(ids).issubset(owned_ids): return web.json_response({"error": "O deck contém cartas que não pertencem à sua coleção."}, status=403)
@@ -1118,8 +1151,13 @@ class NaraBot(commands.Bot):
             return web.json_response({"error": "O deck precisa ter pelo menos 8 unidades e no máximo 4 cartas especiais."}, status=400)
         import json
         async with self.db.transaction() as tx:
-            await tx.conn.execute("INSERT INTO cartas_gwent_decks(user_id,card_ids_json) VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET card_ids_json=excluded.card_ids_json,updated_at=CURRENT_TIMESTAMP", (user_id, json.dumps(ids)))
-        return web.json_response({"ok": True, "card_ids": ids})
+            await tx.conn.execute(
+                """INSERT INTO cartas_gwent_decks(user_id,card_ids_json,faction,leader_id)
+                   VALUES (?,?,?,?)
+                   ON CONFLICT(user_id) DO UPDATE SET card_ids_json=excluded.card_ids_json,
+                   faction=excluded.faction, leader_id=excluded.leader_id, updated_at=CURRENT_TIMESTAMP""",
+                (user_id, json.dumps(ids), faction, leader_id))
+        return web.json_response({"ok": True, "card_ids": ids, "faction": faction, "leader_id": leader_id})
 
     async def _gwent_deck_snapshots(self, user_id: int):
         import json
@@ -1172,8 +1210,22 @@ class NaraBot(commands.Bot):
         async with self.db.transaction() as tx:
             cur = await tx.conn.execute("INSERT INTO cartas_gwent_matches(creator_id,opponent_id,status,state_json) VALUES (?,?, 'active','{}')", (user_id, opponent_id))
             match_id = cur.lastrowid
-            from sistemas.gwent import novo_estado
-            state = novo_estado(match_id, user_id, opponent_id, {str(user_id): deck_a, str(opponent_id): deck_b})
+            from sistemas.gwent import novo_estado, DEFAULT_LEADERS
+            configs = {}
+            for participant_id in (user_id, opponent_id):
+                async with tx.conn.execute(
+                    "SELECT faction, leader_id FROM cartas_gwent_decks WHERE user_id=?", (participant_id,)) as cur:
+                    saved = await cur.fetchone()
+                if saved:
+                    faction = str(saved["faction"] or "")
+                    leader_id = str(saved["leader_id"] or "")
+                    if faction:
+                        configs[str(participant_id)] = {
+                            "faction": faction,
+                            "leader_id": leader_id or DEFAULT_LEADERS.get(faction, "comandante_fornalha"),
+                        }
+            state = novo_estado(match_id, user_id, opponent_id,
+                                {str(user_id): deck_a, str(opponent_id): deck_b}, configs)
             await tx.conn.execute("UPDATE cartas_gwent_matches SET state_json=? WHERE id=?", (json.dumps(state, ensure_ascii=False), match_id))
         # Aviso opcional no Discord; falha de DM não interfere na partida do site.
         try:
@@ -1195,6 +1247,8 @@ class NaraBot(commands.Bot):
         from sistemas.gwent import placar
         state = json.loads(row["state_json"])
         own = state["players"][str(user_id)]
+        from sistemas.gwent import LEADERS
+        leader_id = own.get("leader_id", "")
         public = {
             "match_id": match_id, "status": state["status"], "phase": state.get("phase", "battle"),
             "round": state["round"], "turn": state["turn"], "crowns": state["crowns"],
@@ -1205,6 +1259,9 @@ class NaraBot(commands.Bot):
             "rounds": state["rounds"], "mulligan_done": own.get("mulligan_done", True),
             "discard_count": len(own.get("discard", [])), "draw_count": len(own.get("draw_pile", [])),
             "faction": own.get("faction", ""),
+            "leader_id": leader_id,
+            "leader_name": own.get("leader_name", "Líder"),
+            "leader_description": LEADERS.get(leader_id, {}).get("description", ""),
         }
         return web.json_response(public)
 

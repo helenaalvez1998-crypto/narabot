@@ -48,3 +48,13 @@
 - Novas cartas entram no catálogo de pacotes do Discord; a coleção e as compras existentes não são apagadas.
 - Renderização de artes versionada para regenerar as novas cartas.
 - Regras de pontuação ajustadas para resistência climática.
+
+
+## V4 — Facções selecionáveis, líderes configuráveis e sinergias
+- Persistência de facção e líder no deck Gwent por colunas incrementais no SQLite.
+- Três facções selecionáveis e seis líderes (dois por facção), com efeitos distintos.
+- Snapshot da facção e do líder no estado da partida; partidas antigas mantêm compatibilidade.
+- Três unidades com habilidades de sinergia entre aliados e posicionamento.
+- Interface do site para selecionar facção/líder e visualizar o efeito do líder na arena.
+- Decks legados sem configuração preservam a inferência automática de facção.
+- 21 testes do motor Gwent aprovados; sintaxe Python e JavaScript verificadas.
