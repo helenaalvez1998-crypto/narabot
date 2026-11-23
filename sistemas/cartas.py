@@ -13,7 +13,7 @@ from typing import Any
 
 from levels import PATENTES
 
-VERSAO_ARTES = 5
+VERSAO_ARTES = 6
 
 TIPOS = ("Destreza", "Força", "Magia")
 EMOJIS_TIPO = {"Destreza": "🌀", "Força": "⚔️", "Magia": "🔮"}
@@ -66,6 +66,22 @@ HABILIDADES: dict[str, dict[str, str]] = {
     "olho_tempestade": {"nome": "Olho da Tempestade", "texto": "+2 de poder quando esta carta tiver vantagem de tipo."},
     "fome_abismo": {"nome": "Fome do Abismo", "texto": "+2 quando estiver atrás no poder antes das habilidades."},
     "paradoxo_eterno": {"nome": "Paradoxo Eterno", "texto": "+2 na quinta rodada se perdeu a quarta rodada."},
+    "guardiao_fileira": {"nome": "Guardião da Fileira", "texto": "+1 para cada outra unidade sua na mesma fileira, até +3."},
+    "cacador_solitario": {"nome": "Caçador Solitário", "texto": "+2 se não houver outra unidade sua na fileira."},
+    "estandarte": {"nome": "Estandarte", "texto": "Concede +1 às outras unidades aliadas da mesma fileira."},
+    "resistencia_climatica": {"nome": "Resistência Climática", "texto": "Ignora até 2 pontos de penalidade climática."},
+    "eco_arcano": {"nome": "Eco Arcano", "texto": "+2 se você tiver uma carta especial no descarte."},
+    "gwent_nevoa": {"nome": "Névoa de Guerra", "texto": "Reduz em 2 o poder da fileira escolhida."},
+    "gwent_geada": {"nome": "Geada Implacável", "texto": "Reduz em 1 o poder de todas as fileiras."},
+    "gwent_chuva": {"nome": "Chuva de Ferro", "texto": "Reduz em 2 o poder da fileira de cerco."},
+    "gwent_chifre": {"nome": "Chifre de Batalha", "texto": "Concede +2 às suas unidades na fileira escolhida."},
+    "gwent_medico": {"nome": "Médico de Campanha", "texto": "Recupera uma unidade de poder 4 ou menos do descarte."},
+    "gwent_queima": {"nome": "Queima Estratégica", "texto": "Remove a unidade mais forte de cada lado."},
+    "gwent_purificar": {"nome": "Rito de Purificação", "texto": "Remove todos os efeitos climáticos."},
+    "gwent_execucao": {"nome": "Sentença do Carrasco", "texto": "Elimina a unidade inimiga mais fraca da fileira escolhida."},
+    "gwent_vinculo": {"nome": "Juramento de Sangue", "texto": "Concede +2 às suas unidades da fileira escolhida se houver pelo menos duas."},
+    "gwent_batedor": {"nome": "Batedor do Véu", "texto": "Compra uma carta da reserva, se disponível."},
+    "gwent_muralha": {"nome": "Muralha dos Ancestrais", "texto": "Concede +1 às suas unidades na fileira escolhida."},
 }
 
 
@@ -131,6 +147,21 @@ _CARTAS_BASE = [
     Carta("gwent_especial_chifre", "Chifre de Batalha", "Especial", "Força", 0, "Épica", 3, "gwent_chifre", "Concede +2 de poder às suas unidades na fileira escolhida até o fim da rodada."),
     Carta("gwent_especial_medico", "Médico de Campanha", "Especial", "Destreza", 0, "Rara", 2, "gwent_medico", "Recupera para a mão uma unidade de poder 4 ou menos do seu descarte."),
     Carta("gwent_especial_queima", "Queima Estratégica", "Especial", "Magia", 0, "Épica", 3, "gwent_queima", "Remove a unidade mais forte de cada lado do campo."),
+    Carta("gwent_especial_purificar", "Rito de Purificação", "Especial", "Magia", 0, "Rara", 2, "gwent_purificar", "Remove todos os efeitos climáticos das três fileiras."),
+    Carta("gwent_especial_execucao", "Sentença do Carrasco", "Especial", "Força", 0, "Épica", 3, "gwent_execucao", "Elimina a unidade inimiga mais fraca da fileira escolhida."),
+    Carta("gwent_especial_vinculo", "Juramento de Sangue", "Especial", "Força", 0, "Rara", 2, "gwent_vinculo", "Concede +2 às suas unidades da fileira escolhida se houver pelo menos duas."),
+    Carta("gwent_especial_batedor", "Batedor do Véu", "Especial", "Destreza", 0, "Rara", 2, "gwent_batedor", "Compra uma carta da reserva para sua mão, se ainda houver."),
+    Carta("gwent_especial_muralha", "Muralha dos Ancestrais", "Especial", "Força", 0, "Comum", 1, "gwent_muralha", "Concede +1 às suas unidades na fileira escolhida."),
+    # Novas unidades de facção e sinergia.
+    Carta("gwent_unidade_baluarte", "Baluarte da Fornalha", "Chefe", "Força", 6, "Rara", 2, "guardiao_fileira", "Quanto maior a formação aliada, mais difícil é derrubá-lo."),
+    Carta("gwent_unidade_lamina_sem_juramento", "Lâmina sem Juramento", "Arma", "Destreza", 6, "Rara", 2, "cacador_solitario", "Ataca melhor quando opera sem apoio na fileira."),
+    Carta("gwent_unidade_portaestandarte", "Porta-estandarte de Ferro", "Covenant", "Força", 4, "Comum", 1, "estandarte", "Fortalece as demais unidades aliadas na mesma fileira."),
+    Carta("gwent_unidade_oraculo_clima", "Oráculo das Chuvas", "Magia", "Magia", 5, "Rara", 2, "resistencia_climatica", "Sua visão atravessa tempestades e geadas."),
+    Carta("gwent_unidade_eco", "Arauto do Eco", "Magia", "Magia", 5, "Rara", 2, "eco_arcano", "Canaliza o poder das cartas especiais já utilizadas."),
+    Carta("gwent_unidade_cavaleira", "Cavaleira do Véu Partido", "Chefe", "Destreza", 5, "Comum", 1, "quebra_ritmo", "Uma duelista que pune movimentos previsíveis."),
+    Carta("gwent_unidade_gigante", "Gigante do Portão Antigo", "Chefe", "Força", 7, "Épica", 3, "instinto", "Uma presença colossal na linha de frente."),
+    Carta("gwent_unidade_cartografa", "Cartógrafa das Marés", "Covenant", "Destreza", 4, "Comum", 1, "adaptacao", "Encontra rotas onde os outros veem obstáculos."),
+    Carta("gwent_unidade_invocador", "Invocador do Sol Negro", "Magia", "Magia", 7, "Épica", 3, "cacador_arcano", "Converte conhecimento arcano em força de combate."),
 ]
 
 CARTAS_PRIMORDIAIS = [

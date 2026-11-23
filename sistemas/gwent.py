@@ -63,7 +63,8 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
 def pontuacao(player: dict, weather: dict | None = None) -> int:
     weather = weather or {}
     return sum(max(1, int(c["poder"]) + int(c.get("bonus", 0)) -
-                   int(weather.get(c["row"], 0) or 0)) for c in player["board"])
+                   max(0, int(weather.get(c["row"], 0) or 0) - int(c.get("weather_resist", 0))))
+               for c in player["board"])
 
 
 def placar(state: dict) -> dict:
@@ -178,10 +179,26 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         if row not in ROWS:
             return {"error": "Fileira inválida."}
         player["leader_used"] = True
-        for card in player["board"]:
-            if card["row"] == row:
-                card["bonus"] = int(card.get("bonus", 0)) + 1
-        state["last_event"] = f"Líder: +1 para suas unidades na fileira {ROW_LABELS[row]}."
+        faction = player.get("faction", _faction(player.get("hand", [])))
+        if faction == "Ordem de Ferro":
+            target_row, bonus = "melee", 2
+            for card in player["board"]:
+                if card["row"] == target_row:
+                    card["bonus"] = int(card.get("bonus", 0)) + bonus
+            state["last_event"] = "Líder da Ordem de Ferro: +2 para suas unidades de corpo a corpo."
+        elif faction == "Errantes do Véu":
+            target_row, bonus = "ranged", 2
+            for card in player["board"]:
+                if card["row"] == target_row:
+                    card["bonus"] = int(card.get("bonus", 0)) + bonus
+            state["last_event"] = "Líder dos Errantes do Véu: +2 para suas unidades de longa distância."
+        else:
+            for r in ROWS:
+                state["weather"][r] = 0
+            for card in player["board"]:
+                if card["row"] == "siege":
+                    card["bonus"] = int(card.get("bonus", 0)) + 1
+            state["last_event"] = "Líder do Conclave Arcano: dissipa o clima e concede +1 ao cerco."
     elif action == "weather":
         if player["weather_used"]:
             return {"error": "Seu efeito climático já foi usado nesta partida."}
@@ -196,7 +213,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             return {"error": "Essa carta não está na sua mão."}
         card = deepcopy(found)
         skill = card.get("habilidade", "")
-        if card.get("especial"):
+        if card.get("especial") or str(card.get("categoria", "")).casefold() == "especial":
             if skill == "gwent_nevoa":
                 if row not in ROWS:
                     return {"error": "Escolha uma fileira válida."}
@@ -225,6 +242,35 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                         strongest = max(side["board"], key=lambda c: int(c["poder"]) + int(c.get("bonus", 0)))
                         side["board"].remove(strongest)
                         side["discard"].append(strongest)
+            elif skill == "gwent_purificar":
+                state["weather"] = {r: 0 for r in ROWS}
+            elif skill == "gwent_execucao":
+                if row not in ROWS:
+                    return {"error": "Escolha uma fileira válida."}
+                targets = [c for c in other["board"] if c["row"] == row]
+                if not targets:
+                    return {"error": "Não há unidade inimiga nessa fileira."}
+                victim = min(targets, key=lambda c: int(c["poder"]) + int(c.get("bonus", 0)))
+                other["board"].remove(victim)
+                other["discard"].append(victim)
+            elif skill == "gwent_vinculo":
+                if row not in ROWS:
+                    return {"error": "Escolha uma fileira válida."}
+                allies = [c for c in player["board"] if c["row"] == row]
+                if len(allies) < 2:
+                    return {"error": "O Juramento exige pelo menos duas unidades na fileira."}
+                for unit in allies:
+                    unit["bonus"] = int(unit.get("bonus", 0)) + 2
+            elif skill == "gwent_batedor":
+                if not player["draw_pile"]:
+                    return {"error": "Sua reserva de compra está vazia."}
+                player["hand"].append(player["draw_pile"].pop(0))
+            elif skill == "gwent_muralha":
+                if row not in ROWS:
+                    return {"error": "Escolha uma fileira válida."}
+                for unit in player["board"]:
+                    if unit["row"] == row:
+                        unit["bonus"] = int(unit.get("bonus", 0)) + 1
             else:
                 return {"error": "Efeito especial desconhecido."}
             player["hand"].remove(found)
@@ -259,6 +305,20 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             elif skill == "decreto_soberano":
                 for enemy in other["board"]:
                     enemy["bonus"] = max(-2, int(enemy.get("bonus", 0)) - 2)
+            elif skill == "guardiao_fileira":
+                card["bonus"] += min(3, sum(1 for ally in player["board"] if ally["row"] == row))
+            elif skill == "cacador_solitario":
+                if not any(ally["row"] == row for ally in player["board"]):
+                    card["bonus"] += 2
+            elif skill == "estandarte":
+                for ally in player["board"]:
+                    if ally["row"] == row:
+                        ally["bonus"] = int(ally.get("bonus", 0)) + 1
+            elif skill == "resistencia_climatica":
+                card["weather_resist"] = 2
+            elif skill == "eco_arcano":
+                if any(c.get("especial") for c in player["discard"]):
+                    card["bonus"] += 2
             # Bônus de facção: uma vez por rodada, primeira unidade da facção recebe +1.
             if card.get("tipo") in FACTIONS and FACTIONS[card["tipo"]] == player["faction"] and not player["faction_boost_used"]:
                 card["bonus"] += 1
