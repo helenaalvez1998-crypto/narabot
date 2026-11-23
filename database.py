@@ -787,6 +787,9 @@ MIGRACOES_COLUNAS = {
         "faction": "TEXT NOT NULL DEFAULT ''",
         "leader_id": "TEXT NOT NULL DEFAULT ''",
     },
+    "cartas_gwent_rankings": {
+        "xp": "INTEGER NOT NULL DEFAULT 0",
+    },
 }
 
 # Índices que precisam das colunas acima; criados depois das migrações.
@@ -1717,21 +1720,12 @@ class Database:
         return valor
 
     async def set_kv(self, key: str, value: str):
-        """Grava uma configuração usando o escritor serializado do banco.
-
-        Não usar self.conn diretamente aqui: em bancos persistentes as transações
-        usam uma conexão de escrita dedicada (_writer). Uma gravação pela conexão
-        principal concorria com essa conexão e podia falhar com
-        ``sqlite3.OperationalError: database is locked``.
-        O cache só é atualizado depois do COMMIT bem-sucedido.
-        """
-        async with self.transaction() as tx:
-            await tx.conn.execute(
-                """INSERT INTO kv(key, value) VALUES (?,?)
-                   ON CONFLICT(key) DO UPDATE SET value=excluded.value""",
-                (str(key), str(value)),
-            )
-        self._kv_cache[str(key)] = str(value)
+        await self.conn.execute(
+            "INSERT INTO kv(key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+        await self.conn.commit()
+        self._kv_cache[key] = value
 
     async def ranking_runs(self, limite: int = 10):
         return await self._all(
@@ -3300,30 +3294,34 @@ class Database:
         from sistemas.cartas import carta_dict
 
         rows = await self._all(
-            "SELECT slot,snapshot_json FROM cartas_deck_itens WHERE user_id=? ORDER BY slot",
+            """SELECT d.slot,d.snapshot_json,c.game_name
+               FROM cartas_deck_itens d
+               LEFT JOIN cartas_colecao c ON c.user_id=d.user_id AND c.card_id=d.card_id
+               WHERE d.user_id=? ORDER BY d.slot""",
             (int(user_id),),
         )
         result = []
         atualizacoes = []
         for row in rows:
             try:
-                carta = json.loads(row["snapshot_json"])
+                carta_antiga = json.loads(row["snapshot_json"])
             except (TypeError, ValueError):
                 continue
-            canonica = carta_dict(str(carta.get("id", "")), str(carta.get("jogo_origem", "")))
-            # Não alteramos poder, custo, tipo ou raridade de cartas já salvas; somente
-            # sincronizamos a habilidade para que decks antigos recebam o novo catálogo.
-            if canonica and carta.get("habilidade") != canonica.get("habilidade"):
-                carta["habilidade"] = canonica["habilidade"]
+            card_id = str(carta_antiga.get("id", ""))
+            # Reconstrói o snapshot inteiro a partir do catálogo canônico do Gwent.
+            # IDs e slots são preservados; nomes, facção, fileira, papel e arte são atualizados.
+            canonica = carta_dict(card_id, str(row["game_name"] or carta_antiga.get("jogo_origem", "")))
+            carta = canonica if canonica else carta_antiga
+            if canonica and carta != carta_antiga:
                 atualizacoes.append((json.dumps(carta, ensure_ascii=False), int(row["slot"])))
             result.append(carta)
-        for snapshot, slot in atualizacoes:
-            await self.conn.execute(
-                "UPDATE cartas_deck_itens SET snapshot_json=? WHERE user_id=? AND slot=?",
-                (snapshot, int(user_id), int(slot)),
-            )
         if atualizacoes:
-            await self.conn.commit()
+            async with self.transaction() as tx:
+                for snapshot, slot in atualizacoes:
+                    await tx.conn.execute(
+                        "UPDATE cartas_deck_itens SET snapshot_json=? WHERE user_id=? AND slot=?",
+                        (snapshot, int(user_id), int(slot)),
+                    )
         return result
 
     async def coliseu_criar_convite(self, guild_id: int, channel_id: int, creator_id: int,
