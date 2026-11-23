@@ -775,3 +775,11 @@ html[data-theme] .hub-hero{background:linear-gradient(120deg,rgba(var(--glow),.2
   #gwent-card-pool .gwent-unit > small,
   #gwent-deck-selected .gwent-unit > small { font-size: 9px; }
 }
+
+/* --- Carta inteira: proporção real (420x620), sem corte e sem placa por cima --- */
+.gwent-unit img,.card-image-wrap,.cd-frame img,.card-image,.deck-slot img,.available-card img{aspect-ratio:420/620!important;height:auto;object-fit:contain!important}
+.gwent-unit img,.card-image-wrap,.cd-frame img{background:transparent!important;box-shadow:none!important;border-bottom:0!important}
+.card-image-wrap img{width:100%;height:100%}
+.gwent-board-card img,.duel-card img{height:auto!important;aspect-ratio:420/620!important;object-fit:contain!important}
+.gwent-unit>b,.card-meta b{margin:8px 8px 0!important}
+.cd-plate{margin:10px 14px 0!important}
