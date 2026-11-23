@@ -34,31 +34,36 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 </script>
 
 <div class="app">
-  <aside class="sidebar">
-    <div class="brand"><div class="sigil">⚜</div><div><b>SOULSBOT</b><small>GWENT DO COLISEU</small></div></div>
-    <nav>
-      <button class="nav active" data-tab="arena">⚔ <span>Arena</span><i class="nbadge" id="nb-arena" hidden>!</i></button>
-      <button class="nav" data-tab="deck">🂠 <span>Deck e Coleção</span><i class="nbadge" id="nb-deck">0/12</i></button>
-      <button class="nav" data-tab="market">◈ <span>Mercado e Drops</span></button>
-      <button class="nav" data-tab="atelier">🎨 <span>Ateliê</span></button>
-      <button class="nav" data-tab="guide">📜 <span>Guia</span></button>
-    </nav>
-    <div class="side-bottom">
-      <div class="profile"><div class="avatar">S</div><div><b id="profile-name">Visitante</b><small id="profile-status">Conecte sua conta Discord</small></div></div>
-      <button class="discord-btn" id="login-button">Entrar com Discord</button>
-      <button class="logout-btn" id="logout-button" hidden>Sair da conta</button>
-      <small class="muted side-note">SOULSBOT · GWENT DO COLISEU</small>
-    </div>
-  </aside>
+  <div class="hud">
+  <div class="brand"><div class="sigil">⚜</div><div><b>SOULSBOT</b><small>GWENT DO COLISEU</small></div></div>
+  <nav>
+    <button class="nav active" data-tab="arena"><i>⚔</i><span>Arena</span><em class="nbadge" id="nb-arena" hidden>!</em></button>
+    <button class="nav" data-tab="deck"><i>🂠</i><span>Deck</span><em class="nbadge" id="nb-deck">0/12</em></button>
+    <button class="nav" data-tab="market"><i>◈</i><span>Mercado</span></button>
+    <button class="nav" data-tab="atelier"><i>🎨</i><span>Ateliê</span></button>
+    <button class="nav" data-tab="guide"><i>📜</i><span>Guia</span></button>
+  </nav>
+  <div class="wallet"><span title="Almas">✦ <b id="souls">—</b></span><span title="Fragmentos">✧ <b id="fragments">—</b></span><span title="Denários">◈ <b id="denarios">—</b></span><span title="XP">⚑ <b id="gwent-xp">—</b></span></div>
+  <div class="player"><div class="profile"><div class="avatar">S</div><div><b id="profile-name">Visitante</b><small id="profile-status">Conecte sua conta Discord</small></div></div>
+  <button class="discord-btn" id="login-button">Entrar</button><button class="logout-btn" id="logout-button" hidden>Sair</button></div>
+</div>
   <main>
-    <header><div><small class="eyebrow">O COLOSSEU AGUARDA</small><h1 id="page-title">Arena</h1></div>
-      <div class="wallet"><span>✦ <b id="souls">—</b> Almas</span><span>✧ <b id="fragments">—</b> Fragmentos</span><span>◈ <b id="denarios">—</b> Denários</span><span>⚑ <b id="gwent-xp">—</b> XP</span></div>
-    </header>
+    <div class="screen-title"><small class="eyebrow">O COLISEU AGUARDA</small><h1 id="page-title">Arena</h1></div>
     <div id="notice" class="notice" role="status">Conecte sua conta Discord para acessar o Gwent.</div>
     <section id="gwent" class="page show">
-  <div class="tab show" id="tab-arena" data-title="Arena"><div class="collection-intro gwent-hero"><div><small class="eyebrow">ARENA ESTRATÉGICA · MELHOR DE TRÊS</small><h2>O Coliseu <em>desperta</em></h2><p class="muted">Construa seu deck, escolha uma facção e lidere suas unidades em três fileiras de combate. Cada carta muda o ritmo da guerra.</p><div class="gwent-hero-tags"><span>12 cartas</span><span>3 fileiras</span><span>2 coroas para vencer</span></div></div><div class="gwent-hero-emblem" aria-hidden="true"><span>✦</span><b>GWENT</b><small>DO COLISEU</small></div></div>
+  <div class="tab show" id="tab-arena" data-title="Arena"><div class="stage">
+  <div class="stage-cards"><i>⚔</i><i>✦</i><i>♜</i></div>
+  <div class="stage-center">
+    <div class="stage-emblem"><div class="ring"></div><div class="ring r2"></div><span>⚜</span></div>
+    <small class="eyebrow">ARENA ESTRATÉGICA · MELHOR DE TRÊS</small>
+    <h2>GWENT</h2><p class="stage-sub">DO COLISEU</p>
+    <p class="stage-txt">Monte seu deck, escolha uma facção e lidere suas unidades em três fileiras de combate.</p>
+    <div class="menu-btns"><button class="big gold" data-scroll="challenge-panel">⚔ Jogar</button><button class="big" data-goto="deck">🂠 Montar Deck</button><button class="big" data-goto="market">◈ Mercado</button></div>
+  </div>
+  <div class="stage-cards right"><i>☗</i><i>♛</i><i>✧</i></div>
+</div>
       <div class="gwent-rules"><span>3 rodadas</span><span>3 fileiras táticas</span><span>12 cartas: mínimo 8 unidades</span><span>Máximo 4 especiais</span><span>Passar encerra suas jogadas na rodada</span><span>2 coroas vencem a partida</span></div>
-      <div class="challenge-panel"><div><small class="eyebrow">DESAFIO</small><h3>Iniciar partida</h3><p class="muted">O adversário precisa ter um deck Gwent salvo.</p></div><div class="challenge-form"><select id="gwent-opponent"><option value="">Carregando jogadores...</option></select><button id="gwent-create-match" class="primary" type="button">Iniciar partida</button></div></div>
+      <div class="challenge-panel" id="challenge-panel"><div><small class="eyebrow">DESAFIO</small><h3>Iniciar partida</h3><p class="muted">O adversário precisa ter um deck Gwent salvo.</p></div><div class="challenge-form"><select id="gwent-opponent"><option value="">Carregando jogadores...</option></select><button id="gwent-create-match" class="primary" type="button">Iniciar partida</button></div></div>
       <div id="gwent-match-list" class="duel-list"></div>
       <div id="gwent-arena" class="gwent-arena" hidden></div></div>
   <div class="tab" id="tab-deck" data-title="Deck e Coleção"><div class="gwent-builder"><div><div class="section-head"><div><small class="eyebrow">SEU EXÉRCITO</small><h3>Deck Gwent</h3></div><b id="gwent-deck-count">0/12</b></div><div class="gwent-config"><label>Facção<select id="gwent-faction"><option value="Ordem de Ferro">Ordem de Ferro</option><option value="Errantes do Véu">Errantes do Véu</option><option value="Conclave Arcano">Conclave Arcano</option></select></label><label>Líder<select id="gwent-leader"></select></label><p id="gwent-faction-description" class="muted">Escolha uma facção para definir sua sinergia e seus líderes disponíveis.</p><p class="muted">Cada exemplar aparece separadamente. Você pode escolher a raridade e o poder exatos que deseja usar; o deck aceita apenas um exemplar de cada modelo.</p></div><div id="gwent-deck-selected" class="gwent-deck-selected"></div><button id="gwent-save-deck" class="primary" type="button" disabled>Salvar deck Gwent</button><p id="gwent-deck-status" class="muted">Carregando deck...</p></div><div><div class="section-head"><div><small class="eyebrow">COLEÇÃO</small><h3>Escolha unidades e especiais</h3></div></div><div class="gwent-filters">
@@ -125,7 +130,7 @@ const ps=document.getElementById('profile-status'),pf=document.querySelector('.p
 (()=>{const tabs=[...document.querySelectorAll('.tab')],navs=[...document.querySelectorAll('.nav[data-tab]')],T=document.getElementById('page-title');
 function show(n,push){const t=document.getElementById('tab-'+n);if(!t)return;tabs.forEach(x=>x.classList.toggle('show',x===t));navs.forEach(b=>b.classList.toggle('active',b.dataset.tab===n));T.textContent=t.dataset.title;t.querySelectorAll('.reveal').forEach(e=>e.classList.add('in'));if(push)history.replaceState(null,'','#'+n);scrollTo({top:0,behavior:'smooth'});if(window.gwentBanner&&push&&n==='arena')0}
 navs.forEach(b=>b.onclick=()=>show(b.dataset.tab,1));
-document.addEventListener('click',e=>{const g=e.target.closest('[data-goto]');if(g)show(g.dataset.goto,1)});
+document.addEventListener('click',e=>{const g=e.target.closest('[data-goto]');if(g)show(g.dataset.goto,1);const c=e.target.closest('[data-scroll]');if(c){const t=document.getElementById(c.dataset.scroll);t&&t.scrollIntoView({behavior:'smooth',block:'center'})}});
 const h=location.hash.slice(1);if(h)show(h);
 const ar=document.getElementById('gwent-arena'),nb=document.getElementById('nb-arena');
 new MutationObserver(()=>{const on=!ar.hidden;nb.hidden=!on;if(on&&!ar.dataset.seen){ar.dataset.seen=1;show('arena',1);ar.scrollIntoView({behavior:'smooth'})}if(!on)delete ar.dataset.seen}).observe(ar,{attributes:true,attributeFilter:['hidden']});

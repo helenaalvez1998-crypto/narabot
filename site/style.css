@@ -116,234 +116,252 @@ main{padding:34px clamp(20px,3.5vw,58px) 34px}header{position:relative;gap:22px;
 .collection-grid,.card-row{grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:16px}.game-card{border:1px solid rgba(214,185,130,.22);border-radius:13px;padding:11px;background:linear-gradient(155deg,#28212e,#15121a 76%);box-shadow:0 8px 24px rgba(0,0,0,.18)}.game-card:hover{border-color:rgba(243,214,155,.7);box-shadow:0 14px 32px rgba(0,0,0,.32)}.card-image-wrap{border:1px solid rgba(224,189,123,.22);background:linear-gradient(145deg,#17131c,#09080c)}.card-image{object-fit:cover}.card-meta{padding:11px 3px 4px;gap:7px}.card-meta b{font-size:13px;min-height:36px}.card-meta small{font-size:10px;line-height:1.5}.toolbar{gap:9px}.toolbar input,.toolbar select{border:1px solid rgba(214,185,130,.22);border-radius:9px;background:#15121b;color:var(--text);min-height:44px;padding:11px 13px}input::placeholder,textarea::placeholder{color:#817889}.empty-state{border-radius:13px;background:rgba(255,255,255,.015)}.modal{border-radius:16px;background:linear-gradient(145deg,#211b29,#121017);border-color:rgba(224,189,123,.55)}footer{border-color:rgba(224,189,123,.18);padding-bottom:12px;color:var(--gold-bright)}
 @media(max-width:1050px){.gwent-builder{grid-template-columns:1fr}.gwent-card-pool,.gwent-deck-selected{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}}@media(max-width:800px){.sidebar{width:72px;padding:18px 8px}main{padding:24px 22px}.gwent-hero-emblem{width:145px;height:145px;flex-basis:145px}.gwent-hero-emblem b{font-size:17px}}@media(max-width:650px){main{padding:18px 13px 28px}header{align-items:flex-start;flex-direction:column}.wallet{justify-content:flex-start}.wallet span{font-size:10px}.gwent-hero{min-height:0;padding:22px}.gwent-hero-emblem{display:none}.gwent-hero h2{font-size:34px}.gwent-filters{grid-template-columns:1fr 1fr}.gwent-filters input{grid-column:1/-1}.gwent-builder>div{padding:13px}.gwent-card-pool,.gwent-deck-selected{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.gwent-unit{padding:7px}.gwent-unit img{aspect-ratio:5/6;height:auto}.gwent-unit b{font-size:11px}.gwent-store-grid{grid-template-columns:1fr}.challenge-form{grid-template-columns:1fr}.challenge-form .primary{width:100%}.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel{padding:15px}.collection-grid,.card-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.game-card{padding:8px}.card-meta b{font-size:11px}footer span{float:none;display:block;margin-top:8px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
-/* ===== TEMA GWENT (The Witcher 3) — couro, madeira escura, ouro velho, pergaminho ===== */
-:root{--bg:#0d0a07;--panel:#1a130d;--panel2:#241a11;--line:rgba(176,132,64,.38);--gold:#c9a15b;--gold-bright:#ecca85;--text:#efe3cb;--muted:#a8967a;--blood:#7a1f1a;--wood:#2a1d12;--parch:#d9c59a;--surface-shadow:0 14px 40px rgba(0,0,0,.65)}
-body{font-family:'Cormorant Garamond','Inter',serif;font-size:17px;color:var(--text);background:
-radial-gradient(ellipse at 50% -10%,rgba(201,161,91,.16),transparent 55%),
-radial-gradient(ellipse at 50% 120%,rgba(122,31,26,.22),transparent 60%),
-repeating-linear-gradient(92deg,rgba(255,255,255,.012) 0 2px,transparent 2px 7px),
-repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 5px),#0d0a07}
-h1,h2,h3,h4,.brand b,.gwent-hero-emblem b,.gwent-unit b,.card-meta b{font-family:'Cinzel','Cinzel Decorative',serif!important}
-.muted,small,p{font-family:'Cormorant Garamond',serif}.muted{font-size:1.02em}
-.eyebrow{font-family:'Cinzel',serif;color:var(--gold);letter-spacing:3px}
-/* sidebar = moldura de madeira e metal */
-.sidebar{background:linear-gradient(180deg,#1f150d,#120c07);border-right:3px double rgba(176,132,64,.55);box-shadow:inset -6px 0 18px rgba(0,0,0,.6),8px 0 30px rgba(0,0,0,.5)}
-.sigil{border:2px solid var(--gold);border-radius:4px;background:radial-gradient(circle,#3a2714,#150e08);box-shadow:0 0 14px rgba(201,161,91,.35),inset 0 0 10px #000}
-.nav.active{background:linear-gradient(100deg,rgba(201,161,91,.22),transparent);border-color:rgba(201,161,91,.5);box-shadow:inset 3px 0 0 var(--gold)}
-.avatar{border:2px solid var(--gold);background:#2a1d12}
-.discord-btn{background:linear-gradient(180deg,#3a2a1a,#20150c);border:1px solid var(--gold);color:var(--gold-bright);font-family:'Cinzel',serif;letter-spacing:1px;box-shadow:inset 0 1px rgba(255,255,255,.08),0 4px 12px #000a}
-/* header e carteira = moedas */
-header{border-bottom:none;position:relative;padding-bottom:26px}
-header::after,.section-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:linear-gradient(90deg,transparent,var(--gold) 20%,var(--gold) 80%,transparent) center/100% 1px no-repeat;opacity:.7}
-.section-head{position:relative;padding-bottom:12px}
-.wallet span{border-radius:999px;border:1px solid var(--gold);background:radial-gradient(circle at 30% 25%,#4a3519,#1a1209);color:var(--gold-bright);font-family:'Cinzel',serif;box-shadow:inset 0 1px rgba(255,255,255,.12),0 3px 8px #000a}
-.notice{background:linear-gradient(180deg,#e0cfa4,#c8b27d);color:#2a1d10;border:2px solid #6b4c22;border-radius:4px;font-family:'Cormorant Garamond',serif;font-weight:700;font-size:15px;box-shadow:inset 0 0 25px rgba(90,60,20,.35),0 4px 14px #000a}
-.notice.success{border-color:#3d5a2a;color:#1f3a14}.notice.error{border-color:#7a1f1a;color:#5a0f0b}
-/* painéis = tabuleiro de madeira com moldura dourada */
-.gwent-builder>div,.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel,.gwent-arena{border:2px solid rgba(176,132,64,.6);border-radius:6px;background:linear-gradient(160deg,rgba(46,32,19,.97),rgba(20,14,9,.98));box-shadow:var(--surface-shadow),inset 0 0 0 4px rgba(0,0,0,.35),inset 0 0 0 5px rgba(176,132,64,.18),inset 0 0 40px rgba(0,0,0,.5)}
-.gwent-hero{border:3px double var(--gold);border-radius:6px;background:radial-gradient(ellipse at 82% 50%,rgba(201,161,91,.25),transparent 40%),radial-gradient(ellipse at 10% 100%,rgba(122,31,26,.35),transparent 55%),linear-gradient(115deg,#2c1d10,#1a110a 60%,#0f0a06);box-shadow:var(--surface-shadow),inset 0 0 60px #000}
-.gwent-hero h2{text-shadow:0 2px 0 #000,0 0 22px rgba(201,161,91,.35);letter-spacing:.04em}.gwent-hero h2 em{color:var(--gold-bright);font-style:normal}
-.gwent-hero p{font-size:18px;color:#cdbb9a}
-.gwent-hero-emblem{border:3px double var(--gold);background:radial-gradient(circle,#4a3519,#170f08 70%);box-shadow:0 0 0 8px rgba(0,0,0,.4),0 0 50px rgba(201,161,91,.3),inset 0 0 30px #000;animation:emb 5s ease-in-out infinite}
-@keyframes emb{50%{box-shadow:0 0 0 8px rgba(0,0,0,.4),0 0 80px rgba(236,202,133,.5),inset 0 0 30px #000}}
-.gwent-hero-tags span,.gwent-rules span{border:1px solid rgba(176,132,64,.55);border-radius:3px;background:rgba(0,0,0,.4);color:var(--parch);font-family:'Cinzel',serif;font-size:10px;letter-spacing:.5px}
-/* botões = placas de metal */
-.primary{background:linear-gradient(180deg,#e8c47d,#a8782f 55%,#85591f);color:#1c1007;border:1px solid #f3d99a;border-radius:3px;font-family:'Cinzel',serif;letter-spacing:1px;text-shadow:0 1px rgba(255,255,255,.35);box-shadow:inset 0 1px rgba(255,255,255,.5),0 4px 0 #4a3010,0 8px 16px #000a}
-.primary:hover{transform:translateY(-1px);filter:brightness(1.1)}.primary:active{transform:translateY(3px);box-shadow:inset 0 1px rgba(255,255,255,.3),0 1px 0 #4a3010}
-.secondary,.gwent-unit button,.deck-slot button,.gwent-actions button,.atelier-review-actions button{border:1px solid var(--gold);border-radius:3px;background:linear-gradient(180deg,#3a2a18,#1e140b);color:var(--gold-bright);font-family:'Cinzel',serif;font-size:11px;letter-spacing:.5px;box-shadow:inset 0 1px rgba(255,255,255,.08)}
-.secondary:hover,.gwent-unit button:hover{background:linear-gradient(180deg,#5a4122,#2c1d0e);color:#fff}
-.danger{background:linear-gradient(180deg,#9a2a22,#5a1410);border:1px solid #d86a5e;color:#ffe3dd;border-radius:3px;font-family:'Cinzel',serif}
-select,input,textarea{background:#120c07!important;color:var(--text)!important;border:1px solid rgba(176,132,64,.5)!important;border-radius:3px!important;font-family:'Cormorant Garamond',serif;font-size:16px}
-/* CARTAS estilo Gwent */
-.gwent-unit,.game-card,.deck-slot{position:relative;border:3px solid #8a6a35;border-radius:10px;padding:8px;background:linear-gradient(170deg,#3a2916,#1b120a 70%);box-shadow:0 8px 18px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,230,160,.18),inset 0 0 14px rgba(0,0,0,.7);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s,border-color .25s}
-.gwent-unit:hover,.game-card:hover{transform:translateY(-10px) scale(1.06) rotate(-1deg);z-index:3;border-color:var(--gold-bright);box-shadow:0 22px 34px rgba(0,0,0,.85),0 0 24px rgba(236,202,133,.45)}
-.gwent-unit img,.card-image{border:2px solid #0b0704;border-radius:6px;box-shadow:inset 0 0 18px #000;filter:saturate(1.05) contrast(1.05)}
-.card-image-wrap{border:2px solid #0b0704;border-radius:6px;background:#0b0704}
-.gwent-unit::after,.game-card::after{content:"";position:absolute;inset:0;border-radius:7px;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,235,170,.14) 50%,transparent 65%);background-size:250% 100%;background-position:130% 0;transition:background-position .7s}
+
+/* ================= GWENT HUD — tema de jogo (The Witcher 3) ================= */
+:root{--bg:#0c0805;--gold:#d9ae62;--gold-bright:#f6d99a;--gold-dark:#7a5520;--text:#f1e6cf;--muted:#b3a083;--parch:#e8d6a8;--ink:#2a1a0c;--blood:#8e2a22;--metal:linear-gradient(135deg,#f6d99a,#8a5f1f 45%,#d9ae62 60%,#5a3c12);--serif:'Cinzel','Trajan Pro',Georgia,serif;--body:'Cormorant Garamond',Georgia,serif;--line:rgba(217,174,98,.4)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;color:var(--text);font:500 18px/1.45 var(--body);background:
+ radial-gradient(ellipse 80% 55% at 50% 0,rgba(217,174,98,.17),transparent 70%),
+ radial-gradient(ellipse 70% 50% at 50% 110%,rgba(142,42,34,.28),transparent 70%),
+ repeating-linear-gradient(90deg,rgba(255,255,255,.015) 0 2px,transparent 2px 9px),
+ repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 1px,transparent 1px 6px),#0c0805;
+ background-attachment:fixed}
+h1,h2,h3,h4,b,.eyebrow,button{font-family:var(--serif)}
+.app{display:block;max-width:none;min-height:100vh}
+#embers{opacity:.7}
+body::before{background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.8) 100%)}
+
+/* ---------- HUD superior ---------- */
+.hud{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:18px;padding:0 24px;height:78px;
+ background:linear-gradient(180deg,#3a2a18 0,#241810 55%,#150e08 100%);border-bottom:4px solid transparent;border-image:var(--metal) 1;box-shadow:0 10px 30px rgba(0,0,0,.8),inset 0 1px rgba(255,235,180,.25)}
+.hud::after{content:"";position:absolute;left:0;right:0;bottom:-12px;height:8px;background:linear-gradient(rgba(0,0,0,.6),transparent);pointer-events:none}
+.brand{display:flex;align-items:center;gap:12px;padding:0}
+.sigil{width:46px;height:46px;margin:0;display:grid;place-items:center;font-size:24px;color:var(--gold-bright);border:3px solid var(--gold);border-radius:50%;background:radial-gradient(circle at 35% 30%,#5a4120,#150e08);box-shadow:0 0 16px rgba(217,174,98,.5),inset 0 0 10px #000;transform:none}
+.brand b{display:block;font-size:17px;letter-spacing:3px;color:var(--gold-bright);text-shadow:0 2px 0 #000}
+.brand small{display:block;font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:3px}
+.hud nav{display:flex;justify-content:center;gap:6px;height:100%}
+.nav{position:relative;display:flex;align-items:center;gap:9px;height:100%;padding:0 20px;margin:0;border:0;border-radius:0;background:none;color:#cdb98f;cursor:pointer;font-size:14px;letter-spacing:2px;text-transform:uppercase;transition:color .2s,background .2s}
+.nav i{font-style:normal;font-size:20px;filter:drop-shadow(0 2px 2px #000)}
+.nav span{margin:0;font:700 13px var(--serif)}
+.nav::after{content:"";position:absolute;left:14px;right:14px;bottom:-4px;height:4px;background:var(--metal);transform:scaleX(0);transition:transform .25s;box-shadow:0 0 14px var(--gold)}
+.nav:hover{color:#fff;background:linear-gradient(180deg,transparent,rgba(217,174,98,.14))}
+.nav.active{color:var(--gold-bright);background:linear-gradient(180deg,rgba(217,174,98,.04),rgba(217,174,98,.28));box-shadow:inset 0 -2px 18px rgba(217,174,98,.2)}
+.nav.active::after,.nav:hover::after{transform:scaleX(1)}
+.nbadge{font:900 10px var(--serif);font-style:normal;padding:3px 7px;border-radius:999px;color:#1c1007;background:var(--metal);border:1px solid #2a1a08}
+#nb-arena{background:#e0463a;color:#fff;animation:blink 1.1s infinite}
+.wallet{display:flex;gap:8px;flex-wrap:nowrap}
+.wallet span{display:flex;gap:6px;align-items:center;padding:6px 14px 6px 10px;border:2px solid var(--gold);border-radius:999px;background:linear-gradient(180deg,#0f0a06,#2a1d10);color:var(--gold-bright);font:700 13px var(--serif);box-shadow:inset 0 2px 6px #000,0 2px 0 rgba(255,235,180,.2);white-space:nowrap}
+.wallet b{color:#fff;text-shadow:0 0 8px rgba(246,217,154,.7);font-size:13px}
+.player{display:flex;align-items:center;gap:10px}
+.profile{display:flex;align-items:center;gap:10px;border:0;padding:0}
+.profile b{font-size:12px;color:var(--gold-bright);display:block}.profile small{display:block;font:600 12px var(--body);color:var(--muted);letter-spacing:0;margin:0}
+.avatar{width:42px;height:42px;border:3px solid var(--gold);border-radius:50%;background:#2a1d10;box-shadow:0 0 0 2px #000,0 0 10px rgba(217,174,98,.4)}
+.profile::after{display:none}
+.discord-btn,.logout-btn{width:auto;padding:10px 18px;border-radius:3px;border:2px solid var(--gold);background:var(--metal);color:#1c1007;font:900 12px var(--serif);letter-spacing:1px;text-transform:uppercase;cursor:pointer;box-shadow:0 3px 0 #3a2410,0 6px 12px #000a}
+.logout-btn{background:linear-gradient(180deg,#3a2a18,#1e140b);color:var(--gold-bright)}
+.discord-btn:hover{filter:brightness(1.12)}
+
+/* ---------- conteúdo ---------- */
+main{max-width:1320px;margin:0 auto;padding:26px 28px 40px}
+.screen-title{display:flex;flex-direction:column;align-items:center;text-align:center;margin:6px 0 20px}
+.screen-title h1{font:900 clamp(26px,3.4vw,40px) var(--serif);letter-spacing:.2em;text-transform:uppercase;margin:4px 0 0;color:var(--gold-bright);text-shadow:0 3px 0 #000,0 0 28px rgba(217,174,98,.5)}
+.screen-title::after{content:"";width:min(420px,70%);height:14px;margin-top:10px;background:linear-gradient(90deg,transparent,var(--gold)) left center/45% 2px no-repeat,linear-gradient(90deg,var(--gold),transparent) right center/45% 2px no-repeat;position:relative}
+.eyebrow{color:var(--gold);font-size:11px;letter-spacing:4px;font-weight:700}
+.notice{max-width:760px;margin:0 auto 22px;text-align:center;padding:12px 20px;font:700 17px var(--body);color:var(--ink);background:linear-gradient(180deg,#ecdcb0,#cdb67c);border:3px solid #5a3c12;border-radius:3px;box-shadow:inset 0 0 30px rgba(90,60,20,.45),0 6px 16px #000a}
+.notice.success{color:#16370f}.notice.error{color:#5a0f0b;border-color:var(--blood)}
+
+/* ---------- TELA INICIAL (menu principal) ---------- */
+.stage{position:relative;display:flex;justify-content:center;align-items:center;gap:20px;min-height:430px;padding:36px 20px;margin-bottom:24px;overflow:hidden;
+ border:6px solid transparent;border-image:var(--metal) 1;
+ background:radial-gradient(ellipse 55% 70% at 50% 45%,rgba(217,174,98,.28),transparent 70%),radial-gradient(ellipse at 50% 100%,rgba(142,42,34,.4),transparent 60%),linear-gradient(180deg,#2a1c10,#0f0a06);
+ box-shadow:0 20px 50px #000,inset 0 0 90px #000}
+.stage-center{position:relative;z-index:2;text-align:center;max-width:560px}
+.stage-emblem{position:relative;width:132px;height:132px;margin:0 auto 14px;display:grid;place-items:center;font-size:58px;color:var(--gold-bright);text-shadow:0 0 28px var(--gold)}
+.stage-emblem .ring{position:absolute;inset:0;border:3px double var(--gold);border-radius:50%;box-shadow:0 0 30px rgba(217,174,98,.45),inset 0 0 24px rgba(217,174,98,.25);animation:spin 18s linear infinite;background:radial-gradient(circle,rgba(90,60,20,.7),transparent 70%)}
+.stage-emblem .ring.r2{inset:12px;border-style:dashed;animation-direction:reverse;animation-duration:12s;box-shadow:none;background:none}
+.stage-emblem span{position:relative}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stage h2{font:900 clamp(54px,9vw,104px)/1 var(--serif);letter-spacing:.14em;margin:6px 0 0;padding-left:.14em;color:transparent;background:linear-gradient(180deg,#fff3c9 10%,#d9ae62 50%,#7a5520 90%);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 4px 0 #000) drop-shadow(0 0 24px rgba(217,174,98,.45))}
+.stage-sub{font:900 clamp(14px,2vw,20px) var(--serif);letter-spacing:.7em;padding-left:.7em;color:var(--parch);margin:6px 0 14px}
+.stage-txt{font-size:19px;color:#d6c5a0;margin:0 auto 22px;max-width:460px}
+.menu-btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.big{position:relative;min-width:170px;padding:15px 26px;font:900 15px var(--serif);letter-spacing:2px;text-transform:uppercase;color:var(--gold-bright);cursor:pointer;border:3px solid var(--gold);border-radius:3px;background:linear-gradient(180deg,#4a3519,#1c120a);box-shadow:inset 0 1px rgba(255,235,180,.3),0 5px 0 #2a1a08,0 10px 20px #000a;transition:transform .15s,box-shadow .15s,filter .2s}
+.big:hover{transform:translateY(-3px);filter:brightness(1.2);box-shadow:inset 0 1px rgba(255,235,180,.3),0 8px 0 #2a1a08,0 16px 26px #000a,0 0 24px rgba(217,174,98,.5)}
+.big:active{transform:translateY(4px);box-shadow:0 1px 0 #2a1a08}
+.big.gold{color:#1c1007;background:var(--metal);text-shadow:0 1px rgba(255,255,255,.4);animation:glowbtn 2.2s infinite}
+@keyframes glowbtn{50%{box-shadow:inset 0 1px rgba(255,255,255,.5),0 5px 0 #2a1a08,0 0 34px rgba(246,217,154,.8)}}
+.stage-cards{position:relative;width:230px;height:300px;flex:none}
+.stage-cards i{position:absolute;left:50%;bottom:10px;width:120px;height:178px;margin-left:-60px;display:grid;place-items:center;font-style:normal;font-size:46px;color:var(--gold-bright);border:4px solid transparent;border-image:var(--metal) 1;background:radial-gradient(circle at 50% 38%,#6b4a22,#1b120a 75%);box-shadow:0 14px 28px #000;transform-origin:50% 130%;transition:transform .4s}
+.stage-cards i:nth-child(1){transform:rotate(-22deg) translateX(-30px)}.stage-cards i:nth-child(2){transform:rotate(-4deg)}.stage-cards i:nth-child(3){transform:rotate(15deg) translateX(30px)}
+.stage-cards.right i:nth-child(1){transform:rotate(-15deg) translateX(-30px)}.stage-cards.right i:nth-child(2){transform:rotate(4deg)}.stage-cards.right i:nth-child(3){transform:rotate(22deg) translateX(30px)}
+.stage:hover .stage-cards i:nth-child(1){transform:rotate(-30deg) translateX(-50px) translateY(-8px)}.stage:hover .stage-cards i:nth-child(3){transform:rotate(26deg) translateX(50px) translateY(-8px)}
+.gwent-rules{display:flex;flex-wrap:wrap;justify-content:center;gap:0;margin:0 0 26px;border-top:2px solid var(--gold-dark);border-bottom:2px solid var(--gold-dark);background:rgba(0,0,0,.45)}
+.gwent-rules span{flex:1 1 auto;text-align:center;padding:10px 14px;border:0;border-right:1px solid rgba(217,174,98,.25);border-radius:0;background:none;font:700 11px var(--serif);letter-spacing:1px;color:var(--parch);text-transform:uppercase}.gwent-rules span:last-child{border:0}
+
+/* ---------- painéis (molduras de metal sobre couro) ---------- */
+.gwent-builder>div,.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel,.gwent-arena{position:relative;border:5px solid transparent;border-image:var(--metal) 1;border-radius:0;
+ background:radial-gradient(ellipse at 50% 0,rgba(217,174,98,.1),transparent 60%),linear-gradient(180deg,#2b1e12,#150e08);box-shadow:0 14px 34px #000c,inset 0 0 50px rgba(0,0,0,.7);padding:24px}
+.gwent-builder>div::before,.atelier-panel::before,.gwent-store::before,.gwent-drop-history::before,.challenge-panel::before,.gwent-hero::before{display:none}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 18px;padding:0 0 12px;border-bottom:2px solid transparent;border-image:linear-gradient(90deg,var(--gold),transparent) 1}
+.section-head::after{display:none}
+.section-head h3{font:900 21px var(--serif);letter-spacing:.14em;text-transform:uppercase;margin:4px 0 0;color:var(--gold-bright);text-shadow:0 2px 0 #000}
+.muted{color:var(--muted)}p{font-size:18px}
+.challenge-panel{max-width:860px;margin:0 auto 26px;text-align:center}
+.challenge-panel h3{font:900 24px var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);margin:6px 0}
+.challenge-form{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}.challenge-form select{flex:1 1 280px;max-width:420px}
+
+/* formulários */
+select,input,textarea{width:100%;background:linear-gradient(180deg,#0b0705,#1a1209)!important;color:var(--text)!important;border:2px solid var(--gold-dark)!important;border-radius:2px!important;padding:11px 13px;font:600 17px var(--body);box-shadow:inset 0 3px 8px #000}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--gold-bright)!important;box-shadow:inset 0 3px 8px #000,0 0 14px rgba(217,174,98,.5)}
+label{display:grid;gap:6px;font:700 12px var(--serif);letter-spacing:1.5px;text-transform:uppercase;color:var(--gold)}
+.primary,.secondary,.danger{padding:12px 22px;font:900 13px var(--serif);letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:3px;margin:0;transition:transform .15s,filter .2s,box-shadow .2s}
+.primary{border:2px solid #f6d99a;background:var(--metal);color:#1c1007;text-shadow:0 1px rgba(255,255,255,.4);box-shadow:inset 0 1px rgba(255,255,255,.5),0 4px 0 #3a2410,0 8px 16px #000a;animation:none}
+.secondary{border:2px solid var(--gold);background:linear-gradient(180deg,#4a3519,#1c120a);color:var(--gold-bright);box-shadow:inset 0 1px rgba(255,235,180,.25),0 4px 0 #2a1a08}
+.danger{border:2px solid #e07a6e;background:linear-gradient(180deg,#a8362c,#5a1410);color:#ffe3dd;box-shadow:0 4px 0 #2a0806}
+.primary:hover,.secondary:hover{transform:translateY(-2px);filter:brightness(1.15)}.primary:active,.secondary:active{transform:translateY(3px);box-shadow:none}
+.primary:disabled,.secondary:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.6)}
+
+/* ---------- CARTAS ---------- */
+.gwent-card-pool,.gwent-deck-selected,.collection-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:20px 16px;padding:10px 4px}
+.gwent-unit,.game-card{position:relative;display:flex;flex-direction:column;gap:0;padding:0;overflow:hidden;color:var(--text);text-align:center;
+ border:4px solid transparent;border-image:var(--metal) 1;border-radius:0;background:linear-gradient(180deg,#3a2916,#140d07);
+ box-shadow:0 10px 20px #000c,inset 0 0 20px #000;transition:transform .25s cubic-bezier(.2,.9,.2,1),box-shadow .25s;transform-style:preserve-3d}
+.gwent-unit img,.card-image-wrap{display:block;width:100%;height:auto;aspect-ratio:5/6;object-fit:cover;margin:0;border:0;border-bottom:3px solid #000;border-radius:0;background:#0b0705;box-shadow:inset 0 -30px 30px -20px #000}
+.gwent-unit>b,.card-meta b{display:block;margin:-18px 8px 0;position:relative;padding:7px 8px;font:900 12px/1.25 var(--serif);letter-spacing:.5px;text-transform:uppercase;color:var(--gold-bright);text-shadow:0 1px 0 #000;background:linear-gradient(180deg,#7a2a22,#4a1511);border:2px solid var(--gold);box-shadow:0 4px 8px #000;min-height:0}
+.gwent-unit small{display:block;padding:7px 10px 0;font:600 14px/1.25 var(--body);color:var(--parch)}
+.gwent-unit small:last-of-type{padding-bottom:10px}
+.gwent-unit button,.gwent-unit select,.gwent-unit label{margin:8px 10px 0}.gwent-unit button:last-child{margin-bottom:10px}
+.gwent-unit button{padding:8px;font:900 11px var(--serif);letter-spacing:1px;text-transform:uppercase;border:2px solid var(--gold);background:linear-gradient(180deg,#4a3519,#1c120a);color:var(--gold-bright);border-radius:2px;cursor:pointer}
+.gwent-unit button:hover{background:var(--metal);color:#1c1007}
+.gwent-unit select{font-size:14px;padding:6px 8px}
+.gwent-unit::after,.game-card::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,240,180,.2) 50%,transparent 65%);background-size:250% 100%;background-position:130% 0;transition:background-position .7s}
+.gwent-unit:hover,.game-card:hover{transform:translateY(-8px) scale(1.04);z-index:5;box-shadow:0 22px 34px #000,0 0 26px rgba(217,174,98,.55)}
 .gwent-unit:hover::after,.game-card:hover::after{background-position:-30% 0}
-.gwent-unit b,.card-meta b{color:var(--parch);text-shadow:0 1px 2px #000;text-align:center;display:block}
-.quantity,.power{background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);color:#1c1007!important;border:2px solid #2a1a08;border-radius:50%;font-family:'Cinzel',serif;font-weight:900;box-shadow:0 2px 6px #000}
-.rarity-rara{color:#6fb4ee!important}.rarity-epica{color:#c78bff!important}.rarity-lendaria,.rarity-primordial{color:#ffd36b!important}.rarity-mitica{color:#ff6fb4!important}.rarity-singular{color:#6ff5e1!important}
-/* ARENA = tabuleiro */
-.gwent-arena{background:radial-gradient(ellipse at 50% 50%,rgba(60,40,20,.5),transparent 70%),repeating-linear-gradient(90deg,rgba(0,0,0,.18) 0 3px,transparent 3px 40px),linear-gradient(180deg,#2d2013,#150e08);border:4px double var(--gold)}
-.gwent-row{border:2px solid rgba(176,132,64,.7);border-radius:4px;background:linear-gradient(90deg,rgba(0,0,0,.55),rgba(80,56,30,.35) 12%,rgba(0,0,0,.4));box-shadow:inset 0 0 22px #000,0 2px 0 rgba(255,230,160,.08)}
-.gwent-row h4{color:var(--gold-bright);text-shadow:0 1px 2px #000}
-.gwent-board-card{border:2px solid #8a6a35;border-radius:7px;background:linear-gradient(170deg,#3a2916,#1b120a);box-shadow:0 5px 10px #000b;transition:transform .2s}.gwent-board-card:hover{transform:translateY(-5px) scale(1.08);z-index:2}
-.gwent-hand{padding:14px 6px 6px;border-top:2px solid rgba(176,132,64,.5)}
-.gwent-score,.duel-score b{font-family:'Cinzel',serif;color:var(--gold-bright);text-shadow:0 0 14px rgba(201,161,91,.6)}
-.gwent-log,.gwent-event-history{background:linear-gradient(180deg,#d9c59a,#bfa772);color:#2a1d10;border:2px solid #6b4c22;border-radius:3px;box-shadow:inset 0 0 25px rgba(90,60,20,.4)}
-.gwent-log *,.gwent-event-history *{color:#2a1d10!important}
-.gwent-store-card,.atelier-history-item,.atelier-review-item,.duel-item,.gwent-drop-history-item,.atelier-form,.gwent-config{border:1px solid rgba(176,132,64,.5);border-radius:4px;background:linear-gradient(180deg,rgba(60,42,24,.7),rgba(20,14,9,.85));box-shadow:inset 0 0 18px rgba(0,0,0,.5)}
-.store-seal{border:2px solid var(--gold);border-radius:50%;background:radial-gradient(circle at 35% 30%,#5a4120,#1a1109);box-shadow:0 0 14px rgba(201,161,91,.35)}
-.gwent-pack-card{background:radial-gradient(circle at 15% 50%,rgba(201,161,91,.2),transparent 50%),linear-gradient(180deg,rgba(80,52,24,.8),rgba(20,14,9,.9))}
-.gwent-pack-opened-cards .gwent-unit,.gwent-pack-opened-cards>*{animation:flip .7s both}.gwent-pack-opened-cards>*:nth-child(2){animation-delay:.18s}.gwent-pack-opened-cards>*:nth-child(3){animation-delay:.36s}
-@keyframes flip{from{transform:rotateY(90deg) translateY(30px);opacity:0}to{transform:none;opacity:1}}
-.modal{border:3px double var(--gold);border-radius:8px;background:linear-gradient(160deg,#2d2013,#120c07)}
-footer{border-top:1px solid var(--gold);color:var(--gold);font-family:'Cinzel',serif}
-::-webkit-scrollbar{width:10px}::-webkit-scrollbar-track{background:#120c07}::-webkit-scrollbar-thumb{background:linear-gradient(#8a6a35,#4a3412);border-radius:5px}
-
-/* ===== V2: ATMOSFERA DE JOGO ===== */
-body{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M3 3l18 8-8 3-3 8z' fill='%23ecca85' stroke='%231c1007' stroke-width='2'/%3E%3C/svg%3E") 3 3,auto}
-button,select,.gwent-unit,.game-card,.nav{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M3 3l18 8-8 3-3 8z' fill='%23fff3c9' stroke='%237a1f1a' stroke-width='2'/%3E%3C/svg%3E") 3 3,pointer}
-#embers{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.75) 100%)}
-.app,.modal-backdrop{position:relative;z-index:3}
-/* splash */
-#splash{position:fixed;inset:0;z-index:99;display:grid;place-items:center;text-align:center;background:radial-gradient(ellipse at center,#3a2610 0,#0d0a07 70%);transition:opacity .9s,transform .9s;cursor:pointer}
-#splash.out{opacity:0;transform:scale(1.15);pointer-events:none}
-#splash .s-fan{position:relative;height:190px;width:320px;margin:0 auto 30px}
-#splash .s-fan i{position:absolute;left:50%;bottom:0;width:110px;height:160px;margin-left:-55px;border:3px solid var(--gold);border-radius:10px;background:radial-gradient(circle at 50% 38%,#6b4a22,#241609 70%);box-shadow:0 12px 30px #000;transform-origin:50% 120%;animation:fan 1.4s cubic-bezier(.2,.9,.2,1) both;display:grid;place-items:center;font-size:42px;color:var(--gold-bright)}
-#splash .s-fan i:nth-child(1){--r:-28deg}#splash .s-fan i:nth-child(2){--r:-14deg;animation-delay:.12s}#splash .s-fan i:nth-child(3){--r:0deg;animation-delay:.24s}#splash .s-fan i:nth-child(4){--r:14deg;animation-delay:.36s}#splash .s-fan i:nth-child(5){--r:28deg;animation-delay:.48s}
-@keyframes fan{from{transform:rotate(0) translateY(60px);opacity:0}to{transform:rotate(var(--r));opacity:1}}
-#splash h1{font:900 clamp(34px,7vw,76px) Cinzel;letter-spacing:.12em;margin:0;color:var(--gold-bright);text-shadow:0 3px 0 #000,0 0 40px rgba(236,202,133,.5);animation:rise 1.2s .5s both}
-#splash p{font:700 18px Cinzel;letter-spacing:.4em;color:var(--parch);margin:10px 0 36px;animation:rise 1.2s .8s both}
-#splash .s-press{font:700 13px Cinzel;letter-spacing:.35em;color:var(--gold);animation:blink 1.6s 1.5s infinite both}
-@keyframes rise{from{opacity:0;transform:translateY(24px)}}@keyframes blink{50%{opacity:.25}}
-/* HUD */
-header{background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);padding:14px 18px 26px;border-radius:6px}
-.wallet span{transition:transform .2s}.wallet span:hover{transform:translateY(-3px) scale(1.06);box-shadow:0 0 18px rgba(236,202,133,.5)}
-.wallet span b{display:inline-block;min-width:1.5ch;text-shadow:0 0 8px rgba(236,202,133,.6)}
-h1#page-title{text-shadow:0 2px 0 #000,0 0 24px rgba(201,161,91,.45)}
-/* cantos ornamentais nos painéis */
-.gwent-builder>div,.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel,.gwent-arena,.gwent-hero{position:relative}
-.gwent-builder>div::before,.atelier-panel::before,.gwent-store::before,.gwent-drop-history::before,.challenge-panel::before,.gwent-hero::before{content:"⚜";position:absolute;top:-13px;left:50%;transform:translateX(-50%);padding:0 10px;font-size:20px;color:var(--gold-bright);background:#120c07;border-radius:50%;text-shadow:0 0 10px rgba(236,202,133,.7);z-index:2}
-/* hero: cartas flutuando */
-.gwent-hero-emblem{position:relative;overflow:visible}
-.gwent-hero-emblem::before,.gwent-hero-emblem::after{content:"";position:absolute;width:74px;height:106px;border:2px solid var(--gold);border-radius:8px;background:linear-gradient(160deg,#6b4a22,#1b120a);box-shadow:0 10px 20px #000;z-index:-1;animation:floaty 5s ease-in-out infinite}
-.gwent-hero-emblem::before{left:-70px;top:30px;--r:-14deg;transform:rotate(-14deg)}.gwent-hero-emblem::after{right:-70px;top:30px;--r:14deg;transform:rotate(14deg);animation-delay:-2.5s}
-@keyframes floaty{50%{transform:translateY(-14px) rotate(var(--r))}}
-/* efeito 3D / holo nas cartas (JS define --mx --my --rx --ry) */
-.gwent-unit,.game-card{transform-style:preserve-3d;will-change:transform}
-.gwent-unit.tilt,.game-card.tilt{transform:perspective(700px) rotateX(var(--rx,0)) rotateY(var(--ry,0)) translateY(-8px) scale(1.07)!important}
-.gwent-unit.tilt::after,.game-card.tilt::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,245,200,.35),transparent 45%)!important}
-/* raridades: brilho e moldura */
-[data-r="rara"]{border-color:#4e9be0!important;box-shadow:0 8px 18px #000a,0 0 14px rgba(78,155,224,.35)!important}
-[data-r="epica"]{border-color:#a468f0!important;box-shadow:0 8px 18px #000a,0 0 18px rgba(164,104,240,.5)!important}
-[data-r="lendaria"],[data-r="primordial"]{border-color:#ffc94d!important;box-shadow:0 8px 18px #000a,0 0 24px rgba(255,201,77,.6)!important;animation:pulseg 2.6s infinite}
-[data-r="mitica"]{border-color:#ff5fae!important;box-shadow:0 8px 18px #000a,0 0 24px rgba(255,95,174,.6)!important;animation:pulsem 2.6s infinite}
-[data-r="singular"]{border-color:#5ff5e1!important;animation:pulses 2s infinite}
-@keyframes pulseg{50%{box-shadow:0 8px 18px #000a,0 0 38px rgba(255,201,77,.95)}}@keyframes pulsem{50%{box-shadow:0 8px 18px #000a,0 0 38px rgba(255,95,174,.95)}}@keyframes pulses{50%{box-shadow:0 0 36px rgba(95,245,225,.9)}}
-/* cartas entram em cena */
-.gwent-card-pool>*,.gwent-deck-selected>*,.collection-grid>*,.gwent-board-card,.gwent-hand>*{animation:deal .5s cubic-bezier(.2,.9,.2,1) both}
+.gwent-unit.tilt,.game-card.tilt{transform:perspective(700px) rotateX(var(--rx,0)) rotateY(var(--ry,0)) translateY(-8px) scale(1.05)!important}
+.gwent-unit.tilt::after,.game-card.tilt::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,245,200,.35),transparent 50%)!important}
+.quantity,.power{background:radial-gradient(circle at 35% 30%,#f6d99a,#8a5f1f);color:#1c1007!important;border:2px solid #2a1a08;border-radius:50%;font:900 12px var(--serif);box-shadow:0 2px 6px #000}
+.card-meta{padding:0 0 10px;gap:4px}.card-meta small{color:var(--parch);font-size:14px}
+[data-r="rara"]{border-image:linear-gradient(135deg,#9fd0ff,#2a5f9a,#6fb4ee) 1!important}
+[data-r="epica"]{border-image:linear-gradient(135deg,#e0c0ff,#6a30b0,#b07af0) 1!important;box-shadow:0 10px 20px #000c,0 0 18px rgba(164,104,240,.5)!important}
+[data-r="lendaria"],[data-r="primordial"]{border-image:linear-gradient(135deg,#fff3b0,#c8861a,#ffd86b) 1!important;animation:pg 2.6s infinite}
+[data-r="mitica"]{border-image:linear-gradient(135deg,#ffc0e0,#b01a6a,#ff6fb4) 1!important;animation:pm 2.6s infinite}
+[data-r="singular"]{border-image:linear-gradient(135deg,#c0fff6,#1a9a8a,#6ff5e1) 1!important;animation:ps 2s infinite}
+@keyframes pg{50%{box-shadow:0 10px 20px #000c,0 0 36px rgba(255,201,77,.95)}}@keyframes pm{50%{box-shadow:0 10px 20px #000c,0 0 36px rgba(255,95,174,.95)}}@keyframes ps{50%{box-shadow:0 0 34px rgba(95,245,225,.9)}}
+.gwent-card-pool>*,.gwent-deck-selected>*,.collection-grid>*,.gwent-hand>*{animation:deal .5s cubic-bezier(.2,.9,.2,1) both}
 @keyframes deal{from{opacity:0;transform:translateY(40px) rotate(-6deg) scale(.85)}}
-/* mão em leque */
-.gwent-hand{display:flex;flex-wrap:wrap;justify-content:center;gap:0;padding-top:30px}
-.gwent-hand>*{margin:0 -8px;transform:rotate(calc((var(--i,0) - 3) * 2.2deg)) translateY(calc(abs(var(--i,0) - 3) * 1px));transition:transform .25s,margin .25s}
-.gwent-hand>*:hover{transform:translateY(-34px) scale(1.2) rotate(0)!important;z-index:20;margin:0 14px}
-/* placar de fileira e moedas de coroa */
-.gwent-row{position:relative}.gwent-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(var(--gold),#6b4a22)}
-.gwent-arena-head{background:linear-gradient(90deg,transparent,rgba(0,0,0,.6),transparent);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);padding:10px;text-align:center}
-.gwent-actions button{padding:12px 20px;font-size:13px}
-.gwent-actions button:hover{box-shadow:0 0 18px rgba(236,202,133,.6);transform:translateY(-2px)}
-/* faixa de turno */
-#turn-banner{position:fixed;left:0;right:0;top:40%;z-index:50;text-align:center;font:900 clamp(26px,5vw,56px) Cinzel;letter-spacing:.2em;color:var(--gold-bright);padding:22px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.88) 25%,rgba(0,0,0,.88) 75%,transparent);text-shadow:0 0 30px rgba(236,202,133,.8);border-top:2px solid var(--gold);border-bottom:2px solid var(--gold);animation:banner 2.2s both;pointer-events:none}
-@keyframes banner{0%{opacity:0;transform:scaleY(0)}12%,80%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(0)}}
-.click-ring{position:fixed;width:12px;height:12px;border:2px solid var(--gold-bright);border-radius:50%;pointer-events:none;z-index:98;animation:ring .6s forwards}
-@keyframes ring{to{transform:scale(7);opacity:0}}
-.primary:not(:disabled){animation:glowbtn 2.4s infinite}@keyframes glowbtn{50%{box-shadow:inset 0 1px rgba(255,255,255,.5),0 4px 0 #4a3010,0 0 24px rgba(236,202,133,.7)}}
-@media(max-width:650px){.gwent-hero-emblem::before,.gwent-hero-emblem::after,.gwent-hand>*{margin:0}.gwent-hand>*{transform:none}}
+#gwent-deck-count{display:grid;place-items:center;width:62px;height:62px;font:900 17px var(--serif);color:#1c1007;background:radial-gradient(circle at 35% 30%,#f6d99a,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 4px 10px #000,0 0 18px rgba(217,174,98,.5)}
+.gwent-config{display:grid;gap:12px;padding:16px;border:2px solid var(--gold-dark);background:rgba(0,0,0,.35);box-shadow:inset 0 0 22px #000;margin-bottom:14px}
+.gwent-config p{font-size:16px;margin:0}
+.gwent-filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:0 0 14px}
 
-/* ===== V3: SITE INTEIRO ===== */
-/* placar */
-.gwent-score{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
-.gwent-score article{position:relative;text-align:center;padding:18px;border:3px double var(--gold);border-radius:6px;background:radial-gradient(circle at 50% 0,rgba(201,161,91,.25),transparent 65%),linear-gradient(180deg,#2d2013,#120c07);box-shadow:inset 0 0 25px #000,0 8px 20px #000a}
-.gwent-score article:first-child{box-shadow:inset 0 0 25px #000,0 0 28px rgba(201,161,91,.35)}
-.gwent-score h3{font:900 clamp(26px,4vw,44px) Cinzel!important;color:var(--gold-bright);text-shadow:0 0 18px rgba(236,202,133,.6),0 2px 0 #000;margin:6px 0}
-.gwent-score small{font-family:'Cinzel',serif;letter-spacing:1.5px;font-size:10px;color:var(--parch)}
-.gwent-arena-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}
-.gwent-arena-head>b{font:900 18px Cinzel;color:#1c1007;background:linear-gradient(180deg,#f0d28f,#a8782f);padding:12px 20px;border:2px solid #3a2410;border-radius:3px;box-shadow:0 4px 0 #3a2410;letter-spacing:2px;white-space:nowrap}
-.gwent-arena-head h2{font:900 clamp(22px,3vw,34px) Cinzel;color:var(--gold-bright);text-shadow:0 2px 0 #000}
-.gwent-log{padding:10px 14px;font-weight:700;font-size:16px}
-.gwent-faction{padding:12px 16px;margin:12px 0;border-left:4px solid var(--gold);background:linear-gradient(90deg,rgba(201,161,91,.18),transparent);font-size:16px;color:var(--parch)}
-.gwent-faction strong{color:var(--gold-bright);font-family:'Cinzel',serif}
-.gwent-prep,.gwent-reward-panel{position:relative;padding:20px;margin:16px 0;border:3px double var(--gold);border-radius:6px;background:radial-gradient(ellipse at top,rgba(201,161,91,.22),transparent 70%),linear-gradient(180deg,#2d2013,#150e08);box-shadow:0 0 30px rgba(201,161,91,.25),inset 0 0 30px #000}
-.gwent-prep b,.gwent-reward-panel>b{font:900 18px Cinzel;color:var(--gold-bright);letter-spacing:2px;display:block;margin-bottom:6px}
-.gwent-reward-panel{animation:reward 1s cubic-bezier(.2,.9,.2,1) both;text-align:center}
-@keyframes reward{from{opacity:0;transform:scale(.7) rotate(-3deg)}}
-.gwent-reward-panel p{font:700 20px 'Cinzel',serif;color:var(--parch)}
-/* pacote aberto */
-.gwent-pack-opened{padding:18px;border:2px solid var(--gold);border-radius:6px;background:radial-gradient(ellipse at top,rgba(236,202,133,.25),transparent 70%),#140d07;margin-top:16px}
-.gwent-pack-opened h4{text-align:center;font:900 22px Cinzel;color:var(--gold-bright);letter-spacing:4px}
-.gwent-pack-opened-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-top:14px}
-.gwent-pack-opened-cards article{display:grid;gap:6px;text-align:center;padding:22px 12px;min-height:230px;align-content:center;border:3px solid #8a6a35;border-radius:10px;background:radial-gradient(circle at 50% 30%,#6b4a22,#1b120a 75%);box-shadow:0 10px 24px #000,0 0 22px rgba(236,202,133,.25)}
-.gwent-pack-opened-cards b{font:700 15px Cinzel;color:var(--gold-bright)}.gwent-pack-opened-cards span{color:var(--parch);font-weight:700}
-/* ranking */
-.gwent-rank,.gwent-leaderboard{border:2px solid var(--gold)!important;background:radial-gradient(circle at 0 50%,rgba(201,161,91,.25),transparent 50%),linear-gradient(180deg,#2d2013,#150e08)!important}
-.gwent-rank h3{font:900 24px Cinzel!important;color:var(--gold-bright);text-shadow:0 0 14px rgba(236,202,133,.5)}
-.gwent-leaderboard p{line-height:2;font-size:17px;counter-reset:x}
-.duel-item{transition:transform .2s,box-shadow .2s}.duel-item:hover{transform:translateX(4px);box-shadow:-4px 0 0 var(--gold),0 8px 20px #000a}
-.empty-state{border:2px dashed rgba(176,132,64,.5);background:rgba(0,0,0,.3);color:var(--parch);font-style:italic;font-size:17px}
-/* deck count = medalhão */
-#gwent-deck-count{font:900 20px Cinzel;color:#1c1007;background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);border:2px solid #2a1a08;border-radius:50%;width:64px;height:64px;display:grid;place-items:center;box-shadow:0 4px 10px #000,0 0 16px rgba(236,202,133,.4)}
-.gwent-card-pool{max-height:760px;overflow:auto;padding:14px 10px 10px}
-.gwent-store-wallet,#gwent-store-wallet{color:var(--gold-bright)!important;font-family:'Cinzel',serif}
-/* NOVAS SEÇÕES */
-.sec-title{text-align:center;margin:56px 0 24px}.sec-title h2{font:900 clamp(24px,3.4vw,38px) Cinzel;color:var(--gold-bright);letter-spacing:.1em;text-shadow:0 2px 0 #000,0 0 22px rgba(201,161,91,.4);margin:8px 0}
-.sec-title::after{content:"❖ ⚜ ❖";display:block;color:var(--gold);letter-spacing:10px}
-.factions{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.faction-card{position:relative;overflow:hidden;min-height:310px;padding:26px 22px;border:3px solid var(--gold);border-radius:8px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 14px 34px #000c,inset 0 0 40px #000;transition:transform .35s,box-shadow .35s}
-.faction-card:hover{transform:translateY(-12px) scale(1.03);box-shadow:0 26px 44px #000,0 0 36px var(--fc)}
-.faction-card::before{content:attr(data-s);position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:92px;color:var(--fc);opacity:.9;text-shadow:0 0 40px var(--fc);transition:transform .5s}
-.faction-card:hover::before{transform:translateX(-50%) scale(1.25) rotate(8deg)}
-.faction-card h3{font:900 21px Cinzel!important;color:var(--gold-bright);letter-spacing:2px;margin:0 0 8px;position:relative}.faction-card p{font-size:16px;color:var(--parch);margin:0;position:relative;line-height:1.5}
-.faction-card.f1{--fc:#c8d2dc;background:linear-gradient(180deg,#252c33,#0d1013)}.faction-card.f2{--fc:#6fe08f;background:linear-gradient(180deg,#1f3322,#0a110b)}.faction-card.f3{--fc:#b48cff;background:linear-gradient(180deg,#2a1d3d,#100b18)}
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;counter-reset:s}
-.step{position:relative;padding:34px 18px 20px;border:2px solid rgba(176,132,64,.6);border-radius:6px;text-align:center;background:linear-gradient(180deg,#e0cfa4,#bfa772);color:#2a1d10;box-shadow:inset 0 0 28px rgba(90,60,20,.45),0 8px 18px #000a;counter-increment:s;transition:transform .25s}
-.step:hover{transform:translateY(-6px) rotate(-1deg)}
-.step::before{content:counter(s);position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:44px;height:44px;display:grid;place-items:center;font:900 20px Cinzel;color:#1c1007;background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 3px 8px #000}
-.step h4{font:900 15px Cinzel;margin:6px 0;color:#3a2410}.step p{margin:0;font-size:16px;font-weight:600}
-.rewards-strip{display:flex;justify-content:center;gap:18px;flex-wrap:wrap}
-.reward-chip{display:flex;align-items:center;gap:12px;padding:14px 22px;border:2px solid var(--gold);border-radius:999px;background:radial-gradient(circle at 20% 30%,#4a3519,#1a1209);font:700 14px Cinzel;color:var(--gold-bright);box-shadow:0 5px 14px #000a;transition:transform .2s}.reward-chip:hover{transform:scale(1.07)}.reward-chip span{font-size:26px}
-/* revelar ao rolar */
-.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s,transform .8s}.reveal.in{opacity:1;transform:none}
-/* footer */
-footer{margin-top:60px;padding:26px 0 14px;text-align:center;position:relative;border-top:3px double var(--gold)}footer span{float:none;display:block;margin-top:8px;color:var(--muted)}
-/* sidebar: brasão e status online */
-.brand b{font-size:17px;color:var(--gold-bright);text-shadow:0 0 12px rgba(236,202,133,.4)}
-.profile::after{content:"";width:9px;height:9px;border-radius:50%;background:#e0463a;margin-left:auto;box-shadow:0 0 8px #e0463a}
-.profile.online::after{background:#5fe07a;box-shadow:0 0 10px #5fe07a}
-/* mobile: barra inferior de jogo */
-@media(max-width:800px){.factions,.steps{grid-template-columns:1fr}.gwent-score{grid-template-columns:1fr}.gwent-arena-head{flex-direction:column;align-items:flex-start}.faction-card{min-height:230px}.step{margin-top:20px}}
+/* ---------- ARENA / TABULEIRO ---------- */
+.gwent-arena{margin-top:26px;background:radial-gradient(ellipse at 50% 40%,rgba(120,80,40,.35),transparent 70%),repeating-linear-gradient(90deg,rgba(0,0,0,.2) 0 3px,transparent 3px 46px),linear-gradient(180deg,#3a2917,#150e08)}
+.gwent-arena-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 0 14px;margin-bottom:12px;border-bottom:2px solid var(--gold-dark)}
+.gwent-arena-head h2{font:900 clamp(22px,3vw,32px) var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);margin:4px 0}
+.gwent-arena-head>b{padding:12px 20px;font:900 15px var(--serif);letter-spacing:2px;color:#1c1007;background:var(--metal);border:3px solid #2a1a08;box-shadow:0 4px 0 #2a1a08;white-space:nowrap}
+.gwent-log{display:inline-block;margin:6px 0;padding:8px 14px;font:700 17px var(--body);color:var(--ink);background:linear-gradient(180deg,#ecdcb0,#cdb67c);border:2px solid #5a3c12;box-shadow:inset 0 0 20px rgba(90,60,20,.4)}
+.gwent-faction{padding:10px 16px;margin:10px 0;border-left:5px solid var(--gold);background:linear-gradient(90deg,rgba(217,174,98,.2),transparent);font-size:17px;color:var(--parch)}.gwent-faction strong{color:var(--gold-bright)}
+.gwent-score{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:16px 0}
+.gwent-score article{position:relative;text-align:center;padding:16px;border:4px solid transparent;border-image:var(--metal) 1;background:radial-gradient(circle at 50% 0,rgba(217,174,98,.3),transparent 65%),linear-gradient(180deg,#2b1e12,#0f0a06);box-shadow:inset 0 0 30px #000,0 8px 20px #000a}
+.gwent-score article:first-child{box-shadow:inset 0 0 30px #000,0 0 30px rgba(217,174,98,.4)}
+.gwent-score h3{font:900 clamp(28px,4vw,48px) var(--serif);color:var(--gold-bright);text-shadow:0 3px 0 #000,0 0 22px rgba(246,217,154,.6);margin:4px 0}
+.gwent-score small{font:700 11px var(--serif);letter-spacing:2px;color:var(--parch);text-transform:uppercase}
+.gwent-row{position:relative;display:grid;grid-template-columns:130px 1fr;gap:14px;align-items:center;padding:10px 14px 10px 0;margin:10px 0;border:2px solid var(--gold-dark);border-radius:0;background:linear-gradient(90deg,rgba(0,0,0,.65),rgba(70,48,26,.35) 18%,rgba(0,0,0,.45));box-shadow:inset 0 0 26px #000}
+.gwent-row h4{align-self:stretch;display:grid;place-items:center;margin:-10px 0;padding:8px;text-align:center;font:900 11px/1.5 var(--serif);letter-spacing:1px;text-transform:uppercase;color:var(--gold-bright);background:linear-gradient(180deg,#4a3519,#1c120a);border-right:3px solid var(--gold);text-shadow:0 1px 0 #000}
+.gwent-board-cards{display:flex;flex-wrap:wrap;gap:8px;min-height:90px;align-items:center}
+.gwent-board-card{position:relative;width:104px;padding:5px;border:3px solid transparent;border-image:var(--metal) 1;border-radius:0;background:linear-gradient(180deg,#3a2916,#140d07);box-shadow:0 6px 12px #000c;font-size:13px;transition:transform .2s}
+.gwent-board-card:hover{transform:translateY(-6px) scale(1.12);z-index:6}
+.gwent-hand{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:16px;padding:22px 6px 6px;border-top:2px solid var(--gold-dark);background:linear-gradient(180deg,rgba(0,0,0,.4),transparent)}
+.gwent-hand>.gwent-unit{width:170px}
+.gwent-prep,.gwent-reward-panel{margin:14px 0;padding:20px;text-align:center;border:4px solid transparent;border-image:var(--metal) 1;background:radial-gradient(ellipse at top,rgba(217,174,98,.28),transparent 70%),linear-gradient(180deg,#2b1e12,#150e08);box-shadow:0 0 34px rgba(217,174,98,.3),inset 0 0 30px #000}
+.gwent-prep b,.gwent-reward-panel>b{display:block;font:900 20px var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:6px}
+.gwent-reward-panel{animation:reward 1s cubic-bezier(.2,.9,.2,1) both}@keyframes reward{from{opacity:0;transform:scale(.7) rotate(-3deg)}}
+.gwent-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.gwent-event-history{background:linear-gradient(180deg,#ecdcb0,#cdb67c);color:var(--ink);border:2px solid #5a3c12;padding:12px;box-shadow:inset 0 0 24px rgba(90,60,20,.4)}.gwent-event-history *{color:var(--ink)!important}
+.duel-list{display:grid;gap:12px;margin:0 0 20px}
+.duel-item,.gwent-drop-history-item,.atelier-history-item,.atelier-review-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border:2px solid var(--gold-dark);border-radius:0;background:linear-gradient(90deg,rgba(74,53,25,.7),rgba(20,14,9,.9));box-shadow:inset 0 0 20px #000;transition:transform .2s,box-shadow .2s}
+.duel-item:hover{transform:translateX(5px);box-shadow:inset 0 0 20px #000,-5px 0 0 var(--gold)}
+.duel-item h3{font:900 22px var(--serif);color:var(--gold-bright);margin:4px 0}.duel-item p{margin:2px 0;font-size:17px}
+.gwent-rank,.gwent-leaderboard{border:3px solid var(--gold)!important;background:radial-gradient(circle at 0 50%,rgba(217,174,98,.28),transparent 55%),linear-gradient(180deg,#2b1e12,#150e08)!important}
+.empty-state{padding:28px;text-align:center;font-style:italic;color:var(--parch);border:2px dashed var(--gold-dark);background:rgba(0,0,0,.35)}
 
-/* ===== V4: ORGANIZAÇÃO EM ABAS ===== */
-.tab{display:none}.tab.show{display:block;animation:tabin .45s cubic-bezier(.2,.9,.2,1)}
-@keyframes tabin{from{opacity:0;transform:translateY(18px)}}
-.nav{position:relative;display:flex;align-items:center;gap:4px;font-size:18px}.nav span{flex:1;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.5px}
-.nbadge{font:900 10px Cinzel;font-style:normal;min-width:22px;text-align:center;padding:3px 7px;border-radius:999px;color:#1c1007;background:linear-gradient(180deg,#f0d28f,#a8782f);border:1px solid #2a1a08}
-#nb-arena{background:#e0463a;color:#fff;animation:blink 1.2s infinite}
-/* Arena: desafio em destaque */
-#tab-arena .gwent-hero{min-height:200px}
-#tab-arena .challenge-panel{border-color:var(--gold);box-shadow:var(--surface-shadow),0 0 30px rgba(201,161,91,.25),inset 0 0 40px #000}
-/* Deck: coluna do deck fica fixa enquanto rola a coleção */
-#tab-deck .gwent-builder{grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr)}
-#tab-deck .gwent-builder>div:first-child{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow:auto}
-#tab-deck .gwent-card-pool{max-height:none}
-/* Mercado: duas colunas */
-.market-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:20px;align-items:start}
+/* ---------- mercado ---------- */
+.market-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:22px;align-items:start}
 .market-cols .gwent-store,.market-cols .gwent-drop-history{margin:0}
-.market-cols .gwent-store-grid{grid-template-columns:1fr}
-.gwent-drop-history{position:sticky;top:14px}.gwent-drop-history-list{max-height:70vh;overflow:auto}
-/* Ateliê: 3 passos lado a lado */
-.atelier-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:20px 0}
-.atelier-col{position:relative;display:flex;flex-direction:column;gap:12px;padding:30px 18px 18px;border:2px solid rgba(176,132,64,.55);border-radius:6px;background:linear-gradient(180deg,rgba(60,42,24,.7),rgba(20,14,9,.9));box-shadow:inset 0 0 22px rgba(0,0,0,.55)}
-.atelier-col:not(:last-child)::after{content:"➤";position:absolute;right:-17px;top:50%;font-size:20px;color:var(--gold-bright);z-index:2;text-shadow:0 0 10px #000}
-.atl-num{position:absolute;top:-20px;left:18px;width:40px;height:40px;display:grid;place-items:center;font:900 18px Cinzel;color:#1c1007;background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 3px 8px #000}
-.atelier-col h4{font:900 16px Cinzel;color:var(--gold-bright);margin:0;letter-spacing:1px}
-.atelier-col label{display:grid;gap:6px}.atelier-col textarea{min-height:240px;resize:vertical}.atelier-col button{width:100%;margin:0}
-.atelier-preview{max-width:100%;border:3px solid var(--gold);border-radius:6px;box-shadow:0 0 18px rgba(201,161,91,.4)}
-.atelier-lower{display:grid;grid-template-columns:1fr 1fr;gap:20px}.atelier-lower:has(#atelier-review-panel[hidden]){grid-template-columns:1fr}
-.atelier-lower h4{font:900 15px Cinzel;color:var(--gold-bright);letter-spacing:1px}
-/* Guia */
-#tab-guide .sec-title:first-child{margin-top:10px}
-/* responsivo + barra inferior estilo app de jogo */
-@media(max-width:1100px){.atelier-steps,.market-cols,#tab-deck .gwent-builder,.atelier-lower{grid-template-columns:1fr}.atelier-col::after{display:none}#tab-deck .gwent-builder>div:first-child,.gwent-drop-history{position:static;max-height:none}}
+.gwent-store-grid{display:grid;grid-template-columns:1fr;gap:14px}
+.gwent-store-card{position:relative;display:flex;gap:18px;align-items:center;padding:18px;border:2px solid var(--gold-dark);background:linear-gradient(90deg,rgba(74,53,25,.7),rgba(20,14,9,.92));box-shadow:inset 0 0 22px #000}
+.gwent-store-card h4{font:900 17px var(--serif);letter-spacing:1px;color:var(--gold-bright);margin:4px 0}.gwent-store-card p{font-size:16px;color:var(--muted);margin:0 0 6px}
+.gwent-pack-card{border-color:var(--gold);background:radial-gradient(circle at 12% 50%,rgba(217,174,98,.35),transparent 55%),linear-gradient(90deg,#5a4120,#150e08)}
+.gwent-store-card .primary{flex:none}
+.store-seal{flex:none;width:64px;height:64px;display:grid;place-items:center;font-size:28px;color:var(--gold-bright);border:3px solid var(--gold);border-radius:50%;background:radial-gradient(circle at 35% 30%,#5a4120,#150e08);box-shadow:0 0 18px rgba(217,174,98,.5),inset 0 0 12px #000}
+.gwent-pack-opened{margin-top:16px;padding:18px;border:3px solid var(--gold);background:radial-gradient(ellipse at top,rgba(246,217,154,.25),transparent 70%),#120b06}
+.gwent-pack-opened h4{text-align:center;font:900 22px var(--serif);letter-spacing:.3em;color:var(--gold-bright)}
+.gwent-pack-opened-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-top:14px}
+.gwent-pack-opened-cards article{display:grid;gap:6px;align-content:center;text-align:center;min-height:220px;padding:20px 12px;border:4px solid transparent;border-image:var(--metal) 1;background:radial-gradient(circle at 50% 30%,#6b4a22,#1b120a 75%);box-shadow:0 10px 24px #000,0 0 24px rgba(246,217,154,.3);animation:flip .7s both}
+.gwent-pack-opened-cards article:nth-child(2){animation-delay:.2s}.gwent-pack-opened-cards article:nth-child(3){animation-delay:.4s}
+@keyframes flip{from{transform:rotateY(90deg) translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.gwent-pack-opened-cards b{font:900 15px var(--serif);color:var(--gold-bright)}
+.gwent-drop-history{position:sticky;top:96px}.gwent-drop-history-list{display:grid;gap:10px;max-height:65vh;overflow:auto}
+
+/* ---------- ateliê ---------- */
+.atelier-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px;margin:28px 0 22px}
+.atelier-col{position:relative;display:flex;flex-direction:column;gap:12px;padding:34px 18px 18px;border:2px solid var(--gold-dark);background:linear-gradient(180deg,rgba(74,53,25,.55),rgba(20,14,9,.92));box-shadow:inset 0 0 26px #000}
+.atelier-col:not(:last-child)::after{content:"➤";position:absolute;right:-22px;top:50%;font-size:22px;color:var(--gold-bright);z-index:3;text-shadow:0 0 10px #000}
+.atl-num{position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:44px;height:44px;display:grid;place-items:center;font:900 20px var(--serif);color:#1c1007;background:radial-gradient(circle at 35% 30%,#f6d99a,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 3px 8px #000}
+.atelier-col h4{text-align:center;font:900 15px var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);margin:0}
+.atelier-col textarea{min-height:250px;resize:vertical}.atelier-col button{width:100%}
+.atelier-preview{max-width:100%;border:3px solid var(--gold);box-shadow:0 0 20px rgba(217,174,98,.4)}
+.atelier-official-art{padding:10px;border:2px dashed var(--gold-dark);background:rgba(0,0,0,.35);text-align:center}.atelier-official-art img{max-width:100%}
+.atelier-lower{display:grid;grid-template-columns:1fr 1fr;gap:22px}.atelier-lower:has(#atelier-review-panel[hidden]){grid-template-columns:1fr}
+.atelier-lower h4{font:900 15px var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright)}.atelier-history{display:grid;gap:10px}
+
+/* ---------- guia ---------- */
+.sec-title{text-align:center;margin:36px 0 22px}.sec-title:first-child{margin-top:6px}
+.sec-title h2{font:900 clamp(22px,3vw,34px) var(--serif);letter-spacing:.2em;text-transform:uppercase;color:var(--gold-bright);margin:8px 0;text-shadow:0 3px 0 #000,0 0 22px rgba(217,174,98,.4)}
+.sec-title::after{content:"❖ ⚜ ❖";display:block;color:var(--gold);letter-spacing:10px}
+.factions{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.faction-card{position:relative;overflow:hidden;min-height:330px;padding:26px 22px;display:flex;flex-direction:column;justify-content:flex-end;text-align:center;border:5px solid transparent;border-image:var(--metal) 1;box-shadow:0 14px 34px #000c,inset 0 0 50px #000;transition:transform .35s,box-shadow .35s}
+.faction-card:hover{transform:translateY(-12px);box-shadow:0 26px 44px #000,0 0 40px var(--fc)}
+.faction-card::before{content:attr(data-s);position:absolute;top:26px;left:50%;transform:translateX(-50%);font-size:100px;line-height:1;color:var(--fc);text-shadow:0 0 44px var(--fc);transition:transform .5s}
+.faction-card:hover::before{transform:translateX(-50%) scale(1.25) rotate(8deg)}
+.faction-card h3{position:relative;font:900 20px var(--serif);letter-spacing:.15em;text-transform:uppercase;color:var(--gold-bright);margin:0 0 8px}.faction-card p{position:relative;font-size:17px;color:var(--parch);margin:0}
+.faction-card.f1{--fc:#c8d2dc;background:linear-gradient(180deg,#2c343c,#0d1013)}.faction-card.f2{--fc:#6fe08f;background:linear-gradient(180deg,#223a26,#0a110b)}.faction-card.f3{--fc:#b48cff;background:linear-gradient(180deg,#2f2146,#100b18)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;counter-reset:s;margin-top:28px}
+.step{position:relative;padding:36px 16px 18px;text-align:center;color:var(--ink);background:linear-gradient(180deg,#ecdcb0,#c4ac72);border:3px solid #5a3c12;box-shadow:inset 0 0 30px rgba(90,60,20,.5),0 8px 18px #000a;counter-increment:s;transition:transform .25s}
+.step:hover{transform:translateY(-6px) rotate(-1deg)}
+.step::before{content:counter(s);position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:44px;height:44px;display:grid;place-items:center;font:900 20px var(--serif);color:#1c1007;background:radial-gradient(circle at 35% 30%,#f6d99a,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 3px 8px #000}
+.step h4{font:900 14px var(--serif);letter-spacing:1px;text-transform:uppercase;margin:4px 0;color:#3a2410}.step p{margin:0;font-size:17px;font-weight:700}
+.rewards-strip{display:flex;justify-content:center;gap:16px;flex-wrap:wrap}
+.reward-chip{display:flex;align-items:center;gap:12px;padding:14px 24px;border:3px solid var(--gold);border-radius:999px;background:radial-gradient(circle at 20% 30%,#4a3519,#150e08);font:900 13px var(--serif);letter-spacing:1px;text-transform:uppercase;color:var(--gold-bright);box-shadow:0 5px 14px #000a;transition:transform .2s}.reward-chip:hover{transform:scale(1.08)}.reward-chip span{font-size:26px}
+
+/* ---------- extras ---------- */
+.tab{display:none}.tab.show{display:block;animation:tabin .45s cubic-bezier(.2,.9,.2,1)}@keyframes tabin{from{opacity:0;transform:translateY(18px)}}
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s,transform .8s}.reveal.in{opacity:1;transform:none}
+.modal{border:5px solid transparent;border-image:var(--metal) 1;background:linear-gradient(160deg,#2b1e12,#0f0a06)}
+footer{margin-top:50px;padding:22px 0 10px;text-align:center;border-top:4px double var(--gold);font:700 11px var(--serif);letter-spacing:3px;color:var(--gold)}footer span{display:block;float:none;margin-top:8px;font:500 15px var(--body);letter-spacing:0;color:var(--muted)}
+::-webkit-scrollbar{width:12px}::-webkit-scrollbar-track{background:#0c0805}::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#5a3c12,#d9ae62,#5a3c12);border:2px solid #0c0805}
+.click-ring{border-color:var(--gold-bright)}
+@media(max-width:1100px){.atelier-steps,.market-cols,.gwent-builder,.atelier-lower,.factions,.steps{grid-template-columns:1fr}.atelier-col::after{display:none}.gwent-drop-history{position:static}.stage-cards{display:none}.hud{grid-template-columns:auto 1fr auto}.hud .player .profile>div{display:none}.hud nav .nav{padding:0 12px}.hud nav .nav span{display:none}.steps{gap:30px}}
 @media(max-width:800px){
-.app{flex-direction:column}
-.sidebar{position:fixed;top:auto;bottom:0;left:0;right:0;width:100%;height:auto;flex-direction:row;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:3px double var(--gold);z-index:60}
-.sidebar .brand,.sidebar .side-bottom{display:none}
-.sidebar nav{display:flex;width:100%;justify-content:space-around}
-.nav{flex-direction:column;gap:2px;padding:6px 4px;font-size:22px;margin:0;text-align:center;border-radius:6px}
-.nav span{font-size:9px;margin:0;flex:none;letter-spacing:0}.nav.active{box-shadow:inset 0 3px 0 var(--gold)}
-.nbadge{position:absolute;top:0;right:4px;font-size:8px;padding:2px 5px}
-main{padding-bottom:96px}
+ .hud{height:62px;padding:0 12px;grid-template-columns:1fr auto;gap:8px}.hud .brand div:last-child,.hud .player{display:none}
+ .hud nav{position:fixed;left:0;right:0;bottom:0;height:64px;z-index:60;justify-content:space-around;background:linear-gradient(180deg,#2a1d10,#120c07);border-top:3px solid var(--gold);padding-bottom:env(safe-area-inset-bottom)}
+ .hud nav .nav{flex-direction:column;justify-content:center;gap:1px;flex:1;padding:0}.hud nav .nav span{display:block;font-size:9px;letter-spacing:.5px}.nav i{font-size:22px}.nbadge{position:absolute;top:4px;right:10%;font-size:8px;padding:2px 5px}
+ .wallet{gap:4px}.wallet span{padding:4px 8px;font-size:11px}.wallet b{font-size:11px}
+ main{padding:18px 12px 96px}.stage{min-height:0;padding:26px 14px}.stage-emblem{width:96px;height:96px;font-size:42px}.big{min-width:0;flex:1 1 100%}
+ .gwent-row{grid-template-columns:1fr}.gwent-row h4{margin:-10px -14px 0 0;padding:6px;border-right:0;border-bottom:3px solid var(--gold)}
+ .gwent-score{grid-template-columns:1fr}.gwent-arena-head{flex-direction:column;align-items:flex-start}.gwent-filters{grid-template-columns:1fr}
+ .gwent-card-pool,.gwent-deck-selected,.collection-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 10px}.gwent-hand>.gwent-unit{width:calc(50% - 8px)}
+ .gwent-store-card{flex-direction:column;text-align:center}.gwent-builder>div,.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel,.gwent-arena{padding:16px}
 }
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+#embers{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:2}
+.app,.modal-backdrop{position:relative;z-index:3}.hud{z-index:40}
+.hud{gap:12px;padding:0 18px}.brand small{white-space:nowrap}.brand b{white-space:nowrap}.nav{padding:0 14px}
+.profile small{white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}.profile b{white-space:nowrap}
+.wallet span{padding:5px 11px 5px 9px}.discord-btn,.logout-btn{padding:9px 14px;white-space:nowrap}
+.big{min-width:150px;padding:14px 20px}.stage-txt{margin-bottom:20px}
+@media(max-width:1500px){.hud .profile>div{display:none}.brand small{display:none}}
+.nav{width:auto!important;flex:0 0 auto}
+@media(max-width:800px){.hud{grid-template-columns:auto 1fr auto}.hud .player{display:flex}.hud .player .profile{display:none}.discord-btn,.logout-btn{padding:8px 12px;font-size:11px}.wallet{justify-content:flex-end}.wallet span{padding:3px 7px}}
