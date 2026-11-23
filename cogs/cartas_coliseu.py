@@ -1707,6 +1707,14 @@ class ColiseuCartas(commands.Cog):
             user_id,
             ["chefe_cervo_sombrio", "arma_lamina_peregrino", "magia_brasa_errante", "arma_agulha_astro", "covenant_sentinelas"],
         )
+        await self.bot.db.coliseu_entregar_kit_gwent(
+            user_id,
+            ["chefe_vigia_cinzento", "arma_lanca_fornalha", "arma_arco_peregrino", "magia_fagulha", "covenant_peregrinos_nevoa"],
+        )
+        await self.bot.db.coliseu_entregar_kit_especial_gwent(
+            user_id,
+            ["gwent_especial_nevoa", "gwent_especial_chifre"],
+        )
         await self.bot.db.coliseu_sincronizar_conquistas(user_id)
         user = await self.bot.db.get_user(user_id)
         level = nivel_por_xp(int(user["xp"] or 0))
@@ -1764,7 +1772,8 @@ class ColiseuCartas(commands.Cog):
         embed = discord.Embed(
             title="⚔️ Seu Coliseu",
             description=(
-                "Sua coleção e seu deck ficam aqui. O deck inicial já está preparado; você pode editar quando quiser.\n\n"
+                "Sua coleção e seu deck ficam aqui. O deck inicial já está preparado; você pode editar quando quiser.\n"
+                "**Recompensa Gwent:** 5 unidades comuns e 2 cartas especiais adicionais para montar seu deck de 12 cartas no site.\n\n"
                 f"**Nível:** {level} · **Denários:** {state['denarios']} · **Almas:** {state['almas']}\n"
                 f"**Coleção:** {state['cartas']} cartas · **Proteção contra azar:** {state['pity']}/10"
                 f" ({'próxima Rara+' if faltam == 0 else f'faltam {faltam} cartas Comuns'})\n"
