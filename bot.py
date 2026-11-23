@@ -809,6 +809,7 @@ class NaraBot(commands.Bot):
         ids = json.loads(row["card_ids_json"]) if row else []
         owned = await self.db.coliseu_listar_colecao(user_id)
         from sistemas.cartas import get_carta, carta_de_jogo_por_id
+        from sistemas.gwent import preparar_carta
         by_id = {str(r["card_id"]): r for r in owned}
         cards = []
         for card_id in ids:
@@ -819,7 +820,9 @@ class NaraBot(commands.Bot):
                 try: card = carta_de_jogo_por_id(str(card_id), str(record["game_name"]))
                 except ValueError: card = None
             if card:
-                item = card.para_dict(); item["image_url"] = f"/api/gwent/cards/{card_id}/image"; cards.append(item)
+                item = preparar_carta(card.para_dict())
+                item["image_url"] = f"/api/gwent/cards/{card_id}/image"
+                cards.append(item)
         from sistemas.gwent import FACTIONS, LEADERS, DEFAULT_LEADERS
         faction = str(row["faction"] or "") if row else ""
         if faction not in DEFAULT_LEADERS:
@@ -1073,7 +1076,8 @@ class NaraBot(commands.Bot):
                         card = None
                 if card is None:
                     continue
-                item = card.para_dict()
+                from sistemas.gwent import preparar_carta
+                item = preparar_carta(card.para_dict())
                 item["quantidade"] = int(row["quantidade"] or 1)
                 item["image_url"] = f"/api/gwent/cards/{card_id}/image"
                 cards.append(item)
