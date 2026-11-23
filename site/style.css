@@ -115,3 +115,130 @@ main{padding:34px clamp(20px,3.5vw,58px) 34px}header{position:relative;gap:22px;
 .atelier-grid{gap:22px}.atelier-form{padding:16px;border:1px solid rgba(224,189,123,.13);border-radius:13px;background:rgba(7,6,10,.2)}.atelier-form textarea{line-height:1.65}.atelier-history-item,.atelier-review-item{border:1px solid rgba(224,189,123,.16);border-radius:12px;background:rgba(7,6,10,.22);padding:14px}.atelier-official-art{border-color:rgba(224,189,123,.2);background:rgba(7,6,10,.18)}.challenge-panel{display:grid;grid-template-columns:1fr;gap:8px}.challenge-panel h3{font:600 20px Cinzel}.challenge-form{grid-template-columns:minmax(0,1fr) auto;max-width:760px}.challenge-form .primary{margin:0}.gwent-arena{padding:clamp(14px,2.4vw,24px)}.gwent-row{background:linear-gradient(110deg,#28222b,#1b1820);border-color:rgba(224,189,123,.25)}.gwent-row h4{font:600 13px Cinzel;color:var(--gold-bright)}.gwent-board-card{border:1px solid rgba(224,189,123,.18);background:#17131c}.gwent-event-history{border-color:rgba(224,189,123,.18);border-radius:12px;background:rgba(0,0,0,.22)}.gwent-drop-history-list,.duel-list{display:grid;gap:10px}.duel-item,.duel-card,.duel-room{border:1px solid rgba(224,189,123,.18);border-radius:12px;background:rgba(7,6,10,.22);padding:14px}
 .collection-grid,.card-row{grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:16px}.game-card{border:1px solid rgba(214,185,130,.22);border-radius:13px;padding:11px;background:linear-gradient(155deg,#28212e,#15121a 76%);box-shadow:0 8px 24px rgba(0,0,0,.18)}.game-card:hover{border-color:rgba(243,214,155,.7);box-shadow:0 14px 32px rgba(0,0,0,.32)}.card-image-wrap{border:1px solid rgba(224,189,123,.22);background:linear-gradient(145deg,#17131c,#09080c)}.card-image{object-fit:cover}.card-meta{padding:11px 3px 4px;gap:7px}.card-meta b{font-size:13px;min-height:36px}.card-meta small{font-size:10px;line-height:1.5}.toolbar{gap:9px}.toolbar input,.toolbar select{border:1px solid rgba(214,185,130,.22);border-radius:9px;background:#15121b;color:var(--text);min-height:44px;padding:11px 13px}input::placeholder,textarea::placeholder{color:#817889}.empty-state{border-radius:13px;background:rgba(255,255,255,.015)}.modal{border-radius:16px;background:linear-gradient(145deg,#211b29,#121017);border-color:rgba(224,189,123,.55)}footer{border-color:rgba(224,189,123,.18);padding-bottom:12px;color:var(--gold-bright)}
 @media(max-width:1050px){.gwent-builder{grid-template-columns:1fr}.gwent-card-pool,.gwent-deck-selected{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}}@media(max-width:800px){.sidebar{width:72px;padding:18px 8px}main{padding:24px 22px}.gwent-hero-emblem{width:145px;height:145px;flex-basis:145px}.gwent-hero-emblem b{font-size:17px}}@media(max-width:650px){main{padding:18px 13px 28px}header{align-items:flex-start;flex-direction:column}.wallet{justify-content:flex-start}.wallet span{font-size:10px}.gwent-hero{min-height:0;padding:22px}.gwent-hero-emblem{display:none}.gwent-hero h2{font-size:34px}.gwent-filters{grid-template-columns:1fr 1fr}.gwent-filters input{grid-column:1/-1}.gwent-builder>div{padding:13px}.gwent-card-pool,.gwent-deck-selected{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.gwent-unit{padding:7px}.gwent-unit img{aspect-ratio:5/6;height:auto}.gwent-unit b{font-size:11px}.gwent-store-grid{grid-template-columns:1fr}.challenge-form{grid-template-columns:1fr}.challenge-form .primary{width:100%}.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel{padding:15px}.collection-grid,.card-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.game-card{padding:8px}.card-meta b{font-size:11px}footer span{float:none;display:block;margin-top:8px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* ===== TEMA GWENT (The Witcher 3) — couro, madeira escura, ouro velho, pergaminho ===== */
+:root{--bg:#0d0a07;--panel:#1a130d;--panel2:#241a11;--line:rgba(176,132,64,.38);--gold:#c9a15b;--gold-bright:#ecca85;--text:#efe3cb;--muted:#a8967a;--blood:#7a1f1a;--wood:#2a1d12;--parch:#d9c59a;--surface-shadow:0 14px 40px rgba(0,0,0,.65)}
+body{font-family:'Cormorant Garamond','Inter',serif;font-size:17px;color:var(--text);background:
+radial-gradient(ellipse at 50% -10%,rgba(201,161,91,.16),transparent 55%),
+radial-gradient(ellipse at 50% 120%,rgba(122,31,26,.22),transparent 60%),
+repeating-linear-gradient(92deg,rgba(255,255,255,.012) 0 2px,transparent 2px 7px),
+repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 5px),#0d0a07}
+h1,h2,h3,h4,.brand b,.gwent-hero-emblem b,.gwent-unit b,.card-meta b{font-family:'Cinzel','Cinzel Decorative',serif!important}
+.muted,small,p{font-family:'Cormorant Garamond',serif}.muted{font-size:1.02em}
+.eyebrow{font-family:'Cinzel',serif;color:var(--gold);letter-spacing:3px}
+/* sidebar = moldura de madeira e metal */
+.sidebar{background:linear-gradient(180deg,#1f150d,#120c07);border-right:3px double rgba(176,132,64,.55);box-shadow:inset -6px 0 18px rgba(0,0,0,.6),8px 0 30px rgba(0,0,0,.5)}
+.sigil{border:2px solid var(--gold);border-radius:4px;background:radial-gradient(circle,#3a2714,#150e08);box-shadow:0 0 14px rgba(201,161,91,.35),inset 0 0 10px #000}
+.nav.active{background:linear-gradient(100deg,rgba(201,161,91,.22),transparent);border-color:rgba(201,161,91,.5);box-shadow:inset 3px 0 0 var(--gold)}
+.avatar{border:2px solid var(--gold);background:#2a1d12}
+.discord-btn{background:linear-gradient(180deg,#3a2a1a,#20150c);border:1px solid var(--gold);color:var(--gold-bright);font-family:'Cinzel',serif;letter-spacing:1px;box-shadow:inset 0 1px rgba(255,255,255,.08),0 4px 12px #000a}
+/* header e carteira = moedas */
+header{border-bottom:none;position:relative;padding-bottom:26px}
+header::after,.section-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:10px;background:linear-gradient(90deg,transparent,var(--gold) 20%,var(--gold) 80%,transparent) center/100% 1px no-repeat;opacity:.7}
+.section-head{position:relative;padding-bottom:12px}
+.wallet span{border-radius:999px;border:1px solid var(--gold);background:radial-gradient(circle at 30% 25%,#4a3519,#1a1209);color:var(--gold-bright);font-family:'Cinzel',serif;box-shadow:inset 0 1px rgba(255,255,255,.12),0 3px 8px #000a}
+.notice{background:linear-gradient(180deg,#e0cfa4,#c8b27d);color:#2a1d10;border:2px solid #6b4c22;border-radius:4px;font-family:'Cormorant Garamond',serif;font-weight:700;font-size:15px;box-shadow:inset 0 0 25px rgba(90,60,20,.35),0 4px 14px #000a}
+.notice.success{border-color:#3d5a2a;color:#1f3a14}.notice.error{border-color:#7a1f1a;color:#5a0f0b}
+/* painéis = tabuleiro de madeira com moldura dourada */
+.gwent-builder>div,.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel,.gwent-arena{border:2px solid rgba(176,132,64,.6);border-radius:6px;background:linear-gradient(160deg,rgba(46,32,19,.97),rgba(20,14,9,.98));box-shadow:var(--surface-shadow),inset 0 0 0 4px rgba(0,0,0,.35),inset 0 0 0 5px rgba(176,132,64,.18),inset 0 0 40px rgba(0,0,0,.5)}
+.gwent-hero{border:3px double var(--gold);border-radius:6px;background:radial-gradient(ellipse at 82% 50%,rgba(201,161,91,.25),transparent 40%),radial-gradient(ellipse at 10% 100%,rgba(122,31,26,.35),transparent 55%),linear-gradient(115deg,#2c1d10,#1a110a 60%,#0f0a06);box-shadow:var(--surface-shadow),inset 0 0 60px #000}
+.gwent-hero h2{text-shadow:0 2px 0 #000,0 0 22px rgba(201,161,91,.35);letter-spacing:.04em}.gwent-hero h2 em{color:var(--gold-bright);font-style:normal}
+.gwent-hero p{font-size:18px;color:#cdbb9a}
+.gwent-hero-emblem{border:3px double var(--gold);background:radial-gradient(circle,#4a3519,#170f08 70%);box-shadow:0 0 0 8px rgba(0,0,0,.4),0 0 50px rgba(201,161,91,.3),inset 0 0 30px #000;animation:emb 5s ease-in-out infinite}
+@keyframes emb{50%{box-shadow:0 0 0 8px rgba(0,0,0,.4),0 0 80px rgba(236,202,133,.5),inset 0 0 30px #000}}
+.gwent-hero-tags span,.gwent-rules span{border:1px solid rgba(176,132,64,.55);border-radius:3px;background:rgba(0,0,0,.4);color:var(--parch);font-family:'Cinzel',serif;font-size:10px;letter-spacing:.5px}
+/* botões = placas de metal */
+.primary{background:linear-gradient(180deg,#e8c47d,#a8782f 55%,#85591f);color:#1c1007;border:1px solid #f3d99a;border-radius:3px;font-family:'Cinzel',serif;letter-spacing:1px;text-shadow:0 1px rgba(255,255,255,.35);box-shadow:inset 0 1px rgba(255,255,255,.5),0 4px 0 #4a3010,0 8px 16px #000a}
+.primary:hover{transform:translateY(-1px);filter:brightness(1.1)}.primary:active{transform:translateY(3px);box-shadow:inset 0 1px rgba(255,255,255,.3),0 1px 0 #4a3010}
+.secondary,.gwent-unit button,.deck-slot button,.gwent-actions button,.atelier-review-actions button{border:1px solid var(--gold);border-radius:3px;background:linear-gradient(180deg,#3a2a18,#1e140b);color:var(--gold-bright);font-family:'Cinzel',serif;font-size:11px;letter-spacing:.5px;box-shadow:inset 0 1px rgba(255,255,255,.08)}
+.secondary:hover,.gwent-unit button:hover{background:linear-gradient(180deg,#5a4122,#2c1d0e);color:#fff}
+.danger{background:linear-gradient(180deg,#9a2a22,#5a1410);border:1px solid #d86a5e;color:#ffe3dd;border-radius:3px;font-family:'Cinzel',serif}
+select,input,textarea{background:#120c07!important;color:var(--text)!important;border:1px solid rgba(176,132,64,.5)!important;border-radius:3px!important;font-family:'Cormorant Garamond',serif;font-size:16px}
+/* CARTAS estilo Gwent */
+.gwent-unit,.game-card,.deck-slot{position:relative;border:3px solid #8a6a35;border-radius:10px;padding:8px;background:linear-gradient(170deg,#3a2916,#1b120a 70%);box-shadow:0 8px 18px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,230,160,.18),inset 0 0 14px rgba(0,0,0,.7);transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s,border-color .25s}
+.gwent-unit:hover,.game-card:hover{transform:translateY(-10px) scale(1.06) rotate(-1deg);z-index:3;border-color:var(--gold-bright);box-shadow:0 22px 34px rgba(0,0,0,.85),0 0 24px rgba(236,202,133,.45)}
+.gwent-unit img,.card-image{border:2px solid #0b0704;border-radius:6px;box-shadow:inset 0 0 18px #000;filter:saturate(1.05) contrast(1.05)}
+.card-image-wrap{border:2px solid #0b0704;border-radius:6px;background:#0b0704}
+.gwent-unit::after,.game-card::after{content:"";position:absolute;inset:0;border-radius:7px;pointer-events:none;background:linear-gradient(115deg,transparent 35%,rgba(255,235,170,.14) 50%,transparent 65%);background-size:250% 100%;background-position:130% 0;transition:background-position .7s}
+.gwent-unit:hover::after,.game-card:hover::after{background-position:-30% 0}
+.gwent-unit b,.card-meta b{color:var(--parch);text-shadow:0 1px 2px #000;text-align:center;display:block}
+.quantity,.power{background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);color:#1c1007!important;border:2px solid #2a1a08;border-radius:50%;font-family:'Cinzel',serif;font-weight:900;box-shadow:0 2px 6px #000}
+.rarity-rara{color:#6fb4ee!important}.rarity-epica{color:#c78bff!important}.rarity-lendaria,.rarity-primordial{color:#ffd36b!important}.rarity-mitica{color:#ff6fb4!important}.rarity-singular{color:#6ff5e1!important}
+/* ARENA = tabuleiro */
+.gwent-arena{background:radial-gradient(ellipse at 50% 50%,rgba(60,40,20,.5),transparent 70%),repeating-linear-gradient(90deg,rgba(0,0,0,.18) 0 3px,transparent 3px 40px),linear-gradient(180deg,#2d2013,#150e08);border:4px double var(--gold)}
+.gwent-row{border:2px solid rgba(176,132,64,.7);border-radius:4px;background:linear-gradient(90deg,rgba(0,0,0,.55),rgba(80,56,30,.35) 12%,rgba(0,0,0,.4));box-shadow:inset 0 0 22px #000,0 2px 0 rgba(255,230,160,.08)}
+.gwent-row h4{color:var(--gold-bright);text-shadow:0 1px 2px #000}
+.gwent-board-card{border:2px solid #8a6a35;border-radius:7px;background:linear-gradient(170deg,#3a2916,#1b120a);box-shadow:0 5px 10px #000b;transition:transform .2s}.gwent-board-card:hover{transform:translateY(-5px) scale(1.08);z-index:2}
+.gwent-hand{padding:14px 6px 6px;border-top:2px solid rgba(176,132,64,.5)}
+.gwent-score,.duel-score b{font-family:'Cinzel',serif;color:var(--gold-bright);text-shadow:0 0 14px rgba(201,161,91,.6)}
+.gwent-log,.gwent-event-history{background:linear-gradient(180deg,#d9c59a,#bfa772);color:#2a1d10;border:2px solid #6b4c22;border-radius:3px;box-shadow:inset 0 0 25px rgba(90,60,20,.4)}
+.gwent-log *,.gwent-event-history *{color:#2a1d10!important}
+.gwent-store-card,.atelier-history-item,.atelier-review-item,.duel-item,.gwent-drop-history-item,.atelier-form,.gwent-config{border:1px solid rgba(176,132,64,.5);border-radius:4px;background:linear-gradient(180deg,rgba(60,42,24,.7),rgba(20,14,9,.85));box-shadow:inset 0 0 18px rgba(0,0,0,.5)}
+.store-seal{border:2px solid var(--gold);border-radius:50%;background:radial-gradient(circle at 35% 30%,#5a4120,#1a1109);box-shadow:0 0 14px rgba(201,161,91,.35)}
+.gwent-pack-card{background:radial-gradient(circle at 15% 50%,rgba(201,161,91,.2),transparent 50%),linear-gradient(180deg,rgba(80,52,24,.8),rgba(20,14,9,.9))}
+.gwent-pack-opened-cards .gwent-unit,.gwent-pack-opened-cards>*{animation:flip .7s both}.gwent-pack-opened-cards>*:nth-child(2){animation-delay:.18s}.gwent-pack-opened-cards>*:nth-child(3){animation-delay:.36s}
+@keyframes flip{from{transform:rotateY(90deg) translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.modal{border:3px double var(--gold);border-radius:8px;background:linear-gradient(160deg,#2d2013,#120c07)}
+footer{border-top:1px solid var(--gold);color:var(--gold);font-family:'Cinzel',serif}
+::-webkit-scrollbar{width:10px}::-webkit-scrollbar-track{background:#120c07}::-webkit-scrollbar-thumb{background:linear-gradient(#8a6a35,#4a3412);border-radius:5px}
+
+/* ===== V2: ATMOSFERA DE JOGO ===== */
+body{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M3 3l18 8-8 3-3 8z' fill='%23ecca85' stroke='%231c1007' stroke-width='2'/%3E%3C/svg%3E") 3 3,auto}
+button,select,.gwent-unit,.game-card,.nav{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M3 3l18 8-8 3-3 8z' fill='%23fff3c9' stroke='%237a1f1a' stroke-width='2'/%3E%3C/svg%3E") 3 3,pointer}
+#embers{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.75) 100%)}
+.app,.modal-backdrop{position:relative;z-index:3}
+/* splash */
+#splash{position:fixed;inset:0;z-index:99;display:grid;place-items:center;text-align:center;background:radial-gradient(ellipse at center,#3a2610 0,#0d0a07 70%);transition:opacity .9s,transform .9s;cursor:pointer}
+#splash.out{opacity:0;transform:scale(1.15);pointer-events:none}
+#splash .s-fan{position:relative;height:190px;width:320px;margin:0 auto 30px}
+#splash .s-fan i{position:absolute;left:50%;bottom:0;width:110px;height:160px;margin-left:-55px;border:3px solid var(--gold);border-radius:10px;background:radial-gradient(circle at 50% 38%,#6b4a22,#241609 70%);box-shadow:0 12px 30px #000;transform-origin:50% 120%;animation:fan 1.4s cubic-bezier(.2,.9,.2,1) both;display:grid;place-items:center;font-size:42px;color:var(--gold-bright)}
+#splash .s-fan i:nth-child(1){--r:-28deg}#splash .s-fan i:nth-child(2){--r:-14deg;animation-delay:.12s}#splash .s-fan i:nth-child(3){--r:0deg;animation-delay:.24s}#splash .s-fan i:nth-child(4){--r:14deg;animation-delay:.36s}#splash .s-fan i:nth-child(5){--r:28deg;animation-delay:.48s}
+@keyframes fan{from{transform:rotate(0) translateY(60px);opacity:0}to{transform:rotate(var(--r));opacity:1}}
+#splash h1{font:900 clamp(34px,7vw,76px) Cinzel;letter-spacing:.12em;margin:0;color:var(--gold-bright);text-shadow:0 3px 0 #000,0 0 40px rgba(236,202,133,.5);animation:rise 1.2s .5s both}
+#splash p{font:700 18px Cinzel;letter-spacing:.4em;color:var(--parch);margin:10px 0 36px;animation:rise 1.2s .8s both}
+#splash .s-press{font:700 13px Cinzel;letter-spacing:.35em;color:var(--gold);animation:blink 1.6s 1.5s infinite both}
+@keyframes rise{from{opacity:0;transform:translateY(24px)}}@keyframes blink{50%{opacity:.25}}
+/* HUD */
+header{background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);padding:14px 18px 26px;border-radius:6px}
+.wallet span{transition:transform .2s}.wallet span:hover{transform:translateY(-3px) scale(1.06);box-shadow:0 0 18px rgba(236,202,133,.5)}
+.wallet span b{display:inline-block;min-width:1.5ch;text-shadow:0 0 8px rgba(236,202,133,.6)}
+h1#page-title{text-shadow:0 2px 0 #000,0 0 24px rgba(201,161,91,.45)}
+/* cantos ornamentais nos painéis */
+.gwent-builder>div,.atelier-panel,.gwent-store,.gwent-drop-history,.challenge-panel,.gwent-arena,.gwent-hero{position:relative}
+.gwent-builder>div::before,.atelier-panel::before,.gwent-store::before,.gwent-drop-history::before,.challenge-panel::before,.gwent-hero::before{content:"⚜";position:absolute;top:-13px;left:50%;transform:translateX(-50%);padding:0 10px;font-size:20px;color:var(--gold-bright);background:#120c07;border-radius:50%;text-shadow:0 0 10px rgba(236,202,133,.7);z-index:2}
+/* hero: cartas flutuando */
+.gwent-hero-emblem{position:relative;overflow:visible}
+.gwent-hero-emblem::before,.gwent-hero-emblem::after{content:"";position:absolute;width:74px;height:106px;border:2px solid var(--gold);border-radius:8px;background:linear-gradient(160deg,#6b4a22,#1b120a);box-shadow:0 10px 20px #000;z-index:-1;animation:floaty 5s ease-in-out infinite}
+.gwent-hero-emblem::before{left:-70px;top:30px;--r:-14deg;transform:rotate(-14deg)}.gwent-hero-emblem::after{right:-70px;top:30px;--r:14deg;transform:rotate(14deg);animation-delay:-2.5s}
+@keyframes floaty{50%{transform:translateY(-14px) rotate(var(--r))}}
+/* efeito 3D / holo nas cartas (JS define --mx --my --rx --ry) */
+.gwent-unit,.game-card{transform-style:preserve-3d;will-change:transform}
+.gwent-unit.tilt,.game-card.tilt{transform:perspective(700px) rotateX(var(--rx,0)) rotateY(var(--ry,0)) translateY(-8px) scale(1.07)!important}
+.gwent-unit.tilt::after,.game-card.tilt::after{background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,245,200,.35),transparent 45%)!important}
+/* raridades: brilho e moldura */
+[data-r="rara"]{border-color:#4e9be0!important;box-shadow:0 8px 18px #000a,0 0 14px rgba(78,155,224,.35)!important}
+[data-r="epica"]{border-color:#a468f0!important;box-shadow:0 8px 18px #000a,0 0 18px rgba(164,104,240,.5)!important}
+[data-r="lendaria"],[data-r="primordial"]{border-color:#ffc94d!important;box-shadow:0 8px 18px #000a,0 0 24px rgba(255,201,77,.6)!important;animation:pulseg 2.6s infinite}
+[data-r="mitica"]{border-color:#ff5fae!important;box-shadow:0 8px 18px #000a,0 0 24px rgba(255,95,174,.6)!important;animation:pulsem 2.6s infinite}
+[data-r="singular"]{border-color:#5ff5e1!important;animation:pulses 2s infinite}
+@keyframes pulseg{50%{box-shadow:0 8px 18px #000a,0 0 38px rgba(255,201,77,.95)}}@keyframes pulsem{50%{box-shadow:0 8px 18px #000a,0 0 38px rgba(255,95,174,.95)}}@keyframes pulses{50%{box-shadow:0 0 36px rgba(95,245,225,.9)}}
+/* cartas entram em cena */
+.gwent-card-pool>*,.gwent-deck-selected>*,.collection-grid>*,.gwent-board-card,.gwent-hand>*{animation:deal .5s cubic-bezier(.2,.9,.2,1) both}
+@keyframes deal{from{opacity:0;transform:translateY(40px) rotate(-6deg) scale(.85)}}
+/* mão em leque */
+.gwent-hand{display:flex;flex-wrap:wrap;justify-content:center;gap:0;padding-top:30px}
+.gwent-hand>*{margin:0 -8px;transform:rotate(calc((var(--i,0) - 3) * 2.2deg)) translateY(calc(abs(var(--i,0) - 3) * 1px));transition:transform .25s,margin .25s}
+.gwent-hand>*:hover{transform:translateY(-34px) scale(1.2) rotate(0)!important;z-index:20;margin:0 14px}
+/* placar de fileira e moedas de coroa */
+.gwent-row{position:relative}.gwent-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(var(--gold),#6b4a22)}
+.gwent-arena-head{background:linear-gradient(90deg,transparent,rgba(0,0,0,.6),transparent);border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);padding:10px;text-align:center}
+.gwent-actions button{padding:12px 20px;font-size:13px}
+.gwent-actions button:hover{box-shadow:0 0 18px rgba(236,202,133,.6);transform:translateY(-2px)}
+/* faixa de turno */
+#turn-banner{position:fixed;left:0;right:0;top:40%;z-index:50;text-align:center;font:900 clamp(26px,5vw,56px) Cinzel;letter-spacing:.2em;color:var(--gold-bright);padding:22px;background:linear-gradient(90deg,transparent,rgba(0,0,0,.88) 25%,rgba(0,0,0,.88) 75%,transparent);text-shadow:0 0 30px rgba(236,202,133,.8);border-top:2px solid var(--gold);border-bottom:2px solid var(--gold);animation:banner 2.2s both;pointer-events:none}
+@keyframes banner{0%{opacity:0;transform:scaleY(0)}12%,80%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(0)}}
+.click-ring{position:fixed;width:12px;height:12px;border:2px solid var(--gold-bright);border-radius:50%;pointer-events:none;z-index:98;animation:ring .6s forwards}
+@keyframes ring{to{transform:scale(7);opacity:0}}
+.primary:not(:disabled){animation:glowbtn 2.4s infinite}@keyframes glowbtn{50%{box-shadow:inset 0 1px rgba(255,255,255,.5),0 4px 0 #4a3010,0 0 24px rgba(236,202,133,.7)}}
+@media(max-width:650px){.gwent-hero-emblem::before,.gwent-hero-emblem::after,.gwent-hand>*{margin:0}.gwent-hand>*{transform:none}}

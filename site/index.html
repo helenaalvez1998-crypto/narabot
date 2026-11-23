@@ -2,13 +2,40 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0b0a10"><title>SoulsBot — Gwent do Coliseu</title>
+  <meta name="theme-color" content="#0d0a07"><title>SoulsBot — Gwent do Coliseu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div id="splash"><div><div class="s-fan"><i>⚔</i><i>✦</i><i>⚜</i><i>♜</i><i>☗</i></div><h1>GWENT</h1><p>DO COLISEU</p><div class="s-press">— CLIQUE PARA ENTRAR NA ARENA —</div></div></div>
+<canvas id="embers"></canvas>
+<script>
+(()=>{const sp=document.getElementById('splash');const go=()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),1000);banner('QUE COMECE A BATALHA')};
+if(sessionStorage.getItem('sp')){sp.remove()}else{sp.onclick=()=>{try{sessionStorage.setItem('sp',1)}catch(e){};go()}}
+function banner(t){const b=document.createElement('div');b.id='turn-banner';b.textContent=t;document.body.appendChild(b);setTimeout(()=>b.remove(),2300)}
+window.gwentBanner=banner;
+// brasas
+const c=document.getElementById('embers'),x=c.getContext('2d');let W,H,P=[];const rs=()=>{W=c.width=innerWidth;H=c.height=innerHeight};rs();addEventListener('resize',rs);
+const mk=()=>({x:Math.random()*W,y:H+10,r:Math.random()*2.2+.6,vy:Math.random()*.9+.3,vx:(Math.random()-.5)*.4,a:Math.random()*.7+.3,p:Math.random()*6});
+for(let i=0;i<60;i++){const p=mk();p.y=Math.random()*H;P.push(p)}
+(function f(){x.clearRect(0,0,W,H);for(const p of P){p.y-=p.vy;p.p+=.03;p.x+=p.vx+Math.sin(p.p)*.3;p.a-=.0015;if(p.y<-10||p.a<=0)Object.assign(p,mk());x.beginPath();x.fillStyle=`rgba(255,${150+p.r*20|0},60,${p.a})`;x.shadowBlur=10;x.shadowColor='#ff9a3c';x.arc(p.x,p.y,p.r,0,6.3);x.fill()}requestAnimationFrame(f)})();
+// clique
+addEventListener('click',e=>{const r=document.createElement('div');r.className='click-ring';r.style.left=e.clientX-6+'px';r.style.top=e.clientY-6+'px';document.body.appendChild(r);setTimeout(()=>r.remove(),600)});
+// tilt 3D
+document.addEventListener('mousemove',e=>{const el=e.target.closest&&e.target.closest('.gwent-unit,.game-card');document.querySelectorAll('.tilt').forEach(t=>{if(t!==el)t.classList.remove('tilt')});if(!el)return;const b=el.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height;el.classList.add('tilt');el.style.setProperty('--mx',px*100+'%');el.style.setProperty('--my',py*100+'%');el.style.setProperty('--rx',(.5-py)*16+'deg');el.style.setProperty('--ry',(px-.5)*18+'deg')});
+// raridade + leque da mão
+const R=['primordial','lendária','lendaria','mítica','mitica','singular','épica','epica','rara'];let t;
+const scan=()=>{document.querySelectorAll('.gwent-unit:not([data-r]),.game-card:not([data-r])').forEach(el=>{const s=el.textContent.toLowerCase();const m=R.find(k=>s.includes(k));if(m)el.dataset.r=m.normalize('NFD').replace(/[\u0300-\u036f]/g,'')});document.querySelectorAll('.gwent-hand').forEach(h=>[...h.children].forEach((c,i)=>{c.style.setProperty('--i',i);c.style.animationDelay=i*.05+'s'}));
+document.querySelectorAll('.wallet b').forEach(b=>{if(b.dataset.v!==b.textContent){if(b.dataset.v!==undefined){b.animate([{transform:'scale(1.6)',color:'#fff'},{transform:'scale(1)'}],400)}b.dataset.v=b.textContent}})};
+new MutationObserver(()=>{clearTimeout(t);t=setTimeout(scan,80)}).observe(document.body,{childList:true,subtree:true,characterData:true});scan();
+// banner ao passar/jogar
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const s=b.textContent.toLowerCase();if(s.includes('passar'))banner('VOCÊ PASSOU');else if(s.includes('iniciar partida'))banner('DUELO INICIADO');else if(s.includes('abrir'))banner('PACOTE DA FORJA')})
+})();
+</script>
+
 <div class="app">
   <aside class="sidebar">
-    <div class="brand"><div class="sigil">S</div><div><b>SOULSBOT</b><small>GWENT DO COLISEU</small></div></div>
+    <div class="brand"><div class="sigil">⚜</div><div><b>SOULSBOT</b><small>GWENT DO COLISEU</small></div></div>
     <nav>
       <button class="nav active" data-page="gwent">♜ <span>Gwent do Coliseu</span></button>
     </nav>
