@@ -124,6 +124,13 @@ _CARTAS_BASE = [
     Carta("covenant_filhos_brasa", "Filhos da Brasa", "Covenant", "Força", 5, "Comum", 1, "contragolpe"),
     Carta("covenant_peregrinos_nevoa", "Peregrinos da Névoa", "Covenant", "Destreza", 4, "Comum", 1, "primeira_luz"),
     Carta("covenant_irmandade_ferro", "Irmandade de Ferro", "Covenant", "Força", 4, "Comum", 1, "retaliacao"),
+    # Cartas especiais do modo Gwent: entram na coleção por recompensas/pacotes do Discord.
+    Carta("gwent_especial_nevoa", "Névoa de Guerra", "Especial", "Magia", 0, "Rara", 2, "gwent_nevoa", "Reduz em 2 o poder de todas as unidades da fileira escolhida até o fim da rodada."),
+    Carta("gwent_especial_geada", "Geada Implacável", "Especial", "Magia", 0, "Rara", 2, "gwent_geada", "Reduz em 1 o poder de todas as unidades das três fileiras até o fim da rodada."),
+    Carta("gwent_especial_chuva", "Chuva de Ferro", "Especial", "Magia", 0, "Comum", 1, "gwent_chuva", "Reduz em 2 o poder das unidades da fileira de cerco até o fim da rodada."),
+    Carta("gwent_especial_chifre", "Chifre de Batalha", "Especial", "Força", 0, "Épica", 3, "gwent_chifre", "Concede +2 de poder às suas unidades na fileira escolhida até o fim da rodada."),
+    Carta("gwent_especial_medico", "Médico de Campanha", "Especial", "Destreza", 0, "Rara", 2, "gwent_medico", "Recupera para a mão uma unidade de poder 4 ou menos do seu descarte."),
+    Carta("gwent_especial_queima", "Queima Estratégica", "Especial", "Magia", 0, "Épica", 3, "gwent_queima", "Remove a unidade mais forte de cada lado do campo."),
 ]
 
 CARTAS_PRIMORDIAIS = [
@@ -457,6 +464,8 @@ def poder_total_deck(cards: list[dict[str, Any]]) -> int:
 def cards_em_deck_validos(cards: list[dict[str, Any]]) -> tuple[bool, str]:
     if len(cards) != 5:
         return False, "O deck precisa ter exatamente cinco cartas."
+    if any(str(c.get("categoria", "")).casefold() == "especial" for c in cards):
+        return False, "Cartas especiais são exclusivas da Arena Gwent."
     ids = [c["id"] for c in cards]
     if len(set(ids)) != 5:
         return False, "Não é permitido repetir uma carta no mesmo deck."
