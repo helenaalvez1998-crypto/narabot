@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "language": "pt-BR",
   "description": "FAQ local da NARA. As respostas são mensagens escritas no Discord, com personalidade própria, humor contextual e precisão operacional. A NARA lê mensagens e responde por texto; não fala nem envia áudio. Instruções técnicas, privacidade e moderação priorizam clareza e segurança. Itens staff_only ficam fora da Central de Ajuda dos jogadores.",
   "matching": {
@@ -208,7 +208,7 @@
         "zerado",
         "cadastrei errado"
       ],
-      "answer": "pra remover um jogo zerado, abra `/nara` → **Minha biblioteca** → **Remover zerado** e informe o número correspondente ao registro da sua lista. Confira o jogo antes de confirmar. Se o registro já concedeu XP ou Denários, o sistema tb retira a recompensa correspondente, respeitando o saldo mínimo disponível. Pense antes de apertar: não existe botão mágico pra desfazer arrependimento. Eu avisei pra conferir. Depois não venha negociar com o botão como se ele tivesse coração.",
+      "answer": "pra remover um zerado, abra `/nara` → **Minha biblioteca** → **Remover zerado** e informe o número do registro. O sistema reverte XP, Denários e o drop correspondente quando ainda dá pra fazer isso com segurança. Se a carta estiver em um deck, tiver sido evoluída/lapidada ou os recursos da duplicata já tiverem sido gastos, a remoção automática é bloqueada e a moderação precisa revisar. Confere antes de confirmar — apagar registro não é botão de desfazer sem consequência.",
       "category": "Jogos zerados",
       "verified_sources": {
         "files": [
@@ -2037,7 +2037,7 @@
         "xp",
         "denarios"
       ],
-      "answer": "Ao remover um registro de jogo zerado, o sistema tb retira o XP e os Denários que ele concedeu, respeitando o saldo mínimo de zero. Abra `/nara` → **Minha biblioteca** → **Remover zerado**, informe o número exibido na lista e confira o jogo antes de confirmar. A remoção atualiza suas estatísticas e pode alterar sua posição nos rankings. Leia antes de clicar; arrependimento não é uma categoria de suporte técnico. Remover o registro também pode remover a recompensa. Não dá pra ficar com o prêmio e apagar o motivo — conveniente demais, né?",
+      "answer": "Ao remover um zerado, o sistema tenta reverter XP, Denários e o drop. Se a carta ainda estiver intacta e fora do deck, ela é retirada; se a duplicata virou recursos, o saldo precisa comportar a devolução. Carta em deck, carta evoluída/lapidada ou recursos já gastos bloqueiam a remoção automática e exigem revisão da moderação. Abra `/nara` → **Minha biblioteca** → **Remover zerado** e confira o registro antes de confirmar.",
       "verified_sources": {
         "files": [
           "cogs/zerados.py",
@@ -4641,6 +4641,99 @@
           "nara_local.py"
         ],
         "basis": "Tutorial e link de vídeo configurável por servidor; etapas limitadas às informações fornecidas."
+      }
+    },
+    {
+      "intent": "cartas_coliseu_drops",
+      "title": "Como ganhar cartas no Gwent do Coliseu?",
+      "examples": [
+        "como ganho cartas no coliseu",
+        "como consigo cartas no gwent",
+        "como funciona o drop de cartas",
+        "ganho carta por platina",
+        "zerado dá carta",
+        "run dá carta",
+        "contribuição dá carta"
+      ],
+      "keywords": [
+        "cartas",
+        "gwent",
+        "coliseu",
+        "drop",
+        "recompensa",
+        "raridade"
+      ],
+      "answer": "vc ganha cartas quando seus registros são aprovados: zerados, platinas, runs Soulslike, contribuições da Comunidade e envios públicos de ports/mods. além do XP, recebe 1 carta aleatória do catálogo global, direto na coleção. platina que registra o zerado automaticamente dá só um drop, sem duplicar a recompensa. o jogo fica na página **Gwent do Coliseu** no site do NARA.",
+      "category": "Cartas do Coliseu",
+      "verified_sources": {
+        "files": [
+          "database.py",
+          "cogs/zerados.py",
+          "cogs/platinas.py",
+          "cogs/soulslike.py",
+          "cogs/comunidade.py",
+          "site/index.html",
+          "cogs/catalogo_integrado.py"
+        ],
+        "basis": "Fluxos de aprovação de biblioteca, runs, comunidade e envios públicos de ports/mods; concessão idempotente de drops."
+      }
+    },
+    {
+      "intent": "cartas_coliseu_duplicatas",
+      "title": "O que acontece quando recebo uma carta repetida?",
+      "examples": [
+        "o que faço com carta repetida",
+        "como funcionam duplicatas",
+        "duplicata vira alma",
+        "duplicata dá fragmento",
+        "posso ter a mesma carta em duas raridades"
+      ],
+      "keywords": [
+        "duplicata",
+        "repetida",
+        "almas",
+        "fragmentos",
+        "exemplar",
+        "raridade"
+      ],
+      "answer": "se vc receber o mesmo modelo na mesma raridade, é duplicata: 50% de chance de virar Almas e 50% de virar fragmentos. mas atenção: o mesmo modelo em outra raridade vira um novo exemplar, com poder e raridade próprios. vc pode escolher qual exemplar usar no deck.",
+      "category": "Cartas do Coliseu",
+      "verified_sources": {
+        "files": [
+          "database.py",
+          "sistemas/cartas.py",
+          "site/app.js"
+        ],
+        "basis": "Regra de duplicatas por modelo + raridade e seleção individual de exemplares."
+      }
+    },
+    {
+      "intent": "cartas_coliseu_primordial_singular",
+      "title": "Como conseguir cartas Primordiais e Singulares?",
+      "examples": [
+        "como conseguir primordial",
+        "como ganhar carta singular",
+        "primordial é exclusiva do servidor",
+        "singular pode ser de outro jogador",
+        "qual a chance de primordial"
+      ],
+      "keywords": [
+        "primordial",
+        "singular",
+        "feito especial",
+        "no-hit",
+        "nível 1",
+        "todos os chefes"
+      ],
+      "answer": "Primordial pode ser conquistada por drop em desafios Soulslike habilitados: a chance configurada é de 0,1%, e cada jogador pode ter sua própria cópia. Singular não sai no drop comum; é concedida quando vc valida o feito extraordinário configurado para aquele desafio. cada Singular é individual por jogador.",
+      "category": "Cartas do Coliseu",
+      "verified_sources": {
+        "files": [
+          "database.py",
+          "cogs/soulslike.py",
+          "sistemas/cartas.py"
+        ],
+        "basis": "Condições de drop especial e unicidade individual por jogador."
       }
     }
   ]
