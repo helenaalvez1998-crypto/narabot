@@ -350,13 +350,19 @@ const gwentRows = [
 
 function renderGwentBuilder() {
   const selected = gwentDeckIds.map(id => collection.find(c => c.id === id)).filter(Boolean);
-  $('#gwent-deck-count').textContent = `${selected.length}/12 cartas`;
+  const specialCount = selected.filter(card => card.categoria === 'Especial').length;
+  const unitCount = selected.length - specialCount;
+  $('#gwent-deck-count').textContent = `${selected.length}/12 cartas · ${unitCount} unidades · ${specialCount} especiais`;
   $('#gwent-deck-selected').innerHTML = selected.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${escapeHTML(card.categoria === "Especial" ? "Especial" : card.tipo)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-remove="${escapeHTML(card.id)}">Remover</button></article>`).join('') || '<div class="empty-state">Selecione 12 cartas (unidades e especiais) da coleção.</div>';
   const q = ($('#gwent-card-search').value || '').trim().toLocaleLowerCase('pt-BR');
   const selectedSet = new Set(gwentDeckIds);
   const pool = collection.filter(c => !selectedSet.has(c.id) && (`${c.nome} ${c.tipo} ${c.categoria} ${c.habilidade}`.toLocaleLowerCase('pt-BR').includes(q)));
   $('#gwent-card-pool').innerHTML = pool.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : card.tipo)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-add="${escapeHTML(card.id)}" ${gwentDeckIds.length >= 12 ? 'disabled' : ''}>Adicionar</button></article>`).join('') || '<div class="empty-state">Nenhuma unidade disponível.</div>';
-  $('#gwent-save-deck').disabled = selected.length !== 12 || JSON.stringify(gwentDeckIds) === JSON.stringify(gwentSavedIds);
+  $('#gwent-save-deck').disabled = selected.length !== 12 || unitCount < 8 || specialCount > 4 || JSON.stringify(gwentDeckIds) === JSON.stringify(gwentSavedIds);
+  $('#gwent-deck-status').textContent = selected.length === 12 && unitCount < 8
+    ? 'Inclua pelo menos 8 unidades no deck.'
+    : specialCount > 4 ? 'O limite é de 4 cartas especiais por deck.'
+    : `${unitCount}/12 unidades e ${specialCount}/4 especiais. Deck válido exige ao menos 8 unidades.`;
 }
 
 async function loadGwentDeck() {
@@ -420,7 +426,7 @@ function renderGwentArena(data) {
   const prep = data.phase === 'mulligan';
   const mulliganControls = prep ? `<div class="gwent-prep"><b>Preparação inicial</b><p>Selecione até duas cartas para trocar. Você tem ${number(data.draw_count || 0)} carta(s) de reserva.</p><button class="secondary" data-gwent-keep ${data.mulligan_done || !data.is_your_turn ? 'disabled' : ''}>Manter minha mão</button><button class="primary" data-gwent-mulligan ${data.mulligan_done || !data.is_your_turn ? 'disabled' : ''}>Trocar selecionadas</button></div>` : '';
   arena.innerHTML = `<div class="gwent-arena-head"><div><small class="eyebrow">RODADA ${number(data.round)} / 3</small><h2>Arena Gwent</h2><p class="gwent-log">${escapeHTML(data.last_event || '')}</p></div><b>${data.status === 'finished' ? (data.winner_id ? `Vencedor: ${data.winner_id}` : 'Empate') : (prep ? (data.is_your_turn ? 'Sua preparação' : 'Preparação do adversário') : (data.is_your_turn ? 'Sua vez' : 'Vez do adversário'))}</b></div>
-    <div class="gwent-faction">Sua facção: <strong>${escapeHTML(data.faction || mine.faction || '—')}</strong> · bônus de facção: +1 na primeira unidade da rodada</div>${mulliganControls}
+    <div class="gwent-faction">Sua facção: <strong>${escapeHTML(data.faction || mine.faction || '—')}</strong> · ${escapeHTML(({ 'Ordem de Ferro': 'Líder: +2 às unidades de corpo a corpo.', 'Errantes do Véu': 'Líder: +2 às unidades de longa distância.', 'Conclave Arcano': 'Líder: dissipa o clima e concede +1 ao cerco.' })[data.faction || mine.faction] || 'Bônus de facção: +1 à primeira unidade da facção em cada rodada.')}</div>${mulliganControls}
     <div class="gwent-score"><article><small>VOCÊ</small><h3>${number(mine.score)} poder</h3><small>${number(mine.crowns)} coroas · ${number(mine.hand)} cartas na mão ${mine.passed ? '· passou' : ''}</small></article><article><small>ADVERSÁRIO</small><h3>${number(theirs.score)} poder</h3><small>${number(theirs.crowns)} coroas · ${number(theirs.hand)} cartas na mão ${theirs.passed ? '· passou' : ''}</small></article></div>
     <h3>Seu campo</h3>${board(mine)}<h3>Campo adversário</h3>${board(theirs)}
     <div class="gwent-actions"><button class="secondary" data-gwent-pass ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>Passar rodada</button><select id="gwent-leader-row"><option value="melee">Fileira: Corpo a corpo</option><option value="ranged">Fileira: Longa distância</option><option value="siege">Fileira: Cerco</option></select><button class="secondary" data-gwent-leader ${!data.is_your_turn || data.leader_used || data.status !== 'active' || prep ? 'disabled' : ''}>Usar líder</button><button class="secondary" data-gwent-weather ${!data.is_your_turn || data.weather_used || data.status !== 'active' || prep ? 'disabled' : ''}>Clima</button></div>
@@ -452,7 +458,13 @@ $('#gwent-create-match').addEventListener('click', createGwentMatch);
 document.addEventListener('click', event => {
   const add = event.target.closest('[data-gwent-add]'); const remove = event.target.closest('[data-gwent-remove]');
   const play = event.target.closest('[data-gwent-play]'); const open = event.target.closest('[data-gwent-open]');
-  if (add && gwentDeckIds.length < 12) { gwentDeckIds.push(add.dataset.gwentAdd); renderGwentBuilder(); }
+  if (add && gwentDeckIds.length < 12) {
+    const card = collection.find(c => c.id === add.dataset.gwentAdd);
+    const selected = gwentDeckIds.map(id => collection.find(c => c.id === id)).filter(Boolean);
+    const specials = selected.filter(c => c.categoria === 'Especial').length;
+    if (card?.categoria === 'Especial' && specials >= 4) return showNotice('O deck aceita no máximo quatro cartas especiais.', 'error');
+    gwentDeckIds.push(add.dataset.gwentAdd); renderGwentBuilder();
+  }
   if (remove) { gwentDeckIds = gwentDeckIds.filter(id => id !== remove.dataset.gwentRemove); renderGwentBuilder(); }
   if (play) { const row = document.querySelector(`[data-gwent-row="${CSS.escape(play.dataset.gwentPlay)}"]`)?.value || ''; sendGwentAction('play', play.dataset.gwentPlay, row); }
   if (open) openGwentMatch(open.dataset.gwentOpen);
