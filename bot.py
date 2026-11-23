@@ -1942,8 +1942,11 @@ class NaraBot(commands.Bot):
             raise web.HTTPNotFound(text="Carta não encontrada.")
         try:
             # Arte aprovada no Ateliê é global por modelo e substitui a ilustração-base.
+            # A arte oficial entra na JANELA da carta (moldura, nome, poder e texto continuam);
+            # só vira imagem pura se a carta não puder ser montada.
             official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
-            if official_art:
+
+            def _arte_pura() -> web.Response:
                 return web.Response(
                     body=bytes(official_art["image_data"]),
                     content_type=str(official_art["mime_type"] or "image/jpeg"),
@@ -1980,6 +1983,8 @@ class NaraBot(commands.Bot):
                     if found:
                         break
                 if snapshot is None:
+                    if official_art:
+                        return _arte_pura()
                     raise web.HTTPNotFound(text="Carta não encontrada na sua coleção ou nas suas partidas.")
             from sistemas.cartas import get_carta, carta_de_jogo_por_id
             card = get_carta(card_id)
@@ -1993,9 +1998,11 @@ class NaraBot(commands.Bot):
             if card is None and snapshot:
                 card = snapshot
             if card is None:
+                if official_art:
+                    return _arte_pura()
                 raise web.HTTPNotFound(text="Carta não encontrada no catálogo.")
             from sistemas.gwent import preparar_carta
-            from sistemas.arte_cartas import render_carta
+            from sistemas.arte_cartas import render_carta, render_carta_bytes
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
             if owned_row is not None and owned_row["rarity"]:
                 from sistemas.cartas import CUSTO_RARIDADE
@@ -2014,6 +2021,24 @@ class NaraBot(commands.Bot):
                 "habilidade_nome": gwent["habilidade_nome"],
                 "habilidade_texto": gwent["habilidade_texto"],
             })
+            if official_art:
+                import hashlib
+                cache = self.__dict__.setdefault("_arte_oficial_cache", {})
+                chave = hashlib.sha1((str(official_art["id"]) + json.dumps(source, sort_keys=True, default=str)).encode()).hexdigest()
+                png = cache.get(chave)
+                if png is None:
+                    try:
+                        png = (await asyncio.to_thread(render_carta_bytes, source, bytes(official_art["image_data"]))).getvalue()
+                    except Exception:
+                        log.exception("Falha ao compor arte oficial na carta card=%s", card_id)
+                        return _arte_pura()
+                    if len(cache) >= 300:
+                        cache.pop(next(iter(cache)))
+                    cache[chave] = png
+                return web.Response(
+                    body=png, content_type="image/png",
+                    headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"},
+                )
             image_path = render_carta(source)
             return web.Response(
                 body=image_path.read_bytes(), content_type="image/png",
