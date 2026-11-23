@@ -242,3 +242,108 @@ h1#page-title{text-shadow:0 2px 0 #000,0 0 24px rgba(201,161,91,.45)}
 @keyframes ring{to{transform:scale(7);opacity:0}}
 .primary:not(:disabled){animation:glowbtn 2.4s infinite}@keyframes glowbtn{50%{box-shadow:inset 0 1px rgba(255,255,255,.5),0 4px 0 #4a3010,0 0 24px rgba(236,202,133,.7)}}
 @media(max-width:650px){.gwent-hero-emblem::before,.gwent-hero-emblem::after,.gwent-hand>*{margin:0}.gwent-hand>*{transform:none}}
+
+/* ===== V3: SITE INTEIRO ===== */
+/* placar */
+.gwent-score{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+.gwent-score article{position:relative;text-align:center;padding:18px;border:3px double var(--gold);border-radius:6px;background:radial-gradient(circle at 50% 0,rgba(201,161,91,.25),transparent 65%),linear-gradient(180deg,#2d2013,#120c07);box-shadow:inset 0 0 25px #000,0 8px 20px #000a}
+.gwent-score article:first-child{box-shadow:inset 0 0 25px #000,0 0 28px rgba(201,161,91,.35)}
+.gwent-score h3{font:900 clamp(26px,4vw,44px) Cinzel!important;color:var(--gold-bright);text-shadow:0 0 18px rgba(236,202,133,.6),0 2px 0 #000;margin:6px 0}
+.gwent-score small{font-family:'Cinzel',serif;letter-spacing:1.5px;font-size:10px;color:var(--parch)}
+.gwent-arena-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}
+.gwent-arena-head>b{font:900 18px Cinzel;color:#1c1007;background:linear-gradient(180deg,#f0d28f,#a8782f);padding:12px 20px;border:2px solid #3a2410;border-radius:3px;box-shadow:0 4px 0 #3a2410;letter-spacing:2px;white-space:nowrap}
+.gwent-arena-head h2{font:900 clamp(22px,3vw,34px) Cinzel;color:var(--gold-bright);text-shadow:0 2px 0 #000}
+.gwent-log{padding:10px 14px;font-weight:700;font-size:16px}
+.gwent-faction{padding:12px 16px;margin:12px 0;border-left:4px solid var(--gold);background:linear-gradient(90deg,rgba(201,161,91,.18),transparent);font-size:16px;color:var(--parch)}
+.gwent-faction strong{color:var(--gold-bright);font-family:'Cinzel',serif}
+.gwent-prep,.gwent-reward-panel{position:relative;padding:20px;margin:16px 0;border:3px double var(--gold);border-radius:6px;background:radial-gradient(ellipse at top,rgba(201,161,91,.22),transparent 70%),linear-gradient(180deg,#2d2013,#150e08);box-shadow:0 0 30px rgba(201,161,91,.25),inset 0 0 30px #000}
+.gwent-prep b,.gwent-reward-panel>b{font:900 18px Cinzel;color:var(--gold-bright);letter-spacing:2px;display:block;margin-bottom:6px}
+.gwent-reward-panel{animation:reward 1s cubic-bezier(.2,.9,.2,1) both;text-align:center}
+@keyframes reward{from{opacity:0;transform:scale(.7) rotate(-3deg)}}
+.gwent-reward-panel p{font:700 20px 'Cinzel',serif;color:var(--parch)}
+/* pacote aberto */
+.gwent-pack-opened{padding:18px;border:2px solid var(--gold);border-radius:6px;background:radial-gradient(ellipse at top,rgba(236,202,133,.25),transparent 70%),#140d07;margin-top:16px}
+.gwent-pack-opened h4{text-align:center;font:900 22px Cinzel;color:var(--gold-bright);letter-spacing:4px}
+.gwent-pack-opened-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-top:14px}
+.gwent-pack-opened-cards article{display:grid;gap:6px;text-align:center;padding:22px 12px;min-height:230px;align-content:center;border:3px solid #8a6a35;border-radius:10px;background:radial-gradient(circle at 50% 30%,#6b4a22,#1b120a 75%);box-shadow:0 10px 24px #000,0 0 22px rgba(236,202,133,.25)}
+.gwent-pack-opened-cards b{font:700 15px Cinzel;color:var(--gold-bright)}.gwent-pack-opened-cards span{color:var(--parch);font-weight:700}
+/* ranking */
+.gwent-rank,.gwent-leaderboard{border:2px solid var(--gold)!important;background:radial-gradient(circle at 0 50%,rgba(201,161,91,.25),transparent 50%),linear-gradient(180deg,#2d2013,#150e08)!important}
+.gwent-rank h3{font:900 24px Cinzel!important;color:var(--gold-bright);text-shadow:0 0 14px rgba(236,202,133,.5)}
+.gwent-leaderboard p{line-height:2;font-size:17px;counter-reset:x}
+.duel-item{transition:transform .2s,box-shadow .2s}.duel-item:hover{transform:translateX(4px);box-shadow:-4px 0 0 var(--gold),0 8px 20px #000a}
+.empty-state{border:2px dashed rgba(176,132,64,.5);background:rgba(0,0,0,.3);color:var(--parch);font-style:italic;font-size:17px}
+/* deck count = medalhão */
+#gwent-deck-count{font:900 20px Cinzel;color:#1c1007;background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);border:2px solid #2a1a08;border-radius:50%;width:64px;height:64px;display:grid;place-items:center;box-shadow:0 4px 10px #000,0 0 16px rgba(236,202,133,.4)}
+.gwent-card-pool{max-height:760px;overflow:auto;padding:14px 10px 10px}
+.gwent-store-wallet,#gwent-store-wallet{color:var(--gold-bright)!important;font-family:'Cinzel',serif}
+/* NOVAS SEÇÕES */
+.sec-title{text-align:center;margin:56px 0 24px}.sec-title h2{font:900 clamp(24px,3.4vw,38px) Cinzel;color:var(--gold-bright);letter-spacing:.1em;text-shadow:0 2px 0 #000,0 0 22px rgba(201,161,91,.4);margin:8px 0}
+.sec-title::after{content:"❖ ⚜ ❖";display:block;color:var(--gold);letter-spacing:10px}
+.factions{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.faction-card{position:relative;overflow:hidden;min-height:310px;padding:26px 22px;border:3px solid var(--gold);border-radius:8px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 14px 34px #000c,inset 0 0 40px #000;transition:transform .35s,box-shadow .35s}
+.faction-card:hover{transform:translateY(-12px) scale(1.03);box-shadow:0 26px 44px #000,0 0 36px var(--fc)}
+.faction-card::before{content:attr(data-s);position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:92px;color:var(--fc);opacity:.9;text-shadow:0 0 40px var(--fc);transition:transform .5s}
+.faction-card:hover::before{transform:translateX(-50%) scale(1.25) rotate(8deg)}
+.faction-card h3{font:900 21px Cinzel!important;color:var(--gold-bright);letter-spacing:2px;margin:0 0 8px;position:relative}.faction-card p{font-size:16px;color:var(--parch);margin:0;position:relative;line-height:1.5}
+.faction-card.f1{--fc:#c8d2dc;background:linear-gradient(180deg,#252c33,#0d1013)}.faction-card.f2{--fc:#6fe08f;background:linear-gradient(180deg,#1f3322,#0a110b)}.faction-card.f3{--fc:#b48cff;background:linear-gradient(180deg,#2a1d3d,#100b18)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;counter-reset:s}
+.step{position:relative;padding:34px 18px 20px;border:2px solid rgba(176,132,64,.6);border-radius:6px;text-align:center;background:linear-gradient(180deg,#e0cfa4,#bfa772);color:#2a1d10;box-shadow:inset 0 0 28px rgba(90,60,20,.45),0 8px 18px #000a;counter-increment:s;transition:transform .25s}
+.step:hover{transform:translateY(-6px) rotate(-1deg)}
+.step::before{content:counter(s);position:absolute;top:-22px;left:50%;transform:translateX(-50%);width:44px;height:44px;display:grid;place-items:center;font:900 20px Cinzel;color:#1c1007;background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 3px 8px #000}
+.step h4{font:900 15px Cinzel;margin:6px 0;color:#3a2410}.step p{margin:0;font-size:16px;font-weight:600}
+.rewards-strip{display:flex;justify-content:center;gap:18px;flex-wrap:wrap}
+.reward-chip{display:flex;align-items:center;gap:12px;padding:14px 22px;border:2px solid var(--gold);border-radius:999px;background:radial-gradient(circle at 20% 30%,#4a3519,#1a1209);font:700 14px Cinzel;color:var(--gold-bright);box-shadow:0 5px 14px #000a;transition:transform .2s}.reward-chip:hover{transform:scale(1.07)}.reward-chip span{font-size:26px}
+/* revelar ao rolar */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .8s,transform .8s}.reveal.in{opacity:1;transform:none}
+/* footer */
+footer{margin-top:60px;padding:26px 0 14px;text-align:center;position:relative;border-top:3px double var(--gold)}footer span{float:none;display:block;margin-top:8px;color:var(--muted)}
+/* sidebar: brasão e status online */
+.brand b{font-size:17px;color:var(--gold-bright);text-shadow:0 0 12px rgba(236,202,133,.4)}
+.profile::after{content:"";width:9px;height:9px;border-radius:50%;background:#e0463a;margin-left:auto;box-shadow:0 0 8px #e0463a}
+.profile.online::after{background:#5fe07a;box-shadow:0 0 10px #5fe07a}
+/* mobile: barra inferior de jogo */
+@media(max-width:800px){.factions,.steps{grid-template-columns:1fr}.gwent-score{grid-template-columns:1fr}.gwent-arena-head{flex-direction:column;align-items:flex-start}.faction-card{min-height:230px}.step{margin-top:20px}}
+
+/* ===== V4: ORGANIZAÇÃO EM ABAS ===== */
+.tab{display:none}.tab.show{display:block;animation:tabin .45s cubic-bezier(.2,.9,.2,1)}
+@keyframes tabin{from{opacity:0;transform:translateY(18px)}}
+.nav{position:relative;display:flex;align-items:center;gap:4px;font-size:18px}.nav span{flex:1;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.5px}
+.nbadge{font:900 10px Cinzel;font-style:normal;min-width:22px;text-align:center;padding:3px 7px;border-radius:999px;color:#1c1007;background:linear-gradient(180deg,#f0d28f,#a8782f);border:1px solid #2a1a08}
+#nb-arena{background:#e0463a;color:#fff;animation:blink 1.2s infinite}
+/* Arena: desafio em destaque */
+#tab-arena .gwent-hero{min-height:200px}
+#tab-arena .challenge-panel{border-color:var(--gold);box-shadow:var(--surface-shadow),0 0 30px rgba(201,161,91,.25),inset 0 0 40px #000}
+/* Deck: coluna do deck fica fixa enquanto rola a coleção */
+#tab-deck .gwent-builder{grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr)}
+#tab-deck .gwent-builder>div:first-child{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow:auto}
+#tab-deck .gwent-card-pool{max-height:none}
+/* Mercado: duas colunas */
+.market-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:20px;align-items:start}
+.market-cols .gwent-store,.market-cols .gwent-drop-history{margin:0}
+.market-cols .gwent-store-grid{grid-template-columns:1fr}
+.gwent-drop-history{position:sticky;top:14px}.gwent-drop-history-list{max-height:70vh;overflow:auto}
+/* Ateliê: 3 passos lado a lado */
+.atelier-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:20px 0}
+.atelier-col{position:relative;display:flex;flex-direction:column;gap:12px;padding:30px 18px 18px;border:2px solid rgba(176,132,64,.55);border-radius:6px;background:linear-gradient(180deg,rgba(60,42,24,.7),rgba(20,14,9,.9));box-shadow:inset 0 0 22px rgba(0,0,0,.55)}
+.atelier-col:not(:last-child)::after{content:"➤";position:absolute;right:-17px;top:50%;font-size:20px;color:var(--gold-bright);z-index:2;text-shadow:0 0 10px #000}
+.atl-num{position:absolute;top:-20px;left:18px;width:40px;height:40px;display:grid;place-items:center;font:900 18px Cinzel;color:#1c1007;background:radial-gradient(circle at 35% 30%,#f0d28f,#8a5f1f);border:3px solid #2a1a08;border-radius:50%;box-shadow:0 3px 8px #000}
+.atelier-col h4{font:900 16px Cinzel;color:var(--gold-bright);margin:0;letter-spacing:1px}
+.atelier-col label{display:grid;gap:6px}.atelier-col textarea{min-height:240px;resize:vertical}.atelier-col button{width:100%;margin:0}
+.atelier-preview{max-width:100%;border:3px solid var(--gold);border-radius:6px;box-shadow:0 0 18px rgba(201,161,91,.4)}
+.atelier-lower{display:grid;grid-template-columns:1fr 1fr;gap:20px}.atelier-lower:has(#atelier-review-panel[hidden]){grid-template-columns:1fr}
+.atelier-lower h4{font:900 15px Cinzel;color:var(--gold-bright);letter-spacing:1px}
+/* Guia */
+#tab-guide .sec-title:first-child{margin-top:10px}
+/* responsivo + barra inferior estilo app de jogo */
+@media(max-width:1100px){.atelier-steps,.market-cols,#tab-deck .gwent-builder,.atelier-lower{grid-template-columns:1fr}.atelier-col::after{display:none}#tab-deck .gwent-builder>div:first-child,.gwent-drop-history{position:static;max-height:none}}
+@media(max-width:800px){
+.app{flex-direction:column}
+.sidebar{position:fixed;top:auto;bottom:0;left:0;right:0;width:100%;height:auto;flex-direction:row;padding:6px 6px calc(6px + env(safe-area-inset-bottom));border-right:0;border-top:3px double var(--gold);z-index:60}
+.sidebar .brand,.sidebar .side-bottom{display:none}
+.sidebar nav{display:flex;width:100%;justify-content:space-around}
+.nav{flex-direction:column;gap:2px;padding:6px 4px;font-size:22px;margin:0;text-align:center;border-radius:6px}
+.nav span{font-size:9px;margin:0;flex:none;letter-spacing:0}.nav.active{box-shadow:inset 0 3px 0 var(--gold)}
+.nbadge{position:absolute;top:0;right:4px;font-size:8px;padding:2px 5px}
+main{padding-bottom:96px}
+}
