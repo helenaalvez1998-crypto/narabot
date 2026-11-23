@@ -586,7 +586,8 @@ const RARANK = { comum: 0, rara: 1, epica: 2, lendaria: 3, mitica: 4, primordial
 // --- Hub: início, comunidade e Nara (dados locais, sem custo de IA). ---
 const hubFmt = (iso) => { const d = new Date(String(iso).replace(' ', 'T') + (String(iso).includes('Z') || String(iso).includes('+') ? '' : 'Z')); if (isNaN(d)) return ''; const m = Math.max(0, (Date.now() - d) / 60000); return m < 60 ? `${Math.floor(m) || 1} min` : m < 1440 ? `${Math.floor(m / 60)} h` : `${Math.floor(m / 1440)} d`; };
 const hubAvatar = (url, name) => url ? `<img class="hub-av" src="${escapeHTML(url)}" alt="" loading="lazy">` : `<span class="hub-av">${escapeHTML((name || '?')[0].toUpperCase())}</span>`;
-const hubRows = (rows, unit) => rows.length ? rows.map(r => `<div class="rank-row${r.pos <= 3 ? ' top' + r.pos : ''}"><b class="rank-pos">${r.pos <= 3 ? ['🥇','🥈','🥉'][r.pos - 1] : r.pos}</b>${hubAvatar(r.avatar, r.name)}<span class="rank-name">${escapeHTML(r.name)}</span><strong>${number(r.valor)} <small>${unit}</small></strong></div>`).join('') : '<p class="muted">Ainda sem dados.</p>';
+const hubName = (r) => `<span class="rank-name"${/^#[0-9a-f]{6}$/i.test(r.cor || '') ? ` style="color:${r.cor}"` : ''}>${r.emblema ? escapeHTML(r.emblema) + ' ' : ''}${escapeHTML(r.name)}</span>`;
+const hubRows = (rows, unit) => rows.length ? rows.map(r => `<div class="rank-row${r.pos <= 3 ? ' top' + r.pos : ''}"><b class="rank-pos">${r.pos <= 3 ? ['🥇','🥈','🥉'][r.pos - 1] : r.pos}</b>${hubAvatar(r.avatar, r.name)}${hubName(r)}<strong>${number(r.valor)} <small>${unit}</small></strong></div>`).join('') : '<p class="muted">Ainda sem dados.</p>';
 async function loadHub() {
   try {
     const r = await fetch('/api/hub/overview', {credentials: 'same-origin', cache: 'no-store'});
@@ -601,8 +602,10 @@ async function loadHub() {
     $('#profile-name').dataset.n = m.name || 'Conta Discord'; $('#profile-status').dataset.s = m.patente; $('#profile-name').textContent = m.name || 'Conta Discord'; $('#profile-status').textContent = m.patente;
     if (m.avatar) $('.profile .avatar').innerHTML = `<img src="${escapeHTML(m.avatar)}" alt="" style="width:100%;height:100%;border-radius:50%">`;
     $('#hub-me-name').textContent = m.name || 'Você'; $('#hub-me-rank').textContent = `#${number(m.posicao)} no ranking`;
+    if (m.prefs) { visSet(m.prefs, false); window.visServer = m.prefs; }
+    const pf = m.prefs || {};
     const pct = Math.min(100, Math.round(m.xp_nivel_atual / Math.max(1, m.xp_nivel_total) * 100));
-    $('#hub-me-body').innerHTML = `<div class="me-level"><b>Nível ${m.nivel}</b><span>${escapeHTML(m.patente)}</span></div><div class="xpbar" title="${pct}%"><i style="width:${pct}%"></i></div><small class="muted">${number(m.xp_nivel_atual)} / ${number(m.xp_nivel_total)} XP para o próximo nível</small><div class="me-stats"><div><b>${number(m.platinas)}</b><small>Platinas</small></div><div><b>${number(m.zerados)}</b><small>Zerados</small></div><div><b>${number(m.runs)}</b><small>Runs</small></div><div><b>${number(m.denarios)}</b><small>Denários</small></div></div>${m.pendentes ? `<p class="muted">⏳ ${m.pendentes} envio(s) aguardando aprovação.</p>` : ''}`;
+    $('#hub-me-body').innerHTML = `<div class="me-banner"><span class="me-emb">${escapeHTML(pf.emblema || '⚔')}</span><b>${escapeHTML(m.patente)}</b></div>${pf.frase ? `<p class="me-quote">“${escapeHTML(pf.frase)}”</p>` : ''}<div class="me-level"><b>Nível ${m.nivel}</b><span>${escapeHTML(m.patente)}</span></div><div class="xpbar" title="${pct}%"><i style="width:${pct}%"></i></div><small class="muted">${number(m.xp_nivel_atual)} / ${number(m.xp_nivel_total)} XP para o próximo nível</small><div class="me-stats"><div><b>${number(m.platinas)}</b><small>Platinas</small></div><div><b>${number(m.zerados)}</b><small>Zerados</small></div><div><b>${number(m.runs)}</b><small>Runs</small></div><div><b>${number(m.denarios)}</b><small>Denários</small></div></div>${m.pendentes ? `<p class="muted">⏳ ${m.pendentes} envio(s) aguardando aprovação.</p>` : ''}`;
     $('#hub-tops').innerHTML = [['xp','Mais XP','XP'],['platinas','Platinas','plat.'],['zerados','Zerados','jogos']].map(([k, t, u]) => `<section class="hub-card"><h4>${t}</h4>${hubRows(d.top[k], u)}</section>`).join('');
     $('#hub-recent').innerHTML = d.recent.length ? d.recent.map(a => `<div class="recent-item"><i>${a.tipo === 'platina' ? '💎' : '🏆'}</i><div><b>${escapeHTML(a.user)}</b> ${a.tipo === 'platina' ? 'platinou' : 'zerou'} <b>${escapeHTML(a.game)}</b></div><small>${hubFmt(a.quando)}</small></div>`).join('') : '<p class="muted">Nenhuma conquista recente.</p>';
   } catch (e) { /* hub é complementar: falha silenciosa */ }
@@ -614,7 +617,9 @@ async function loadRank(tipo = hubRank) {
   try {
     const r = await fetch(`/api/hub/ranking?tipo=${tipo}&limite=25`, {credentials: 'same-origin', cache: 'no-store'});
     if (!r.ok) return;
-    const d = await r.json(); $('#rank-list').innerHTML = hubRows(d.rows, d.label.toLowerCase());
+    const d = await r.json(), u = d.label.toLowerCase(), t = d.rows.slice(0, 3);
+    $('#rank-podium').innerHTML = t.length === 3 ? `<div class="podium">${[1, 0, 2].map(i => `<div class="pod p${i + 1}">${hubAvatar(t[i].avatar, t[i].name)}<b>${hubName(t[i])}</b><small>${number(t[i].valor)} ${u}</small><div class="pod-step">${i + 1}</div></div>`).join('')}</div>` : '';
+    $('#rank-list').innerHTML = hubRows(t.length === 3 ? d.rows.slice(3) : d.rows, u);
   } catch (e) {}
 }
 async function loadPlayers() {
@@ -642,3 +647,54 @@ $('#players-search')?.addEventListener('input', loadPlayers);
 document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="community"],[data-goto="community"]')) { loadRank(); loadPlayers(); } });
 loadHub(); setTimeout(() => { if (currentUser) { loadRank(); loadPlayers(); } }, 1200);
 setInterval(() => { if (!document.hidden && $('#tab-home')?.classList.contains('show')) loadHub(); }, 60000);
+
+// --- Personalização visual: tema + cor + emblema + frase (salvos no perfil). ---
+const VIS_TEMAS = [['cinzas', 'Cinzas', '#9b78c4'], ['fogueira', 'Fogueira', '#ff9a3c'], ['abismo', 'Abismo', '#5fd0d6'], ['veneno', 'Veneno', '#9be564'], ['sangue', 'Sangue', '#e0525c'], ['ametista', 'Ametista', '#d9a8ff']];
+const VIS_EMB = ['⚔', '🛡', '🔥', '💀', '🐉', '🌙', '👑', '🗡', '🏹', '☠', '🦅', '⚜'];
+let vis = {tema: 'cinzas', cor: '', frase: '', emblema: '⚔'};
+try { vis = Object.assign(vis, JSON.parse(localStorage.getItem('vis') || '{}')); } catch (e) {}
+function visSet(v, save = true) {
+  vis = Object.assign(vis, v); const h = document.documentElement;
+  h.dataset.theme = vis.tema || 'cinzas';
+  if (/^#[0-9a-f]{6}$/i.test(vis.cor || '')) { h.style.setProperty('--gold', vis.cor); h.style.setProperty('--gold-bright', `color-mix(in srgb, ${vis.cor} 70%, #fff)`); }
+  else { h.style.removeProperty('--gold'); h.style.removeProperty('--gold-bright'); }
+  try { localStorage.setItem('vis', JSON.stringify(vis)); } catch (e) {}
+}
+function visPanel() {
+  let p = $('#vis-panel');
+  if (!p) {
+    p = document.createElement('div'); p.id = 'vis-panel'; p.className = 'vis-panel'; p.hidden = true;
+    p.innerHTML = `<div class="vis-box" role="dialog" aria-label="Personalizar visual"><button class="vis-x" type="button" aria-label="Fechar">×</button><small class="eyebrow">PERSONALIZAR</small><h3>Seu visual</h3>
+<h4>Tema</h4><div class="vis-themes">${VIS_TEMAS.map(([id, n, c]) => `<button type="button" data-t="${id}" style="--sw:${c}"><i></i>${n}</button>`).join('')}</div>
+<h4>Cor de destaque</h4><div class="vis-row"><input type="color" id="vis-cor" value="#9b78c4"><button type="button" class="secondary" id="vis-cor-reset">Usar cor do tema</button></div>
+<h4>Emblema</h4><div class="vis-emb">${VIS_EMB.map(e => `<button type="button" data-e="${e}">${e}</button>`).join('')}</div>
+<h4>Frase do perfil</h4><input id="vis-frase" maxlength="80" placeholder="Ex.: Louvado seja o sol!" class="deck-search">
+<button class="primary" id="vis-save" type="button">Salvar no meu perfil</button><small class="muted" id="vis-msg"></small></div>`;
+    document.body.appendChild(p);
+    p.addEventListener('click', (e) => {
+      if (e.target === p || e.target.closest('.vis-x')) { p.hidden = true; return; }
+      const t = e.target.closest('[data-t]'), em = e.target.closest('[data-e]');
+      if (t) visSet({tema: t.dataset.t}); if (em) visSet({emblema: em.dataset.e});
+      if (e.target.id === 'vis-cor-reset') visSet({cor: ''});
+      if (e.target.id === 'vis-save') visSave();
+      visMark();
+    });
+    $('#vis-cor').addEventListener('input', (e) => { visSet({cor: e.target.value}); visMark(); });
+    $('#vis-frase').addEventListener('input', (e) => { vis.frase = e.target.value; });
+  }
+  $('#vis-frase').value = vis.frase || ''; if (vis.cor) $('#vis-cor').value = vis.cor; visMark(); return p;
+}
+function visMark() {
+  document.querySelectorAll('#vis-panel [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === vis.tema));
+  document.querySelectorAll('#vis-panel [data-e]').forEach(b => b.classList.toggle('on', b.dataset.e === vis.emblema));
+}
+async function visSave() {
+  const msg = $('#vis-msg');
+  if (!currentUser) { msg.textContent = 'Aplicado neste navegador. Entre com Discord para salvar no perfil.'; return; }
+  try {
+    const r = await fetch('/api/hub/prefs', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({tema: vis.tema, cor: vis.cor || '', frase: vis.frase || '', emblema: vis.emblema})});
+    const d = await r.json(); msg.textContent = r.ok ? 'Salvo! Aparece no seu perfil e no ranking.' : (d.error || 'Falha ao salvar.');
+    if (r.ok) loadHub();
+  } catch (e) { msg.textContent = 'Sem conexão com o servidor.'; }
+}
+$('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });

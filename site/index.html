@@ -5,6 +5,8 @@
   <meta name="theme-color" content="#07080d"><title>SoulsBot — Comunidade e Gwent do Coliseu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Cormorant+Garamond:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+<script>try{const v=JSON.parse(localStorage.getItem('vis')||'{}'),r=document.documentElement;r.dataset.theme=v.tema||'cinzas';if(/^#[0-9a-f]{6}$/i.test(v.cor||'')){r.style.setProperty('--gold',v.cor);r.style.setProperty('--gold-bright','color-mix(in srgb,'+v.cor+' 70%,#fff)')}}catch(e){}</script>
+
 </head>
 <body>
 <div id="splash"><div><div class="s-fan"><i>⚔</i><i>✦</i><i>⚜</i><i>♜</i><i>☗</i></div><h1>GWENT</h1><p>DO COLISEU</p><div class="s-press">— CLIQUE PARA ENTRAR NA ARENA —</div></div></div>
@@ -47,6 +49,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
     <button class="nav" data-tab="guide"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M9 8h6M9 12h6"/></svg></i><span>Guia</span></button>
   </nav>
   <div class="wallet"><span title="Almas">✦ <b id="souls">—</b></span><span title="Fragmentos">✧ <b id="fragments">—</b></span><span title="Denários">◈ <b id="denarios">—</b></span><span title="XP">⚑ <b id="gwent-xp">—</b></span></div>
+  <button class="vis-btn" id="vis-open" type="button" title="Personalizar visual" aria-label="Personalizar visual">🎨</button>
   <div class="player"><div class="profile"><div class="avatar">S</div><div><b id="profile-name">Visitante</b><small id="profile-status">Conecte sua conta Discord</small></div></div>
   <button class="discord-btn" id="login-button">Entrar</button><button class="logout-btn" id="logout-button" hidden>Sair</button></div>
 </div>
@@ -59,7 +62,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 <section class="hub-card"><div class="section-head"><div><small class="eyebrow">PERGUNTE À NARA</small><h3>Dúvidas do servidor</h3></div></div><div id="nara-log" class="nara-log" aria-live="polite"><p class="nara-msg bot">Fale comigo, guerreiro. Pergunte sobre XP, platinas, zerados, cartas ou como o bot funciona.</p></div><form id="nara-form" class="nara-form"><input id="nara-input" maxlength="300" placeholder="Ex.: como ganho cartas?" autocomplete="off"><button class="primary" type="submit">Enviar</button></form></section></div>
 <div class="section-head"><div><small class="eyebrow">DESTAQUES</small><h3>Top 5 do servidor</h3></div><button class="text-btn" data-goto="community" type="button">Ranking completo →</button></div><div class="hub-tops" id="hub-tops"><p class="muted">Entre com Discord para ver o ranking.</p></div>
 <div class="section-head"><div><small class="eyebrow">AO VIVO</small><h3>Atividade recente</h3></div></div><div id="hub-recent" class="hub-recent"><p class="muted">Entre com Discord para ver as conquistas da comunidade.</p></div></div>
-  <div class="tab" id="tab-community" data-title="Comunidade"><div class="section-head"><div><small class="eyebrow">COMUNIDADE</small><h3>Ranking</h3></div><div class="seg" id="rank-seg"><button class="on" data-rank="xp" type="button">XP</button><button data-rank="platinas" type="button">Platinas</button><button data-rank="zerados" type="button">Zerados</button></div></div><div id="rank-list" class="rank-list"><p class="muted">Entre com Discord para ver o ranking.</p></div><div class="section-head"><div><small class="eyebrow">MEMBROS</small><h3>Quem está online</h3></div><input id="players-search" class="deck-search" type="search" placeholder="Buscar membro..." style="max-width:260px;margin:0"></div><div id="players-list" class="players-list"></div></div>
+  <div class="tab" id="tab-community" data-title="Comunidade"><div class="section-head"><div><small class="eyebrow">COMUNIDADE</small><h3>Ranking</h3></div><div class="seg" id="rank-seg"><button class="on" data-rank="xp" type="button">XP</button><button data-rank="platinas" type="button">Platinas</button><button data-rank="zerados" type="button">Zerados</button></div></div><div id="rank-podium"></div><div id="rank-list" class="rank-list"><p class="muted">Entre com Discord para ver o ranking.</p></div><div class="section-head"><div><small class="eyebrow">MEMBROS</small><h3>Quem está online</h3></div><input id="players-search" class="deck-search" type="search" placeholder="Buscar membro..." style="max-width:260px;margin:0"></div><div id="players-list" class="players-list"></div></div>
   <div class="tab" id="tab-arena" data-title="Arena"><div class="stage">
   <div class="stage-cards"><i>⚔</i><i>✦</i><i>♜</i></div>
   <div class="stage-center">
