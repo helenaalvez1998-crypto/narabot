@@ -593,6 +593,26 @@ class NaraBot(commands.Bot):
         else:
             log.error("%s | contexto=%s", message, {k: str(v)[:300] for k, v in context.items() if k != "task"})
 
+    async def _avisar_vez_gwent(self, match_id: int, alvo_id: int, adversario_id: int) -> None:
+        """DM discreta quando chega a vez do jogador (no máx. 1 a cada 5 min por partida)."""
+        agora = time.time()
+        ultimos = self.__dict__.setdefault("_avisos_vez_gwent", {})
+        if agora - ultimos.get((match_id, alvo_id), 0) < 300:
+            return
+        ultimos[(match_id, alvo_id)] = agora
+        if len(ultimos) > 500:
+            for k in sorted(ultimos, key=ultimos.get)[:250]:
+                ultimos.pop(k, None)
+        try:
+            guild = self.get_guild(config.GUILD_ID) if config.GUILD_ID else None
+            alvo = (guild.get_member(alvo_id) if guild else None) or await self.fetch_user(alvo_id)
+            rival = guild.get_member(adversario_id) if guild else None
+            base_url = os.getenv("SOULSBOT_PUBLIC_URL", "https://narabot.sbs").rstrip("/")
+            nome = rival.display_name if rival else "seu adversário"
+            await alvo.send(f"🃏 **Sua vez no Gwent!** {nome} jogou. Continue a partida: {base_url}/?gwent={match_id}")
+        except Exception:
+            log.info("Não foi possível avisar a vez do Gwent #%s.", match_id)
+
     async def _loop_anuncios_drops(self) -> None:
         """Anuncia no canal do Coliseu quando um membro ganha carta por contribuir."""
         from admin_config import GuildConfig
@@ -1376,6 +1396,7 @@ class NaraBot(commands.Bot):
             ):
                 return web.json_response({"error": "Seleção de troca inválida."}, status=400)
 
+            turno_antes = str(state.get("turn") or "")
             result = aplicar_jogada(state, user_id, card_id, action, target_row, card_ids)
             if "error" in result:
                 return web.json_response({"error": result["error"]}, status=409)
@@ -1384,6 +1405,12 @@ class NaraBot(commands.Bot):
                 "UPDATE cartas_gwent_matches SET status=?,state_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (state["status"], json.dumps(state, ensure_ascii=False), match_id),
             )
+            try:
+                novo_turno = str(state.get("turn") or "")
+                if state["status"] == "active" and novo_turno and novo_turno != turno_antes and novo_turno != str(user_id):
+                    asyncio.get_running_loop().create_task(self._avisar_vez_gwent(match_id, int(novo_turno), user_id))
+            except Exception:
+                log.debug("Falha ao agendar aviso de vez Gwent.", exc_info=True)
 
             if state["status"] == "finished":
                 winner = state.get("winner_id")
