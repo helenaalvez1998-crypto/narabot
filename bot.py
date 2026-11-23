@@ -705,7 +705,7 @@ class NaraBot(commands.Bot):
             index_file = site_dir / "index.html"
             if not index_file.is_file():
                 return web.json_response({
-                    "service": "soulsbot",
+                    "service": "NaraBot",
                     "status": "online",
                     "health": "/api/status",
                     "site": "frontend não instalado",
@@ -726,7 +726,7 @@ class NaraBot(commands.Bot):
 
         async def status_api(_request: web.Request) -> web.Response:
             return web.json_response({
-                "service": "soulsbot-api",
+                "service": "NaraBot-api",
                 "status": "online",
                 "discord_connected": self.is_ready(),
                 "database": "connected",
@@ -947,7 +947,7 @@ class NaraBot(commands.Bot):
             guild_id = 0
         guild = self.get_guild(guild_id) if guild_id else None
         if guild is None:
-            return web.json_response({"error": "Servidor do SoulsBot indisponível."}, status=503)
+            return web.json_response({"error": "Servidor do NARABOT indisponível."}, status=503)
         now = time.time()
         # Heartbeats expirados não são tratados como usuários online no site.
         self._web_presence = {uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75}
@@ -1229,7 +1229,7 @@ class NaraBot(commands.Bot):
             opponent = guild.get_member(opponent_id)
             base_url = os.getenv("SOULSBOT_PUBLIC_URL", "https://narabot.sbs").rstrip("/")
             await opponent.send(
-                f"⚔️ Você recebeu um convite para uma partida Gwent no SoulsBot. "
+                f"⚔️ Você recebeu um convite para uma partida Gwent no NARABOT. "
                 f"Entre no site para aceitar ou recusar: {base_url}/?gwent={match_id}"
             )
         except Exception:
