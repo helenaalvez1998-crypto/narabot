@@ -1799,8 +1799,12 @@ class NaraBot(commands.Bot):
             # A posse local continua exigida para abrir imagens fora de uma partida.
             rows = await self.db.coliseu_listar_colecao(user_id)
             owned_row = next((item for item in rows if str(item["card_id"]) == card_id), None)
+            # A coleção agregada pode não conter todas as colunas dos exemplares
+            # (ou pode usar uma chave legada). Consulte também a tabela de exemplares.
+            exemplar_rows = await self.db.coliseu_listar_exemplares(user_id)
+            owned_exemplar = next((item for item in exemplar_rows if str(item["card_id"]) == card_id), None)
             snapshot = None
-            if owned_row is None:
+            if owned_row is None and owned_exemplar is None:
                 matches = await self.db._all(
                     """SELECT state_json FROM cartas_gwent_matches
                        WHERE creator_id=? OR opponent_id=? ORDER BY id DESC LIMIT 100""",
@@ -1842,11 +1846,25 @@ class NaraBot(commands.Bot):
             from sistemas.gwent import preparar_carta
             from sistemas.arte_cartas import render_carta
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
-            if owned_row is not None and owned_row["rarity"]:
-                from sistemas.cartas import CUSTO_RARIDADE
-                source["raridade"] = str(owned_row["rarity"])
+            from sistemas.cartas import CUSTO_RARIDADE
+            # Cartas de catálogo e snapshots antigos podem não carregar raridade.
+            # Nunca indexar source["rariedade"] diretamente: isso fazia a rota
+            # responder 500 e quebrava todas as imagens da coleção.
+            rarity = (
+                (owned_exemplar["rarity"] if owned_exemplar is not None else None)
+                or (owned_row["rarity"] if owned_row is not None else None)
+                or source.get("raridade")
+                or (snapshot or {}).get("raridade")
+                or "Comum"
+            )
+            source["raridade"] = str(rarity)
+            if owned_exemplar is not None:
+                source["poder"] = int(owned_exemplar["power"] or source.get("poder", 0))
+            elif owned_row is not None:
                 source["poder"] = int(owned_row["exemplar_power"] or source.get("poder", 0))
-                source["custo"] = int(CUSTO_RARIDADE.get(source["rariedade"], source.get("custo", 0)))
+            elif snapshot is not None:
+                source["poder"] = int(snapshot.get("poder", source.get("poder", 0)) or 0)
+            source["custo"] = int(CUSTO_RARIDADE.get(source["rariedade"], source.get("custo", 0)))
             gwent = preparar_carta(source)
             source.update({
                 "gwent_mode": True,
