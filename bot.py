@@ -1941,10 +1941,15 @@ class NaraBot(commands.Bot):
         if not card_id or len(card_id) > 120:
             raise web.HTTPNotFound(text="Carta não encontrada.")
         try:
-            # Arte aprovada no Ateliê é global por modelo: ela substitui somente
-            # a ilustração. O renderizador mantém moldura, nome, raridade, poder,
-            # facção, fileira e habilidade da carta.
+            # Arte aprovada no Ateliê é global por modelo e substitui a ilustração-base.
             official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+            if official_art:
+                return web.Response(
+                    body=bytes(official_art["image_data"]),
+                    content_type=str(official_art["mime_type"] or "image/jpeg"),
+                    headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300",
+                             "X-Content-Type-Options": "nosniff"},
+                )
             # A imagem deve funcionar também para cartas do adversário no campo.
             # A posse local continua exigida para abrir imagens fora de uma partida.
             rows = await self.db.coliseu_listar_colecao(user_id)
@@ -1990,7 +1995,7 @@ class NaraBot(commands.Bot):
             if card is None:
                 raise web.HTTPNotFound(text="Carta não encontrada no catálogo.")
             from sistemas.gwent import preparar_carta
-            from sistemas.arte_cartas import render_carta, render_carta_bytes
+            from sistemas.arte_cartas import render_carta
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
             if owned_row is not None and owned_row["rarity"]:
                 from sistemas.cartas import CUSTO_RARIDADE
@@ -2009,20 +2014,10 @@ class NaraBot(commands.Bot):
                 "habilidade_nome": gwent["habilidade_nome"],
                 "habilidade_texto": gwent["habilidade_texto"],
             })
-            source.setdefault("raridade", "Comum")
-            if official_art:
-                # Renderiza em memória para não gravar a arte enviada em cache local.
-                composed = render_carta_bytes(source, bytes(official_art["image_data"]))
-                image_bytes = composed.getvalue()
-                cache_control = "private, no-store"
-            else:
-                image_path = render_carta(source)
-                image_bytes = image_path.read_bytes()
-                cache_control = "private, no-store"
+            image_path = render_carta(source)
             return web.Response(
-                body=image_bytes, content_type="image/png",
-                headers={"Content-Disposition": "inline", "Cache-Control": cache_control,
-                         "X-Content-Type-Options": "nosniff"},
+                body=image_path.read_bytes(), content_type="image/png",
+                headers={"Content-Disposition": "inline", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
             )
         except web.HTTPException:
             raise

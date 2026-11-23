@@ -6,6 +6,7 @@ sem chamar Gemini, para não gastar cota de API.
 from __future__ import annotations
 
 import os
+import re
 import time
 
 from aiohttp import web
@@ -18,6 +19,39 @@ _RANKINGS = {
     "zerados": ("ranking_zerados", "Zerados"),
 }
 _nara_ultimo: dict[int, float] = {}
+TEMAS = {"cinzas", "fogueira", "abismo", "veneno", "sangue", "ametista"}
+EMBLEMAS = ["⚔", "🛡", "🔥", "💀", "🐉", "🌙", "👑", "🗡", "🏹", "☠", "🦅", "⚜"]
+_PADRAO = {"tema": "cinzas", "cor": "", "frase": "", "emblema": "⚔"}
+_tabela_ok = False
+
+
+async def _tabela(bot) -> None:
+    global _tabela_ok
+    if _tabela_ok:
+        return
+    await bot.db.conn.execute(
+        "CREATE TABLE IF NOT EXISTS site_perfil ("
+        "user_id INTEGER PRIMARY KEY, tema TEXT NOT NULL DEFAULT 'cinzas', "
+        "cor TEXT NOT NULL DEFAULT '', frase TEXT NOT NULL DEFAULT '', "
+        "emblema TEXT NOT NULL DEFAULT '⚔')")
+    await bot.db.conn.commit()
+    _tabela_ok = True
+
+
+async def _prefs(bot, uid: int) -> dict:
+    await _tabela(bot)
+    r = await bot.db._one("SELECT tema, cor, frase, emblema FROM site_perfil WHERE user_id=?", (uid,))
+    return dict(r) if r else dict(_PADRAO)
+
+
+async def _prefs_map(bot, ids: list[int]) -> dict[int, dict]:
+    if not ids:
+        return {}
+    await _tabela(bot)
+    marcas = ",".join("?" * len(ids))
+    rows = await bot.db._all(
+        f"SELECT user_id, cor, emblema FROM site_perfil WHERE user_id IN ({marcas})", tuple(ids))
+    return {int(r["user_id"]): dict(r) for r in rows}
 
 
 def _guild(bot):
@@ -47,10 +81,13 @@ def _avatar(guild, user_id: int) -> str | None:
 async def _ranking(bot, guild, tipo: str, limite: int) -> list[dict]:
     metodo, _ = _RANKINGS[tipo]
     linhas = await getattr(bot.db, metodo)(limite)
+    pm = await _prefs_map(bot, [int(r["user_id"]) for r in linhas])
     return [
         {
             "pos": i, "id": str(r["user_id"]), "name": _nome(guild, r["user_id"]),
             "avatar": _avatar(guild, r["user_id"]), "valor": int(r["valor"] or 0),
+            "emblema": pm.get(int(r["user_id"]), {}).get("emblema") or "",
+            "cor": pm.get(int(r["user_id"]), {}).get("cor") or "",
         }
         for i, r in enumerate(linhas, 1)
     ]
@@ -112,6 +149,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
             data["me"] = await _perfil(bot, uid)
             data["me"]["name"] = _nome(guild, uid)
             data["me"]["avatar"] = _avatar(guild, uid)
+            data["me"]["prefs"] = await _prefs(bot, uid)
             data["top"] = {k: await _ranking(bot, guild, k, 5) for k in _RANKINGS}
             data["recent"] = await _atividade(bot, guild)
         return web.json_response(data, headers={"Cache-Control": "no-store"})
@@ -162,6 +200,38 @@ def registrar_rotas(bot, app: web.Application) -> None:
             })
         return web.json_response({"reply": resposta, "suggestions": []})
 
+    async def prefs_get(request: web.Request) -> web.Response:
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        return web.json_response(await _prefs(bot, uid), headers={"Cache-Control": "no-store"})
+
+    async def prefs_set(request: web.Request) -> web.Response:
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not bot._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            c = await request.json()
+        except Exception:
+            return web.json_response({"error": "Requisição inválida."}, status=400)
+        tema = str(c.get("tema", "cinzas"))
+        cor = str(c.get("cor", "") or "")
+        emblema = str(c.get("emblema", "⚔"))
+        frase = re.sub(r"[\x00-\x1f\x7f]", " ", str(c.get("frase", "") or "")).strip()[:80]
+        if tema not in TEMAS or emblema not in EMBLEMAS or (cor and not re.fullmatch(r"#[0-9a-fA-F]{6}", cor)):
+            return web.json_response({"error": "Valores inválidos."}, status=400)
+        await _tabela(bot)
+        await bot.db.conn.execute(
+            "INSERT INTO site_perfil(user_id, tema, cor, frase, emblema) VALUES (?,?,?,?,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET tema=excluded.tema, cor=excluded.cor, "
+            "frase=excluded.frase, emblema=excluded.emblema", (uid, tema, cor, frase, emblema))
+        await bot.db.conn.commit()
+        return web.json_response({"ok": True, "tema": tema, "cor": cor, "frase": frase, "emblema": emblema})
+
+    app.router.add_get("/api/hub/prefs", prefs_get)
+    app.router.add_post("/api/hub/prefs", prefs_set)
     app.router.add_get("/api/hub/overview", overview)
     app.router.add_get("/api/hub/ranking", ranking)
     app.router.add_post("/api/hub/nara", nara)
