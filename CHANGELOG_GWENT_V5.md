@@ -1,3 +1,5 @@
+> Documento histórico. A V8 substitui este fluxo e consolida o Gwent como único jogo de cartas ativo. Consulte `CHANGELOG_GWENT_V8.md` e `INSTALACAO_GWENT_V8.md`.
+
 # Coliseu Gwent V5
 
 - Gwent passa a ser a página inicial e a única opção da navegação principal.

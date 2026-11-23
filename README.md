@@ -1,6 +1,6 @@
 # NARA — bot de Discord da comunidade Soulslike
 
-Perfis, XP e patentes, platinas/zerados/runs com aprovação, Coliseu de cartas com duelos pelo site,
+Perfis, XP e patentes, platinas/zerados/runs com aprovação, Gwent do Coliseu como jogo principal no site,
 catálogo de ports/mods, ofertas de jogos, YouTube e a assistente **Nara** (respostas locais + Gemini opcional).
 
 ## Rodar
@@ -26,7 +26,7 @@ ia/               Gemini com failover entre até 3 chaves, ferramentas e confirm
 nara/             respostas locais, FAQ, personalidade e Central de Ajuda
 prompts/ dados/   prompts da Nara e base de FAQ (lidos em runtime)
 fonts/           fonte usada nas imagens
-site/             site do Coliseu (login Discord, coleção, deck, duelos)
+site/             site principal do Gwent (login Discord, coleção, deck, mercado e arena)
 ```
 
 ## Comandos
@@ -37,11 +37,53 @@ Só dois slash commands são publicados: **`/nara`** (central dos membros, por b
 Banco em `DATA_DIR/colizeu.db` (nome mantido). Faça backup de `data/` antes de atualizar e nunca
 substitua `.env` nem `data/` ao copiar o código novo.
 
-## Arena Gwent (site)
-A Arena Gwent foi adicionada como modo independente do duelo clássico. Ela usa a mesma coleção de cartas do Discord, mas possui deck próprio de 10 cartas (`cartas_gwent_decks`) e partidas próprias (`cartas_gwent_matches`). O deck clássico de cinco cartas e as recompensas/loja do Discord permanecem separados.
+## Gwent do Coliseu — jogo principal
 
-Ao abrir o painel de cartas no Discord, o membro recebe uma recompensa única de cinco unidades comuns extras (`gwent_kit_discord`), somadas ao kit inicial já existente, para alcançar as 10 cartas necessárias sem comprar um pacote. Recompensas por conquistas, patentes, pacotes, forja e compras atuais permanecem no fluxo original.
+O Gwent é o único jogo de cartas ativo no bot e no site. O motor antigo de duelo de cinco cartas foi retirado do runtime: o cog legado e suas rotinas de deck/duelo não são carregados nem distribuídos. As tabelas históricas que já existirem no SQLite são preservadas sem DROP; instalações novas não criam as tabelas antigas. Elas não possuem rotas ou comandos ativos.
 
-Regras implementadas: três fileiras (Força/corpo a corpo, Destreza/longa distância, Magia/cerco), alternância de turnos validada no servidor, unidades que permanecem no campo, passar rodada, melhor de três, habilidade de líder uma vez por partida e clima por fileira. As ações e o estado da partida são persistidos no SQLite; o navegador nunca define pontuação ou vencedor.
+### Regras da partida
 
-Novas rotas autenticadas: `GET/POST /api/gwent/deck`, `GET/POST /api/gwent/matches`, `GET /api/gwent/matches/{match_id}` e `POST /api/gwent/matches/{match_id}/action`. As tabelas novas são criadas automaticamente pela inicialização do banco. O sistema clássico continua disponível.
+- Deck com 12 cartas únicas: 10 na mão inicial e 2 na reserva.
+- Preparação inicial: cada jogador pode trocar até duas cartas.
+- Melhor de três rodadas; duas coroas vencem a partida.
+- Três fileiras: corpo a corpo, longa distância e cerco.
+- Clima reduz o poder efetivo das unidades na fileira afetada; resistência climática é aplicada no servidor.
+- Líderes são vinculados à facção e podem ser ativados uma vez por partida.
+- Passar encerra as jogadas do jogador na rodada; quando ambos passam, a rodada é resolvida.
+- Unidades que permanecem no campo ao fim da rodada são movidas ao descarte.
+- O servidor valida turnos, cartas na mão, efeitos, pontuação e resultado; o navegador só envia ações.
+
+### Cartas, coleção e progressão
+
+- A coleção histórica é convertida na camada Gwent sem alterar os IDs, quantidades ou posse dos jogadores.
+- No primeiro acesso autenticado ao site, o bot entrega os kits iniciais de unidades e especiais uma única vez, sincroniza cartas de jogos aprovados e libera patentes conforme o nível.
+- Mercado do Coliseu: pacotes de três cartas por 120 Denários, limite de três pacotes em 24 horas, proteção de raridade e Primordiais únicas por servidor.
+- Duplicatas são convertidas em Almas. A forja permite criar cartas não Primordiais com Almas.
+- Vitórias, derrotas e empates atualizam ranking, MMR Elo, Denários e XP; XP de partidas tem limite de 30 por jogador a cada 24 horas, e o nível libera cartas de patente.
+- O ranking e o histórico de partidas são exibidos no site.
+
+### Apresentação visual
+
+- Cartas usam moldura por raridade, paleta por facção, selo de poder, classe, fileira e painel de habilidade.
+- O construtor tem busca e filtros por facção e raridade, além de prévia ampliada.
+- O mercado exibe as cartas abertas e o resultado da forja.
+- A arena apresenta pontuação por jogador e fileira, cartas no campo, mão privada, líder, clima, histórico recente e opção de concessão.
+- As artes são geradas localmente e de forma determinística. Não dependem de imagens externas.
+
+### API do Gwent
+
+- `GET /api/gwent/cards`
+- `GET /api/gwent/cards/{card_id}/image`
+- `GET /api/gwent/deck` e `POST /api/gwent/deck`
+- `GET /api/gwent/store`
+- `POST /api/gwent/store/pack`
+- `POST /api/gwent/store/forge`
+- `GET /api/gwent/matches` e `POST /api/gwent/matches`
+- `GET /api/gwent/matches/{match_id}`
+- `POST /api/gwent/matches/{match_id}/action`
+
+### Atualização
+
+Faça backup de `data/` e do banco antes de atualizar. Desligue o bot, extraia o pacote sobre a pasta `narabot-main`, preserve `.env`, banco de dados e dados existentes, e reinicie com `python bot.py`. O pacote não executa migrações destrutivas. Depois, atualize o navegador com `Ctrl + F5`.
+
+Os 23 testes locais cobrem regras do motor, efeitos especiais, validação do catálogo, renderização das 70 cartas estáticas e schema/migração SQLite. A validação final em produção ainda depende de executar o bot no seu servidor Discord e testar duas contas reais simultaneamente.
