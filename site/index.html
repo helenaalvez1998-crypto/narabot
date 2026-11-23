@@ -21,25 +21,52 @@
   </aside>
   <main>
     <header><div><small class="eyebrow">O COLOSSEU AGUARDA</small><h1 id="page-title">Gwent do Coliseu</h1></div>
-      <div class="wallet"><span>✦ <b id="souls">—</b> Almas</span><span>◈ <b id="denarios">—</b> Denários</span><span>⚑ <b id="gwent-xp">—</b> XP</span></div>
+      <div class="wallet"><span>✦ <b id="souls">—</b> Almas</span><span>✧ <b id="fragments">—</b> Fragmentos</span><span>◈ <b id="denarios">—</b> Denários</span><span>⚑ <b id="gwent-xp">—</b> XP</span></div>
     </header>
     <div id="notice" class="notice" role="status">Conecte sua conta Discord para acessar o Gwent.</div>
     <section id="gwent" class="page show">
       <div class="collection-intro gwent-hero"><div><small class="eyebrow">ARENA ESTRATÉGICA · MELHOR DE TRÊS</small><h2>O Coliseu <em>desperta</em></h2><p class="muted">Construa seu deck, escolha uma facção e lidere suas unidades em três fileiras de combate. Cada carta muda o ritmo da guerra.</p><div class="gwent-hero-tags"><span>12 cartas</span><span>3 fileiras</span><span>2 coroas para vencer</span></div></div><div class="gwent-hero-emblem" aria-hidden="true"><span>✦</span><b>GWENT</b><small>DO COLISEU</small></div></div>
       <div class="gwent-rules"><span>3 rodadas</span><span>3 fileiras táticas</span><span>12 cartas: mínimo 8 unidades</span><span>Máximo 4 especiais</span><span>Passar encerra suas jogadas na rodada</span><span>2 coroas vencem a partida</span></div>
-      <div class="gwent-builder"><div><div class="section-head"><div><small class="eyebrow">SEU EXÉRCITO</small><h3>Deck Gwent</h3></div><b id="gwent-deck-count">0/12</b></div><div class="gwent-config"><label>Facção<select id="gwent-faction"><option value="Ordem de Ferro">Ordem de Ferro</option><option value="Errantes do Véu">Errantes do Véu</option><option value="Conclave Arcano">Conclave Arcano</option></select></label><label>Líder<select id="gwent-leader"></select></label><p id="gwent-faction-description" class="muted">Escolha uma facção para definir sua sinergia e seus líderes disponíveis.</p></div><div id="gwent-deck-selected" class="gwent-deck-selected"></div><button id="gwent-save-deck" class="primary" type="button" disabled>Salvar deck Gwent</button><p id="gwent-deck-status" class="muted">Carregando deck...</p></div><div><div class="section-head"><div><small class="eyebrow">COLEÇÃO</small><h3>Escolha unidades e especiais</h3></div></div><div class="gwent-filters">
+      <div class="gwent-builder"><div><div class="section-head"><div><small class="eyebrow">SEU EXÉRCITO</small><h3>Deck Gwent</h3></div><b id="gwent-deck-count">0/12</b></div><div class="gwent-config"><label>Facção<select id="gwent-faction"><option value="Ordem de Ferro">Ordem de Ferro</option><option value="Errantes do Véu">Errantes do Véu</option><option value="Conclave Arcano">Conclave Arcano</option></select></label><label>Líder<select id="gwent-leader"></select></label><p id="gwent-faction-description" class="muted">Escolha uma facção para definir sua sinergia e seus líderes disponíveis.</p><p class="muted">Cada exemplar aparece separadamente. Você pode escolher a raridade e o poder exatos que deseja usar; o deck aceita apenas um exemplar de cada modelo.</p></div><div id="gwent-deck-selected" class="gwent-deck-selected"></div><button id="gwent-save-deck" class="primary" type="button" disabled>Salvar deck Gwent</button><p id="gwent-deck-status" class="muted">Carregando deck...</p></div><div><div class="section-head"><div><small class="eyebrow">COLEÇÃO</small><h3>Escolha unidades e especiais</h3></div></div><div class="gwent-filters">
           <input id="gwent-card-search" class="deck-search" type="search" placeholder="Buscar por nome, habilidade ou facção...">
           <select id="gwent-filter-faction" aria-label="Filtrar por facção"><option value="">Todas as facções</option><option>Ordem de Ferro</option><option>Errantes do Véu</option><option>Conclave Arcano</option></select>
-          <select id="gwent-filter-rarity" aria-label="Filtrar por raridade"><option value="">Todas as raridades</option><option>Comum</option><option>Rara</option><option>Épica</option><option>Lendária</option><option>Primordial</option></select>
+          <select id="gwent-filter-rarity" aria-label="Filtrar por raridade"><option value="">Todas as raridades</option><option>Comum</option><option>Rara</option><option>Épica</option><option>Lendária</option><option>Mítica</option><option>Primordial</option><option>Singular</option></select>
         </div><div id="gwent-card-pool" class="gwent-card-pool"></div></div></div>
-      <section class="gwent-store">
-        <div class="section-head"><div><small class="eyebrow">PROGRESSÃO E ECONOMIA</small><h3>Mercado do Coliseu</h3></div><span id="gwent-store-wallet" class="muted">Carregando saldo...</span></div>
+      <section class="gwent-store gwent-drop-info">
+        <div class="section-head"><div><small class="eyebrow">MERCADO E RECOMPENSAS</small><h3>Mercado do Coliseu</h3></div><span id="gwent-store-wallet" class="muted">Carregando saldo...</span></div>
         <div class="gwent-store-grid">
-          <article class="gwent-store-card gwent-pack-card"><div class="store-seal">✦</div><div><small class="eyebrow">PACOTE DA FORJA</small><h4>Pacote de 3 cartas</h4><p>Três cartas aleatórias. Duplicatas viram Almas; a proteção de raridade continua ativa.</p><small id="gwent-pack-limit" class="muted">Limite de 3 pacotes a cada 24 horas.</small></div><button id="gwent-open-pack" class="primary" type="button">Abrir por 120 Denários</button></article>
-          <article class="gwent-store-card gwent-forge-card"><div><small class="eyebrow">OFÍCIO ARCANO</small><h4>Forjar uma carta</h4><p>Use Almas para criar uma carta que ainda não possui. Cartas Primordiais não podem ser forjadas.</p></div><div class="gwent-forge-controls"><select id="gwent-forge-select"><option value="">Carregando catálogo...</option></select><button id="gwent-forge-button" class="secondary" type="button" disabled>Forjar</button></div></article>
+          <article class="gwent-store-card gwent-pack-card"><div class="store-seal">✦</div><div><small class="eyebrow">PACOTE DA FORJA</small><h4>Pacote de 3 cartas</h4><p>Receba três cartas aleatórias diretamente na coleção. As raridades seguem a tabela global; após 10 cartas comuns consecutivas, a próxima recebe proteção de raridade.</p><small id="gwent-pack-limit" class="muted">Limite de 3 pacotes a cada 24 horas.</small></div><button id="gwent-open-pack" class="primary" type="button">Abrir por 120 Denários</button></article>
+          <article class="gwent-store-card"><div class="store-seal">✧</div><div><small class="eyebrow">ATIVIDADES APROVADAS</small><h4>Drops adicionais</h4><p>Zerados, platinas, runs Soulslike e contribuições aprovadas também podem conceder cartas sem custo. Drops e pacotes compartilham a coleção.</p></div></article>
+          <article class="gwent-store-card"><div class="store-seal">⚔</div><div><small class="eyebrow">DUPLICATAS E EVOLUÇÃO</small><h4>Recursos para fortalecer cartas</h4><p>Duplicatas podem gerar Almas ou fragmentos. Use fragmentos para evoluir exemplares e Almas para lapidar seu poder, respeitando os limites de cada modelo.</p></div></article>
         </div>
-        <p id="gwent-store-status" class="muted" role="status">Carregando mercado...</p>
-        <div id="gwent-pack-results" class="gwent-pack-results"></div>
+        <p id="gwent-store-status" class="muted" role="status">Entre com Discord para consultar o mercado.</p>
+        <div id="gwent-pack-results" class="gwent-pack-results" aria-live="polite"></div>
+      </section>
+      <section class="atelier-panel" id="atelier-panel">
+        <div class="section-head"><div><small class="eyebrow">CRIAÇÃO COMUNITÁRIA</small><h3>Ateliê de Cartas</h3></div><span class="muted">Uma arte oficial por modelo</span></div>
+        <p class="muted">Escolha uma carta que você possui, use o prompt individual como direção artística, gere a ilustração em uma ferramenta de sua preferência e envie o arquivo para análise. Após aprovação, a arte passa a ser exibida para todos os jogadores nessa carta.</p>
+        <div class="atelier-grid">
+          <div class="atelier-form">
+            <label>Carta da sua coleção<select id="atelier-card"><option value="">Carregando coleção...</option></select></label>
+            <div id="atelier-official-art" class="atelier-official-art"><p class="muted">Selecione uma carta para verificar se ela já possui arte oficial comunitária.</p></div>
+            <button class="secondary" id="atelier-generate-prompt" type="button">Gerar prompt individual</button>
+            <label>Prompt de arte (EN)<textarea id="atelier-prompt" rows="12" readonly placeholder="Selecione uma carta e gere o prompt."></textarea></label>
+            <button class="secondary" id="atelier-copy-prompt" type="button" disabled>Copiar prompt</button>
+            <label>Crédito do artista<input id="atelier-artist-name" type="text" maxlength="80" placeholder="Nome artístico ou apelido"></label>
+            <label>Enviar ilustração (PNG, JPG ou WEBP)<input id="atelier-image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+            <img id="atelier-preview" class="atelier-preview" alt="Prévia da arte enviada" hidden>
+            <button class="primary" id="atelier-submit" type="button" disabled>Enviar para aprovação</button>
+            <small class="muted">Imagem estática, mínimo 512 × 512, máximo 8 MB. Até 3 submissões pendentes por conta.</small>
+          </div>
+          <div>
+            <h4>Minhas submissões</h4><div id="atelier-history" class="atelier-history"><p class="muted">Entre com Discord para consultar.</p></div>
+            <div id="atelier-review-panel" hidden><h4>Fila de aprovação</h4><div id="atelier-review-queue" class="atelier-history"></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="gwent-drop-history">
+        <div class="section-head"><div><small class="eyebrow">REGISTRO DE RECOMPENSAS</small><h3>Últimos drops</h3></div><span class="muted">Histórico pessoal</span></div>
+        <div id="gwent-drop-history" class="gwent-drop-history-list"><p class="muted">Conecte sua conta para consultar seus drops.</p></div>
       </section>
       <div class="challenge-panel"><div><small class="eyebrow">DESAFIO</small><h3>Iniciar partida</h3><p class="muted">O adversário precisa ter um deck Gwent salvo.</p></div><div class="challenge-form"><select id="gwent-opponent"><option value="">Carregando jogadores...</option></select><button id="gwent-create-match" class="primary" type="button">Iniciar partida</button></div></div>
       <div id="gwent-match-list" class="duel-list"></div>
