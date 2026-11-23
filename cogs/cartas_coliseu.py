@@ -19,10 +19,6 @@ from discord.ext import commands, tasks
 import config
 from levels import PATENTES, nivel_por_xp
 from sistemas.arte_cartas import (
-    RARIDADES_MOLDURA,
-    listar_molduras_personalizadas,
-    limpar_cache_molduras,
-    remover_moldura_personalizada,
     render_carta,
     render_carta_bytes,
     render_duel_board_bytes,
@@ -31,7 +27,6 @@ from sistemas.arte_cartas import (
     render_duel_reveal_gif_bytes,
     render_pacote,
     render_previa_template,
-    salvar_moldura_personalizada,
 )
 from sistemas import templates_cartas
 from sistemas.atelie_coliseu import ArteInvalida, TAMANHO_MAXIMO_UPLOAD, gerar_prompt_carta, normalizar_imagem_carta
@@ -1431,95 +1426,6 @@ class HallFamaView(discord.ui.View):
         self.add_item(VoltarColiseuButton(cog, user_id))
 
 
-class MolduraUploadButton(discord.ui.Button):
-    def __init__(self, cog: "ColiseuCartas", raridade: str, row: int):
-        super().__init__(
-            label=f"Enviar {raridade}", emoji="🖼️",
-            style=discord.ButtonStyle.primary, row=row,
-        )
-        self.cog = cog
-        self.raridade = raridade
-
-    async def callback(self, interaction: discord.Interaction):
-        await self.cog.solicitar_upload_moldura(interaction, self.raridade)
-
-
-class MolduraRemoverSelect(discord.ui.Select):
-    def __init__(self, view: "MoldurasCartasAdminView"):
-        self.painel = view
-        super().__init__(
-            placeholder="Restaurar uma moldura original do bot...",
-            min_values=1, max_values=1, row=2,
-            options=[
-                discord.SelectOption(label=raridade, value=raridade, description=f"Remover o PNG personalizado de {raridade}")
-                for raridade in RARIDADES_MOLDURA
-            ],
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        raridade = self.values[0]
-        removida = remover_moldura_personalizada(raridade)
-        embed = await self.painel.cog.embed_painel_molduras()
-        await interaction.response.edit_message(embed=embed, view=self.painel)
-        mensagem = (
-            f"A moldura fixa de **{raridade}** foi removida. A partir da próxima renderização, o bot usará o acabamento original."
-            if removida else f"**{raridade}** já estava usando a moldura original do bot."
-        )
-        await interaction.followup.send(mensagem, ephemeral=True)
-
-
-class MoldurasAtualizarButton(discord.ui.Button):
-    def __init__(self, painel: "MoldurasCartasAdminView"):
-        super().__init__(label="Atualizar status", emoji="🔄", style=discord.ButtonStyle.secondary, row=3)
-        self.painel = painel
-
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.edit_message(
-            embed=await self.painel.cog.embed_painel_molduras(), view=self.painel
-        )
-
-
-class MoldurasVoltarButton(discord.ui.Button):
-    def __init__(self, callback):
-        super().__init__(label="Voltar à categoria", emoji="↩️", style=discord.ButtonStyle.secondary, row=4)
-        self.callback_voltar = callback
-
-    async def callback(self, interaction: discord.Interaction):
-        if self.callback_voltar:
-            await self.callback_voltar(interaction)
-        else:
-            await interaction.response.edit_message(
-                content="Use `/adm` para voltar à central administrativa.", embed=None, view=None
-            )
-
-
-class MoldurasCartasAdminView(discord.ui.View):
-    """Painel efêmero para substituir as molduras PNG fixas do Coliseu."""
-
-    def __init__(self, cog: "ColiseuCartas", user_id: int, callback_voltar=None):
-        super().__init__(timeout=600)
-        self.cog = cog
-        self.user_id = int(user_id)
-        self.callback_voltar = callback_voltar
-        raridades = list(RARIDADES_MOLDURA)
-        for indice, raridade in enumerate(raridades):
-            self.add_item(MolduraUploadButton(cog, raridade, row=indice // 3))
-        self.add_item(MolduraRemoverSelect(self))
-        self.add_item(MoldurasAtualizarButton(self))
-        self.add_item(MoldurasVoltarButton(callback_voltar))
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if int(interaction.user.id) != self.user_id:
-            await interaction.response.send_message("Este painel pertence a outra sessão administrativa.", ephemeral=True)
-            return False
-        if not await self.cog.eh_proprietario_bot(interaction.user):
-            await interaction.response.send_message(
-                "Somente o proprietário global do bot pode alterar molduras que afetam todas as cartas.", ephemeral=True
-            )
-            return False
-        return True
-
-
 class TemplateUploadButton(discord.ui.Button):
     def __init__(self, cog: "ColiseuCartas", raridade: str, row: int):
         super().__init__(
@@ -1580,7 +1486,7 @@ class TemplatesCartasAdminView(discord.ui.View):
             self.add_item(TemplateUploadButton(cog, raridade, row=indice // 3))
         self.add_item(TemplateRemoverSelect(self))
         self.add_item(TemplatesAtualizarButton(self))
-        self.add_item(MoldurasVoltarButton(callback_voltar))
+        self.add_item(TemplatesVoltarButton(callback_voltar))
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if int(interaction.user.id) != self.user_id:
@@ -1599,8 +1505,6 @@ class ColiseuCartas(commands.Cog):
         self.bot = bot
         self._retornos_nara: dict[int, object] = {}
         self._cache_artes_personalizadas: dict[int, bytes] = {}
-        # Sessões curtas de upload de moldura; os arquivos finais ficam no DATA_DIR persistente.
-        self._pending_moldura_uploads: dict[int, dict] = {}
         # Sessões curtas de upload de template completo (cartas com arte enviada pelo membro).
         self._pending_template_uploads: dict[int, dict] = {}
 
@@ -1640,7 +1544,7 @@ class ColiseuCartas(commands.Cog):
         await self.bot.wait_until_ready()
 
     async def eh_proprietario_bot(self, user) -> bool:
-        """Molduras são globais: só o proprietário do bot pode alterá-las."""
+        """Confere se o usuário é o proprietário global do bot."""
         owner_id = int(getattr(config, "BOT_OWNER_ID", 0) or 0)
         souls_id = int(getattr(config, "SOULS_USER_ID", 0) or 0)
         if int(user.id) in {value for value in (owner_id, souls_id) if value}:
@@ -1648,131 +1552,8 @@ class ColiseuCartas(commands.Cog):
         try:
             return bool(await self.bot.is_owner(user))
         except Exception:
-            log.exception("Não foi possível confirmar o proprietário global ao configurar molduras.")
+            log.exception("Não foi possível confirmar o proprietário global ao configurar templates.")
             return False
-
-    async def embed_painel_molduras(self) -> discord.Embed:
-        status = listar_molduras_personalizadas()
-        linhas = []
-        for raridade, configurada in status.items():
-            estado = "🟢 PNG personalizado ativo" if configurada else "⚪ Moldura original do bot"
-            linhas.append(f"**{raridade}:** {estado}")
-        embed = discord.Embed(
-            title="🖼️ Molduras fixas das cartas",
-            description=(
-                "Envie um PNG transparente para substituir a borda vetorial daquela raridade nas cartas **sem arte enviada** "
-                "(as com arte usam os templates completos). "
-                "A arte, o nome, o poder, o custo e a habilidade continuam sendo montados pelo bot.\n\n"
-                + "\n".join(linhas)
-                + "\n\n**Arquivo aceito:** PNG com canal alfa, proporção 420:620, mínimo 420 × 620 "
-                "e até 8 MB. Recomendado: **840 × 1240 px**.\n"
-                "O centro precisa ficar transparente; somente a moldura deve ter pixels visíveis."
-            ),
-            color=config.COR_OURO,
-        )
-        embed.set_footer(text="Configuração global · somente o proprietário do bot · alterações aplicadas às próximas renderizações")
-        return embed
-
-    async def abrir_painel_molduras(self, interaction: discord.Interaction, callback_voltar=None):
-        if not await self.eh_proprietario_bot(interaction.user):
-            return await interaction.response.send_message(
-                "A configuração de molduras é global e só pode ser alterada pelo proprietário do bot.",
-                ephemeral=True,
-            )
-        view = MoldurasCartasAdminView(self, interaction.user.id, callback_voltar)
-        return await interaction.response.edit_message(
-            content=None, embed=await self.embed_painel_molduras(), view=view
-        )
-
-    async def solicitar_upload_moldura(self, interaction: discord.Interaction, raridade: str):
-        if not await self.eh_proprietario_bot(interaction.user):
-            return await interaction.response.send_message(
-                "Somente o proprietário global do bot pode substituir as molduras oficiais.", ephemeral=True
-            )
-        try:
-            dm = await interaction.user.create_dm()
-            self._pending_moldura_uploads[int(interaction.user.id)] = {
-                "raridade": raridade,
-                "channel_id": int(dm.id),
-                "expires_at": time.monotonic() + 600,
-            }
-            await dm.send(
-                f"🖼️ **Upload da moldura fixa — {raridade}**\n\n"
-                "Anexe **um único arquivo PNG com transparência real** nesta conversa.\n"
-                "• Tamanho recomendado: **840 × 1240 px** (mínimo 420 × 620).\n"
-                "• Proporção exata: **420:620**.\n"
-                "• Limite: **8 MB**.\n"
-                "• O centro precisa ser transparente; envie somente a moldura, sem fundo e sem a carta inteira.\n"
-                "• A sessão expira em 10 minutos.\n\n"
-                "Depois de validar, vou salvar o arquivo e enviar uma prévia de uma carta com a nova moldura."
-            )
-        except discord.Forbidden:
-            self._pending_moldura_uploads.pop(int(interaction.user.id), None)
-            return await interaction.response.send_message(
-                "Não consegui enviar a solicitação por DM. Ative mensagens diretas do servidor e tente novamente.",
-                ephemeral=True,
-            )
-        except discord.HTTPException:
-            self._pending_moldura_uploads.pop(int(interaction.user.id), None)
-            return await interaction.response.send_message(
-                "O Discord não permitiu abrir a conversa privada. Tente novamente.", ephemeral=True
-            )
-        await interaction.response.send_message(
-            f"Enviei uma solicitação privada para enviar a moldura **{raridade}**. Anexe o PNG na DM da Nara.",
-            ephemeral=True,
-        )
-
-    async def _receber_upload_moldura(self, message: discord.Message, sessao: dict) -> None:
-        raridade = str(sessao["raridade"])
-        if not await self.eh_proprietario_bot(message.author):
-            self._pending_moldura_uploads.pop(int(message.author.id), None)
-            await message.reply("Este upload não está autorizado para esta conta.")
-            return
-        if time.monotonic() > float(sessao.get("expires_at", 0)):
-            self._pending_moldura_uploads.pop(int(message.author.id), None)
-            await message.reply("A sessão de envio da moldura expirou. Abra `/adm` → Jogos → Molduras fixas e tente novamente.")
-            return
-        if len(message.attachments) != 1:
-            await message.reply("Envie exatamente um arquivo PNG como anexo. A sessão continua aberta.")
-            return
-        anexo = message.attachments[0]
-        if int(getattr(anexo, "size", 0) or 0) > 8 * 1024 * 1024:
-            await message.reply("O arquivo ultrapassa 8 MB. Envie um PNG menor; a sessão continua aberta.")
-            return
-        try:
-            bruto = await anexo.read(use_cached=True)
-            caminho = await asyncio.to_thread(salvar_moldura_personalizada, raridade, bruto)
-        except ValueError as exc:
-            await message.reply(f"❌ **Não aceitei a moldura:** {exc}\nA sessão continua aberta; envie outro PNG dentro do prazo.")
-            return
-        except (discord.HTTPException, OSError) as exc:
-            await message.reply("Não consegui baixar ou salvar o arquivo. Tente enviar novamente.")
-            log.warning("Falha no upload de moldura %s: %s", raridade, exc)
-            return
-
-        self._pending_moldura_uploads.pop(int(message.author.id), None)
-        limpar_cache_molduras(raridade)
-        resposta = f"✅ **Moldura {raridade} salva e ativada.**\nArquivo persistente: `{caminho.name}`. As próximas renderizações usarão este PNG."
-        try:
-            exemplo = {
-                "id": f"preview_moldura_{RARIDADES_MOLDURA[raridade]}",
-                "nome": f"Prévia — {raridade}",
-                "categoria": "Chefe",
-                "raridade": raridade,
-                "tipo": "Magia",
-                "poder": 88,
-                "custo": 3,
-                "habilidade": "",
-                "descricao": "Prévia da moldura fixa enviada.",
-            }
-            preview = await asyncio.to_thread(render_carta_bytes, exemplo, b"")
-            await message.reply(
-                resposta + "\nConfira a prévia abaixo:",
-                file=discord.File(preview, filename=f"previa_moldura_{RARIDADES_MOLDURA[raridade]}.png"),
-            )
-        except Exception:
-            log.exception("Moldura %s foi salva, mas não consegui gerar a prévia.", raridade)
-            await message.reply(resposta)
 
     async def embed_painel_templates(self) -> discord.Embed:
         status = templates_cartas.listar_templates()
@@ -2508,16 +2289,12 @@ class ColiseuCartas(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Recebe uploads privados do Ateliê e da configuração global de molduras."""
+        """Recebe uploads privados do Ateliê e dos templates de cartas."""
         if message.guild is not None or message.author.bot:
             return
         template_pendente = self._pending_template_uploads.get(int(message.author.id))
         if template_pendente and int(message.channel.id) == int(template_pendente.get("channel_id", 0)):
             await self._receber_upload_template(message, template_pendente)
-            return
-        moldura_pendente = self._pending_moldura_uploads.get(int(message.author.id))
-        if moldura_pendente and int(message.channel.id) == int(moldura_pendente.get("channel_id", 0)):
-            await self._receber_upload_moldura(message, moldura_pendente)
             return
         sessao = await self.bot.db.coliseu_atelie_obter_sessao(message.author.id)
         if not sessao:
