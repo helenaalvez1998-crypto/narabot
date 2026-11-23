@@ -812,7 +812,19 @@ class NaraBot(commands.Bot):
         origin_key = authority(origin, request.scheme)
         if origin_key is None:
             return False
+        # O app pode estar atrás de um proxy HTTPS (FadeHost/Reverse Proxy).
+        # Nesse cenário request.host/request.scheme podem refletir o endereço
+        # interno HTTP, enquanto o navegador envia a origem pública HTTPS.
         allowed = {authority(str(request.host), request.scheme)}
+
+        forwarded_host = str(request.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
+        forwarded_proto = str(request.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip()
+        if forwarded_host:
+            allowed.add(authority(
+                f"{forwarded_proto}://{forwarded_host}" if forwarded_proto else forwarded_host,
+                request.scheme,
+            ))
+
         public_url = str(os.getenv("SOULSBOT_PUBLIC_URL", "") or "").strip()
         if public_url:
             allowed.add(authority(public_url, "https"))
