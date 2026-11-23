@@ -186,6 +186,42 @@ class RelatorioErroModal(discord.ui.Modal, title="Reportar problema com o NARA")
         )
 
 
+class AtelieRevisaoView(discord.ui.View):
+    """Ações de aprovação no canal privado do Ateliê."""
+    def __init__(self, bot: "NaraBot", submission_id: int):
+        super().__init__(timeout=7 * 24 * 60 * 60)
+        self.bot = bot
+        self.submission_id = int(submission_id)
+
+    async def _decidir(self, interaction: discord.Interaction, aprovado: bool) -> None:
+        if not self.bot._atelier_is_admin(interaction.user.id):
+            await interaction.response.send_message("Você não tem autorização para revisar artes.", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True)
+        result = await self.bot.db.coliseu_atelie_decidir_web(
+            self.submission_id, interaction.user.id, aprovado,
+            "" if aprovado else "Rejeitada pela equipe no Discord.",
+        )
+        if result.get("status") != "ok":
+            await interaction.followup.send("Esta submissão já foi processada ou não existe.", ephemeral=True)
+            return
+        for child in self.children:
+            child.disabled = True
+        embed = interaction.message.embeds[0] if interaction.message and interaction.message.embeds else discord.Embed(title="Ateliê do Coliseu")
+        embed.color = discord.Color.green() if aprovado else discord.Color.red()
+        embed.add_field(name="Decisão", value=f"{'Aprovada' if aprovado else 'Rejeitada'} por {interaction.user.mention}", inline=False)
+        await interaction.message.edit(embed=embed, view=self)
+        await interaction.followup.send(f"Submissão #{self.submission_id} {'aprovada' if aprovado else 'rejeitada'}.", ephemeral=True)
+
+    @discord.ui.button(label="Aprovar", style=discord.ButtonStyle.success, emoji="✅")
+    async def aprovar(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
+        await self._decidir(interaction, True)
+
+    @discord.ui.button(label="Rejeitar", style=discord.ButtonStyle.danger, emoji="✖️")
+    async def rejeitar(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:
+        await self._decidir(interaction, False)
+
+
 class RelatorioErroView(discord.ui.View):
     def __init__(self, contexto: dict[str, str]):
         super().__init__(timeout=300)
@@ -812,19 +848,7 @@ class NaraBot(commands.Bot):
         origin_key = authority(origin, request.scheme)
         if origin_key is None:
             return False
-        # O app pode estar atrás de um proxy HTTPS (FadeHost/Reverse Proxy).
-        # Nesse cenário request.host/request.scheme podem refletir o endereço
-        # interno HTTP, enquanto o navegador envia a origem pública HTTPS.
         allowed = {authority(str(request.host), request.scheme)}
-
-        forwarded_host = str(request.headers.get("X-Forwarded-Host", "") or "").split(",", 1)[0].strip()
-        forwarded_proto = str(request.headers.get("X-Forwarded-Proto", "") or "").split(",", 1)[0].strip()
-        if forwarded_host:
-            allowed.add(authority(
-                f"{forwarded_proto}://{forwarded_host}" if forwarded_proto else forwarded_host,
-                request.scheme,
-            ))
-
         public_url = str(os.getenv("SOULSBOT_PUBLIC_URL", "") or "").strip()
         if public_url:
             allowed.add(authority(public_url, "https"))
@@ -1625,7 +1649,10 @@ class NaraBot(commands.Bot):
         return web.json_response(result, status=status)
 
     def _atelier_admin_ids(self) -> set[int]:
-        ids = {int(config.BOT_OWNER_ID)} if int(config.BOT_OWNER_ID or 0) > 0 else set()
+        # Criador do NARA: autorização explícita para administrar o Ateliê no site e Discord.
+        ids = {1300117955236991046}
+        if int(config.BOT_OWNER_ID or 0) > 0:
+            ids.add(int(config.BOT_OWNER_ID))
         raw = os.getenv("COLISEUM_ART_REVIEWER_IDS", "")
         for value in raw.split(","):
             value = value.strip()
@@ -1664,6 +1691,41 @@ class NaraBot(commands.Bot):
             log.exception("Falha ao gerar prompt do Ateliê para %s.", user_id)
             raise web.HTTPInternalServerError(text="Não foi possível gerar o prompt da carta.")
 
+    async def _enviar_submissao_atelie_discord(
+        self, submission_id: int, user_id: int, card_id: str, artist_name: str, image_data: bytes,
+    ) -> bool:
+        """Publica no canal privado do Ateliê a mesma submissão salva no banco compartilhado."""
+        channel_id = int(getattr(config, "COLISEU_ART_CHANNEL_ID", 0) or 0)
+        if not channel_id:
+            log.error("COLISEU_ART_CHANNEL_ID não configurado; submissão #%s ficou salva sem aviso no Discord.", submission_id)
+            return False
+        channel = self.get_channel(channel_id)
+        if channel is None:
+            try:
+                channel = await self.fetch_channel(channel_id)
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                log.exception("Não foi possível acessar o canal do Ateliê (%s).", channel_id)
+                return False
+        embed = discord.Embed(
+            title=f"Nova arte para revisão · #{submission_id}",
+            description=f"**Carta:** `{card_id}`\n**Artista:** {artist_name[:100]}\n**Autor:** <@{user_id}>\n**Status:** Em análise",
+            color=discord.Color.gold(),
+        )
+        embed.set_image(url="attachment://arte_atelie.jpg")
+        embed.set_footer(text="Aprovar ou rejeitar atualiza a submissão no banco compartilhado com o site.")
+        try:
+            await channel.send(
+                content=f"Nova submissão do Ateliê — <@{user_id}>",
+                embed=embed,
+                file=discord.File(BytesIO(image_data), filename="arte_atelie.jpg"),
+                view=AtelieRevisaoView(self, submission_id),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return True
+        except (discord.Forbidden, discord.HTTPException):
+            log.exception("Falha ao publicar submissão #%s no canal do Ateliê.", submission_id)
+            return False
+
     async def _api_gwent_atelier_submit(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
         if user_id is None:
@@ -1700,7 +1762,10 @@ class NaraBot(commands.Bot):
             if result.get("status") in statuses:
                 code, message = statuses[result["status"]]
                 return web.json_response({"error": message, **result}, status=code)
-            return web.json_response({"ok": True, **result}, status=201)
+            notified = await self._enviar_submissao_atelie_discord(
+                int(result["submission_id"]), user_id, card_id, artist_name, normalized.dados,
+            )
+            return web.json_response({"ok": True, "discord_notified": notified, **result}, status=201)
         except web.HTTPException:
             raise
         except Exception:
@@ -1811,12 +1876,8 @@ class NaraBot(commands.Bot):
             # A posse local continua exigida para abrir imagens fora de uma partida.
             rows = await self.db.coliseu_listar_colecao(user_id)
             owned_row = next((item for item in rows if str(item["card_id"]) == card_id), None)
-            # A coleção agregada pode não conter todas as colunas dos exemplares
-            # (ou pode usar uma chave legada). Consulte também a tabela de exemplares.
-            exemplar_rows = await self.db.coliseu_listar_exemplares(user_id)
-            owned_exemplar = next((item for item in exemplar_rows if str(item["card_id"]) == card_id), None)
             snapshot = None
-            if owned_row is None and owned_exemplar is None:
+            if owned_row is None:
                 matches = await self.db._all(
                     """SELECT state_json FROM cartas_gwent_matches
                        WHERE creator_id=? OR opponent_id=? ORDER BY id DESC LIMIT 100""",
@@ -1858,27 +1919,11 @@ class NaraBot(commands.Bot):
             from sistemas.gwent import preparar_carta
             from sistemas.arte_cartas import render_carta
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
-            from sistemas.cartas import CUSTO_RARIDADE
-            # Cartas de catálogo e snapshots antigos podem não carregar raridade.
-            # Nunca indexar source["rariedade"] diretamente: isso fazia a rota
-            # responder 500 e quebrava todas as imagens da coleção.
-            rarity = (
-                (owned_exemplar["rarity"] if owned_exemplar is not None else None)
-                or (owned_row["rarity"] if owned_row is not None else None)
-                or source.get("raridade")
-                or (snapshot or {}).get("raridade")
-                or "Comum"
-            )
-            source["raridade"] = str(rarity)
-            if owned_exemplar is not None:
-                source["poder"] = int(owned_exemplar["power"] or source.get("poder", 0))
-            elif owned_row is not None:
+            if owned_row is not None and owned_row["rarity"]:
+                from sistemas.cartas import CUSTO_RARIDADE
+                source["raridade"] = str(owned_row["rarity"])
                 source["poder"] = int(owned_row["exemplar_power"] or source.get("poder", 0))
-            elif snapshot is not None:
-                source["poder"] = int(snapshot.get("poder", source.get("poder", 0)) or 0)
-            rarity_key = str(source.get("rariedade") or rarity or "Comum")
-            source["rariedade"] = rarity_key
-            source["custo"] = int(CUSTO_RARIDADE.get(rarity_key, source.get("custo", 0)))
+                source["custo"] = int(CUSTO_RARIDADE.get(source["rariedade"], source.get("custo", 0)))
             gwent = preparar_carta(source)
             source.update({
                 "gwent_mode": True,
