@@ -7,6 +7,11 @@ ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
 FACTIONS = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
 FACTION_TYPES = {value: key for key, value in FACTIONS.items()}
+FACTION_ARCHETYPES = {
+    "Ordem de Ferro": {"name": "Formação e Resistência", "description": "Proteção de fileira, fortalecimento de aliados e conversão de resistência em pressão."},
+    "Errantes do Véu": {"name": "Mobilidade e Encadeamento", "description": "Reposicionamento, ataques coordenados e vantagens por alternar fileiras."},
+    "Conclave Arcano": {"name": "Preparação e Amplificação", "description": "Marcas, efeitos preparados e amplificação de habilidades arcanas."},
+}
 LEADERS = {
     "comandante_fornalha": {"name": "Comandante da Fornalha", "faction": "Ordem de Ferro", "description": "+2 às suas unidades de corpo a corpo.", "effect": "iron_command"},
     "bastiao_ancestral": {"name": "Bastião Ancestral", "faction": "Ordem de Ferro", "description": "+1 às unidades de corpo a corpo e resistência climática +1.", "effect": "iron_bastion"},
@@ -15,6 +20,167 @@ LEADERS = {
     "arquimaga_eclipse": {"name": "Arquimaga do Eclipse", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +1 ao cerco.", "effect": "arcane_archmage"},
     "oraculo_tempestade": {"name": "Oráculo da Tempestade", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.", "effect": "arcane_oracle"},
 }
+# Arquétipos e combos nomeados. Os bônus são aplicados uma vez por combo/rodada.
+CARD_SYNERGY_TAGS = {
+    # Ordem de Ferro: resistência, formação e sacrifício.
+    "chefe_guardiao_cinzas": {"cinzas"},
+    "gwent_unidade_baluarte": {"fornalha"},
+    "gwent_unidade_mestre_forja": {"fornalha"},
+    "gwent_unidade_portaestandarte": {"fornalha", "estandarte"},
+    "covenant_irmandade_ferro": {"estandarte"},
+    "chefe_rei_afogado": {"abismo"},
+    "covenant_coroa_abismo": {"abismo"},
+    "covenant_lobos_cinza": {"cinzas"},
+    # Errantes do Véu: mobilidade, ataques encadeados e caça.
+    "chefe_cervo_sombrio": {"veu_sombrio"},
+    "chefe_aparicao_veio": {"veu_sombrio"},
+    "gwent_unidade_cavaleira": {"veu_sombrio"},
+    "gwent_unidade_dupla_veu": {"veu_sombrio", "duas_luas"},
+    "arma_duas_luas": {"duas_luas"},
+    "arma_lamina_peregrino": {"peregrino"},
+    "arma_arco_peregrino": {"peregrino"},
+    "gwent_unidade_cartografa": {"duas_luas"},
+    # Conclave Arcano: preparação, marcas e amplificação.
+    "chefe_dama_vazio": {"vazio"},
+    "arma_agulha_astro": {"astral"},
+    "gwent_unidade_circulo": {"astral"},
+    "gwent_unidade_invocador": {"astral"},
+    "gwent_unidade_eco": {"astral", "eco"},
+    "magia_orbe_eco": {"eco"},
+    "magia_brasa_errante": {"chama"},
+    "magia_chama_fria": {"chama"},
+}
+SYNERGY_COMBOS = {
+    "cinzas_fornalha": {"name": "Pacto das Cinzas", "tags": {"cinzas", "fornalha"}, "bonus": 2, "description": "Guardião das Cinzas ou Lobos da Cinza e uma unidade da Fornalha coordenam a formação (+2)."},
+    "veu_sombrio": {"name": "Caçada do Véu", "tags": {"veu_sombrio"}, "minimum": 2, "bonus": 2, "description": "Duas unidades do Véu Sombrio entram em sintonia (+2)."},
+    "vazio_astral": {"name": "Convergência Astral", "tags": {"vazio", "astral"}, "bonus": 2, "description": "Dama do Vazio e uma unidade Astral convergem (+2)."},
+    "mare_abissal": {"name": "Maré Abissal", "tags": {"abismo"}, "minimum": 2, "bonus": 2, "description": "Rei Afogado e Coroa do Abismo despertam a mesma força (+2)."},
+    "juramento_estandarte": {"name": "Juramento do Estandarte", "tags": {"estandarte"}, "minimum": 2, "bonus": 1, "team_bonus": 1, "description": "Porta-estandarte e Irmandade de Ferro fortalecem a formação (+1 para a carta que completa e +1 aos aliados na mesma fileira)."},
+    "passos_duas_luas": {"name": "Passos das Duas Luas", "tags": {"duas_luas"}, "minimum": 2, "bonus": 2, "description": "Dançarina, Gêmea ou Cartógrafa sincronizam seus movimentos (+2)."},
+    "eco_convergente": {"name": "Eco Convergente", "tags": {"eco", "astral"}, "bonus": 2, "description": "O Arauto do Eco e uma unidade Astral amplificam a mesma magia (+2)."},
+    "chama_dupla": {"name": "Chama em Contraponto", "tags": {"chama"}, "minimum": 2, "bonus": 2, "description": "Piromante e Feiticeira da Chama Fria equilibram suas chamas (+2)."},
+    "rota_peregrina": {"name": "Rota do Peregrino", "tags": {"peregrino"}, "minimum": 2, "bonus": 1, "description": "Duelista e Batedor do Peregrino coordenam o avanço (+1)."},
+}
+
+
+# Habilidades de identidade: efeitos próprios de cartas-chave, além das habilidades
+# gerais e dos combos de facção. Cada efeito é resolvido uma vez ao entrar em campo.
+CARD_IDENTITY_ABILITIES = {
+    "chefe_guardiao_cinzas": {"name": "Égide das Cinzas", "text": "Ao entrar, concede +1 a um aliado da mesma fileira. Se já houver um aliado ali, recebe +1.", "effect": "ash_guardian"},
+    "chefe_dama_vazio": {"name": "Fenda do Vazio", "text": "Ao entrar, reduz em 2 o bônus da unidade inimiga mais forte (mínimo -2).", "effect": "void_rend"},
+    "chefe_cervo_sombrio": {"name": "Passagem Sombria", "text": "Recebe +1 para cada outra fileira ocupada por aliados, até +2.", "effect": "shadow_paths"},
+    "chefe_rei_afogado": {"name": "Dízimo do Abismo", "text": "Recebe +2 se houver unidade no seu descarte; caso contrário, +1 se o rival controlar mais unidades.", "effect": "abyss_tithe"},
+    "chefe_oraculo_ruina": {"name": "Presságio da Ruína", "text": "Reduz em 1 o bônus da unidade inimiga mais forte e recebe +1 se o rival estiver à frente.", "effect": "ruin_omen"},
+    "chefe_cacador_sem_rosto": {"name": "Marca da Presa", "text": "Recebe +2 se o rival controlar uma unidade com poder efetivo maior que o seu poder base.", "effect": "faceless_hunt"},
+    "chefe_vigia_cinzento": {"name": "Vigília Cinzenta", "text": "Concede +1 às outras unidades aliadas na mesma fileira.", "effect": "grey_watch"},
+    "chefe_aparicao_veio": {"name": "Deslocamento Espectral", "text": "Recebe +2 se a sua última unidade foi jogada em outra fileira.", "effect": "veil_shift"},
+    "arma_lamina_peregrino": {"name": "Duelo do Peregrino", "text": "Recebe +2 se o rival tiver jogado uma unidade na mesma fileira em seu último turno.", "effect": "pilgrim_duel"},
+    "arma_martelo_fornalha": {"name": "Martelo de Cadência", "text": "Recebe +1 para cada aliado da Ordem de Ferro na fileira, até +2.", "effect": "forge_rhythm"},
+    "arma_cajado_marulho": {"name": "Ressonância das Marés", "text": "Recebe +2 se o rival controlar uma unidade do Conclave Arcano.", "effect": "tide_resonance"},
+    "arma_duas_luas": {"name": "Dança Espelhada", "text": "Recebe +1 se houver outra unidade aliada em fileira diferente.", "effect": "twin_dance"},
+    "arma_grande_sino": {"name": "Sino do Último Bastião", "text": "Recebe +2 quando sua pontuação estiver abaixo da rival.", "effect": "last_bell"},
+    "arma_agulha_astro": {"name": "Fio Astral", "text": "Marca a unidade inimiga mais forte: ela perde 1 de bônus; a próxima unidade Astral aliada recebe +1 nesta rodada.", "effect": "astral_thread"},
+    "arma_lanca_fornalha": {"name": "Investida da Fornalha", "text": "Recebe +1 se já houver outra unidade da Ordem de Ferro em campo.", "effect": "furnace_charge"},
+    "arma_arco_peregrino": {"name": "Tiro de Cobertura", "text": "Concede +1 à unidade aliada mais fraca em outra fileira.", "effect": "covering_shot"},
+    "magia_brasa_errante": {"name": "Brasa Persistente", "text": "Recebe +1 para cada fileira inimiga sob clima, até +2.", "effect": "wandering_ember"},
+    "magia_selo_vigilia": {"name": "Selo de Vigília", "text": "Concede resistência climática 1 a si e +1 a um aliado na mesma fileira.", "effect": "vigil_seal"},
+    "magia_trovao_oco": {"name": "Descarga Oca", "text": "Reduz em 1 o bônus de todas as unidades inimigas na fileira escolhida.", "effect": "hollow_thunder"},
+    "magia_nevoa_antiga": {"name": "Névoa Ancestral", "text": "Recebe +2 se qualquer fileira estiver sob clima.", "effect": "ancient_mist"},
+    "magia_sol_negro": {"name": "Eclipse Devorador", "text": "Recebe +2 se houver uma unidade inimiga com bônus positivo.", "effect": "devouring_eclipse"},
+    "magia_fagulha": {"name": "Faísca Condutora", "text": "Recebe +1 se houver outra unidade aliada do Conclave em campo.", "effect": "conductive_spark"},
+    "magia_orbe_eco": {"name": "Orbe Refrator", "text": "Recebe +1 para cada carta especial no seu descarte, até +2.", "effect": "echo_orb"},
+    "magia_chama_fria": {"name": "Contrafogo", "text": "Reduz em 1 o bônus de até duas unidades inimigas na mesma fileira.", "effect": "counterflame"},
+    "covenant_lua_velada": {"name": "Aliança Lunar", "text": "Recebe +1 e concede +1 a uma unidade aliada em outra fileira.", "effect": "veiled_moon"},
+    "covenant_sentinelas": {"name": "Sentinela Compartilhada", "text": "Recebe +1 se houver unidade aliada em cada uma das outras fileiras.", "effect": "shared_sentinel"},
+    "covenant_ultimos": {"name": "Último Juramento", "text": "Recebe +2 se você tiver menos unidades em campo que o rival.", "effect": "last_oath"},
+    "covenant_filhos_brasa": {"name": "Herança da Brasa", "text": "Recebe +1 e fortalece em +1 um aliado da Ordem de Ferro na mesma fileira.", "effect": "ember_kin"},
+    "covenant_peregrinos_nevoa": {"name": "Rastro na Névoa", "text": "Recebe +1 se sua última unidade foi jogada em outra fileira.", "effect": "mist_trail"},
+}
+
+
+def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state: dict, row: str) -> str | None:
+    data = CARD_IDENTITY_ABILITIES.get(str(card.get("id", "")))
+    if not data:
+        return None
+    effect = data["effect"]
+    allies, enemies = player.get("board", []), other.get("board", [])
+    same_row = [unit for unit in allies if unit.get("row") == row]
+    enemy_row = [unit for unit in enemies if unit.get("row") == row]
+    strongest = max(enemies, key=lambda unit: int(unit.get("poder", 0)) + int(unit.get("bonus", 0)), default=None)
+    weakest_other_row = min((u for u in allies if u.get("row") != row), key=lambda u: int(u.get("poder", 0)) + int(u.get("bonus", 0)), default=None)
+    if effect == "ash_guardian":
+        if same_row:
+            same_row[0]["bonus"] = int(same_row[0].get("bonus", 0)) + 1
+            card["bonus"] += 1
+    elif effect == "void_rend" and strongest:
+        strongest["bonus"] = max(-2, int(strongest.get("bonus", 0)) - 2)
+    elif effect == "shadow_paths":
+        card["bonus"] += min(2, len({u.get("row") for u in allies if u.get("row") != row}))
+    elif effect == "abyss_tithe":
+        card["bonus"] += 2 if player.get("discard") else (1 if len(enemies) > len(allies) else 0)
+    elif effect == "ruin_omen":
+        if strongest:
+            strongest["bonus"] = max(-2, int(strongest.get("bonus", 0)) - 1)
+        if pontuacao(player, state.get("weather")) < pontuacao(other, state.get("weather")):
+            card["bonus"] += 1
+    elif effect == "faceless_hunt":
+        if any(int(u.get("poder", 0)) + int(u.get("bonus", 0)) > int(card.get("poder", 0)) for u in enemies): card["bonus"] += 2
+    elif effect == "grey_watch":
+        for unit in same_row: unit["bonus"] = int(unit.get("bonus", 0)) + 1
+    elif effect == "veil_shift":
+        if player.get("last_row") is not None and player.get("last_row") != row: card["bonus"] += 2
+    elif effect == "pilgrim_duel":
+        if other.get("last_row") == row: card["bonus"] += 2
+    elif effect == "forge_rhythm":
+        card["bonus"] += min(2, sum(1 for u in allies if u.get("tipo") == "Força" and u.get("row") == row))
+    elif effect == "tide_resonance":
+        if any(u.get("tipo") == "Magia" for u in enemies): card["bonus"] += 2
+    elif effect == "twin_dance":
+        if any(u.get("row") != row for u in allies): card["bonus"] += 1
+    elif effect == "last_bell":
+        if pontuacao(player, state.get("weather")) < pontuacao(other, state.get("weather")): card["bonus"] += 2
+    elif effect == "astral_thread":
+        if strongest: strongest["bonus"] = max(-2, int(strongest.get("bonus", 0)) - 1)
+        player["astral_thread_ready"] = True
+    elif effect == "furnace_charge":
+        if any(u.get("tipo") == "Força" for u in allies): card["bonus"] += 1
+    elif effect == "covering_shot" and weakest_other_row:
+        weakest_other_row["bonus"] = int(weakest_other_row.get("bonus", 0)) + 1
+    elif effect == "wandering_ember":
+        card["bonus"] += min(2, sum(1 for r in ROWS if int(state.get("weather", {}).get(r, 0)) > 0))
+    elif effect == "vigil_seal":
+        card["weather_resist"] = 1
+        if same_row: same_row[0]["bonus"] = int(same_row[0].get("bonus", 0)) + 1
+    elif effect == "hollow_thunder":
+        for unit in enemy_row: unit["bonus"] = max(-2, int(unit.get("bonus", 0)) - 1)
+    elif effect == "ancient_mist":
+        if any(int(v or 0) > 0 for v in state.get("weather", {}).values()): card["bonus"] += 2
+    elif effect == "devouring_eclipse":
+        if any(int(u.get("bonus", 0)) > 0 for u in enemies): card["bonus"] += 2
+    elif effect == "conductive_spark":
+        if any(u.get("tipo") == "Magia" for u in allies): card["bonus"] += 1
+    elif effect == "echo_orb":
+        card["bonus"] += min(2, sum(1 for c in player.get("discard", []) if c.get("especial")))
+    elif effect == "counterflame":
+        for unit in sorted(enemy_row, key=lambda u: int(u.get("bonus", 0)), reverse=True)[:2]:
+            unit["bonus"] = max(-2, int(unit.get("bonus", 0)) - 1)
+    elif effect == "veiled_moon":
+        card["bonus"] += 1
+        if weakest_other_row: weakest_other_row["bonus"] = int(weakest_other_row.get("bonus", 0)) + 1
+    elif effect == "shared_sentinel":
+        occupied = {u.get("row") for u in allies}
+        if all(r == row or r in occupied for r in ROWS): card["bonus"] += 1
+    elif effect == "last_oath":
+        if len(allies) < len(enemies): card["bonus"] += 2
+    elif effect == "ember_kin":
+        card["bonus"] += 1
+        ally = next((u for u in same_row if u.get("tipo") == "Força"), None)
+        if ally: ally["bonus"] = int(ally.get("bonus", 0)) + 1
+    elif effect == "mist_trail":
+        if player.get("last_row") is not None and player.get("last_row") != row: card["bonus"] += 1
+    return str(data["name"])
+
+
 DEFAULT_LEADERS = {
     "Ordem de Ferro": "comandante_fornalha",
     "Errantes do Véu": "mestre_veu",
@@ -36,6 +202,7 @@ def preparar_carta(card: dict) -> dict:
     kind = str(card.get("tipo", "Força"))
     faction = str(card.get("faccao") or FACTIONS.get(kind, "Ordem de Ferro"))
     category = "Especial" if special else "Unidade"
+    identity = CARD_IDENTITY_ABILITIES.get(str(card["id"]), {})
     return {
         "id": str(card["id"]), "nome": str(card.get("nome", "Carta")),
         "categoria": category,
@@ -43,10 +210,20 @@ def preparar_carta(card: dict) -> dict:
         "especial": special,
         "poder": 0 if special else max(1, min(15, int(card.get("poder", 1)))),
         "raridade": str(card.get("raridade", "Comum")), "tipo": kind,
-        "faccao": faction, "fileira": row,
+        "faccao": faction,
+        "arquetipo_faccao": FACTION_ARCHETYPES.get(faction, {}).get("name", "Estratégia Geral"),
+        "arquetipo_descricao": FACTION_ARCHETYPES.get(faction, {}).get("description", ""),
+        "fileira": row,
         "row": row, "row_label": ROW_LABELS[row], "habilidade": skill,
-        "habilidade_nome": str(card.get("habilidade_nome", skill_data.get("nome", skill.replace("_", " ").title()))),
-        "habilidade_texto": str(card.get("habilidade_texto", skill_data.get("texto", card.get("descricao", ""))))[:180],
+        "habilidade_nome": str(identity.get("name", card.get("habilidade_nome", skill_data.get("nome", skill.replace("_", " ").title())))),
+        "habilidade_texto": str(identity.get("text", card.get("habilidade_texto", skill_data.get("texto", card.get("descricao", "")))))[:180],
+        "habilidade_identidade": bool(identity),
+        "sinergias": sorted(CARD_SYNERGY_TAGS.get(str(card["id"]), set())),
+        "combos_compativeis": [
+            {"id": combo_id, "nome": combo["name"], "descricao": combo["description"]}
+            for combo_id, combo in SYNERGY_COMBOS.items()
+            if CARD_SYNERGY_TAGS.get(str(card["id"]), set()) & set(combo["tags"])
+        ],
         "descricao": str(card.get("descricao", ""))[:240],
         "image_url": f"/api/gwent/cards/{card['id']}/image",
     }
@@ -76,7 +253,7 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
             "hand": deck[:10], "draw_pile": deck[10:], "discard": [], "board": [],
             "passed": False, "leader_used": False, "weather_used": False,
             "faction": faction, "leader_id": leader_id, "leader_name": LEADERS[leader_id]["name"], "faction_boost_used": False,
-            "mulligan_done": False, "last_row": None,
+            "mulligan_done": False, "last_row": None, "synergy_used": {},
         }
     return {
         "match_id": int(match_id), "status": "active", "phase": "mulligan", "round": 1,
@@ -86,6 +263,39 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
         "rounds": [], "winner_id": None,
         "last_event": "Preparação: cada jogador pode trocar até duas cartas.",
     }
+
+
+def _aplicar_combo_de_cartas(player: dict, card: dict) -> str | None:
+    """Resolve uma combinação temática uma única vez por jogador e rodada."""
+    tags_novas = set(CARD_SYNERGY_TAGS.get(str(card.get("id", "")), set()))
+    if not tags_novas:
+        return None
+    usados = player.setdefault("synergy_used", {})
+    tags_campo = set()
+    for unit in player.get("board", []):
+        tags_campo.update(CARD_SYNERGY_TAGS.get(str(unit.get("id", "")), set()))
+    tags_total = tags_campo | tags_novas
+    for combo_id, combo in SYNERGY_COMBOS.items():
+        if usados.get(combo_id):
+            continue
+        required = set(combo["tags"])
+        if not required.issubset(tags_total):
+            continue
+        participantes = [*player.get("board", []), card]
+        if "minimum" in combo:
+            quantidade = sum(bool(CARD_SYNERGY_TAGS.get(str(unit.get("id", "")), set()) & required) for unit in participantes)
+            if quantidade < int(combo["minimum"]):
+                continue
+        card["bonus"] = int(card.get("bonus", 0)) + int(combo.get("bonus", 0))
+        team_bonus = int(combo.get("team_bonus", 0))
+        if team_bonus:
+            for ally in player.get("board", []):
+                if ally.get("row") == card.get("row"):
+                    ally["bonus"] = int(ally.get("bonus", 0)) + team_bonus
+        card["combo_ativado"] = combo_id
+        usados[combo_id] = True
+        return str(combo["name"])
+    return None
 
 
 def pontuacao(player: dict, weather: dict | None = None) -> int:
@@ -133,6 +343,7 @@ def _resolve_round(state: dict) -> None:
         player["passed"] = False
         player["faction_boost_used"] = False
         player["last_row"] = None
+        player["synergy_used"] = {}
     state["turn"] = winner or (b if state["turn"] == a else a)
     state["last_event"] += " Nova rodada: as cartas restantes continuam na mão."
 
@@ -153,6 +364,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         legacy_player.setdefault("leader_used", False)
         legacy_player.setdefault("weather_used", False)
         legacy_player.setdefault("last_row", None)
+        legacy_player.setdefault("synergy_used", {})
     uid = str(user_id)
     if state["status"] != "active":
         return {"error": "A partida já terminou."}
@@ -376,6 +588,13 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                 or any(c.get("especial") for c in player["discard"])
             ):
                 card["bonus"] += 2
+            # Habilidade exclusiva da carta, depois das habilidades gerais e antes dos combos.
+            identidade_ativada = _aplicar_habilidade_identidade(player, other, card, state, row)
+            if player.pop("astral_thread_ready", False) and "astral" in CARD_SYNERGY_TAGS.get(str(card.get("id", "")), set()):
+                card["bonus"] += 1
+                state["last_event"] += " O Fio Astral foi consumido (+1)."
+            # Combos temáticos entre cartas específicas, além das sinergias de fileira acima.
+            combo_ativado = _aplicar_combo_de_cartas(player, card)
             # Bônus de facção: uma vez por rodada, primeira unidade da facção recebe +1.
             if card.get("tipo") in FACTIONS and FACTIONS[card["tipo"]] == player["faction"] and not player["faction_boost_used"]:
                 card["bonus"] += 1
@@ -384,6 +603,10 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             player["board"].append(card)
             player["last_row"] = row
             state["last_event"] = f"{card['nome']} entrou na fileira {ROW_LABELS[row]}."
+            if identidade_ativada:
+                state["last_event"] += f" Habilidade ativada: {identidade_ativada}."
+            if combo_ativado:
+                state["last_event"] += f" Combo ativado: {combo_ativado}."
     else:
         return {"error": "Ação desconhecida."}
 
