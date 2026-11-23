@@ -33,3 +33,10 @@
 - 9 testes unitários do motor Gwent.
 - Execução do schema SQLite em banco temporário, confirmando as novas tabelas.
 - Não foi possível executar um teste de integração contra o Discord e o banco real neste ambiente.
+
+
+## Atualização de cartas — versão 3
+- As novas cartas aparecem no catálogo e podem ser obtidas pelos pacotes do Discord conforme a raridade.
+- Deck Gwent exige 12 cartas únicas, pelo menos 8 unidades e no máximo 4 especiais.
+- Os líderes agora têm efeitos específicos conforme a facção dominante do deck.
+- Nenhuma coleção, moeda, conquista, patente ou histórico existente é apagado.

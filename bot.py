@@ -1100,6 +1100,22 @@ class NaraBot(commands.Bot):
         owned = await self.db.coliseu_listar_colecao(user_id)
         owned_ids = {str(r["card_id"]) for r in owned}
         if not set(ids).issubset(owned_ids): return web.json_response({"error": "O deck contém cartas que não pertencem à sua coleção."}, status=403)
+        from sistemas.cartas import get_carta
+        unit_count = 0
+        special_count = 0
+        for card_id in ids:
+            card = get_carta(card_id)
+            # Cartas de jogos são geradas a partir do registro de conquistas e contam como unidades.
+            if card is None and card_id.startswith("jogo_"):
+                unit_count += 1
+            elif card is None:
+                return web.json_response({"error": f"Carta inválida no deck: {card_id}."}, status=400)
+            elif str(card.categoria).casefold() == "especial":
+                special_count += 1
+            else:
+                unit_count += 1
+        if unit_count < 8 or special_count > 4:
+            return web.json_response({"error": "O deck precisa ter pelo menos 8 unidades e no máximo 4 cartas especiais."}, status=400)
         import json
         async with self.db.transaction() as tx:
             await tx.conn.execute("INSERT INTO cartas_gwent_decks(user_id,card_ids_json) VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET card_ids_json=excluded.card_ids_json,updated_at=CURRENT_TIMESTAMP", (user_id, json.dumps(ids)))

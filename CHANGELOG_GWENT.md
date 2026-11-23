@@ -37,3 +37,14 @@
 - Recompensas: vitória +40 Denários e +25 MMR; derrota +15 Denários e -15 MMR; empate +25 Denários e sem alteração de MMR.
 - Migração aditiva: novas tabelas são criadas sem remover coleções, saldos ou históricos existentes.
 - Testes do motor ampliados para 8 casos, incluindo mulligan, facções e cartas especiais.
+
+
+## Evolução de cartas — versão 3
+- Catálogo ampliado com 8 unidades novas de sinergia e 5 cartas especiais adicionais.
+- Novas habilidades de unidade: Guardião da Fileira, Caçador Solitário, Estandarte, Resistência Climática e Eco Arcano.
+- Novos efeitos especiais: Rito de Purificação, Sentença do Carrasco, Juramento de Sangue, Batedor do Véu e Muralha dos Ancestrais.
+- Líderes de facção distintos: Ordem de Ferro fortalece corpo a corpo; Errantes do Véu fortalecem longa distância; Conclave Arcano dissipa o clima e fortalece cerco.
+- Construção de deck Gwent passa a exigir pelo menos 8 unidades e aceitar no máximo 4 especiais.
+- Novas cartas entram no catálogo de pacotes do Discord; a coleção e as compras existentes não são apagadas.
+- Renderização de artes versionada para regenerar as novas cartas.
+- Regras de pontuação ajustadas para resistência climática.
