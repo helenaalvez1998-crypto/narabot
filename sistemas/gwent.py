@@ -6,6 +6,20 @@ ROWS = ("melee", "ranged", "siege")
 ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
 FACTIONS = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
+FACTION_TYPES = {value: key for key, value in FACTIONS.items()}
+LEADERS = {
+    "comandante_fornalha": {"name": "Comandante da Fornalha", "faction": "Ordem de Ferro", "description": "+2 às suas unidades de corpo a corpo.", "effect": "iron_command"},
+    "bastiao_ancestral": {"name": "Bastião Ancestral", "faction": "Ordem de Ferro", "description": "+1 às unidades de corpo a corpo e resistência climática +1.", "effect": "iron_bastion"},
+    "mestre_veu": {"name": "Mestre do Véu", "faction": "Errantes do Véu", "description": "+2 às suas unidades de longa distância.", "effect": "veil_master"},
+    "sombra_caminhante": {"name": "Sombra Caminhante", "faction": "Errantes do Véu", "description": "+1 às unidades de longa distância; com 2 ou mais, concede +1 adicional.", "effect": "veil_shadow"},
+    "arquimaga_eclipse": {"name": "Arquimaga do Eclipse", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +1 ao cerco.", "effect": "arcane_archmage"},
+    "oraculo_tempestade": {"name": "Oráculo da Tempestade", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.", "effect": "arcane_oracle"},
+}
+DEFAULT_LEADERS = {
+    "Ordem de Ferro": "comandante_fornalha",
+    "Errantes do Véu": "mestre_veu",
+    "Conclave Arcano": "arquimaga_eclipse",
+}
 
 
 def preparar_carta(card: dict) -> dict:
@@ -40,14 +54,20 @@ def _faction(cards):
     return FACTIONS[max(counts, key=lambda k: (counts[k], k))]
 
 
-def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[str, list[dict]]) -> dict:
+def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[str, list[dict]], deck_configs: dict[str, dict] | None = None) -> dict:
     players = {}
+    deck_configs = deck_configs or {}
     for uid in (str(creator_id), str(opponent_id)):
         deck = deepcopy(decks[uid])
+        config = deck_configs.get(uid, {})
+        faction = config.get("faction") if config.get("faction") in FACTION_TYPES else _faction(deck)
+        leader_id = config.get("leader_id") or DEFAULT_LEADERS[faction]
+        if leader_id not in LEADERS or LEADERS[leader_id]["faction"] != faction:
+            leader_id = DEFAULT_LEADERS[faction]
         players[uid] = {
             "hand": deck[:10], "draw_pile": deck[10:], "discard": [], "board": [],
             "passed": False, "leader_used": False, "weather_used": False,
-            "faction": _faction(deck), "faction_boost_used": False,
+            "faction": faction, "leader_id": leader_id, "leader_name": LEADERS[leader_id]["name"], "faction_boost_used": False,
             "mulligan_done": False, "last_row": None,
         }
     return {
@@ -179,26 +199,30 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         if row not in ROWS:
             return {"error": "Fileira inválida."}
         player["leader_used"] = True
-        faction = player.get("faction", _faction(player.get("hand", [])))
-        if faction == "Ordem de Ferro":
-            target_row, bonus = "melee", 2
-            for card in player["board"]:
-                if card["row"] == target_row:
-                    card["bonus"] = int(card.get("bonus", 0)) + bonus
-            state["last_event"] = "Líder da Ordem de Ferro: +2 para suas unidades de corpo a corpo."
-        elif faction == "Errantes do Véu":
-            target_row, bonus = "ranged", 2
-            for card in player["board"]:
-                if card["row"] == target_row:
-                    card["bonus"] = int(card.get("bonus", 0)) + bonus
-            state["last_event"] = "Líder dos Errantes do Véu: +2 para suas unidades de longa distância."
-        else:
-            for r in ROWS:
-                state["weather"][r] = 0
-            for card in player["board"]:
-                if card["row"] == "siege":
-                    card["bonus"] = int(card.get("bonus", 0)) + 1
-            state["last_event"] = "Líder do Conclave Arcano: dissipa o clima e concede +1 ao cerco."
+        leader_id = player.get("leader_id") or DEFAULT_LEADERS.get(player.get("faction"), "comandante_fornalha")
+        leader = LEADERS.get(leader_id)
+        if not leader or leader["faction"] != player.get("faction"):
+            return {"error": "Líder incompatível com a facção deste deck."}
+        effect = leader["effect"]
+        if effect in {"iron_command", "iron_bastion"}:
+            for unit in player["board"]:
+                if unit["row"] == "melee":
+                    unit["bonus"] = int(unit.get("bonus", 0)) + (2 if effect == "iron_command" else 1)
+                    if effect == "iron_bastion":
+                        unit["weather_resist"] = int(unit.get("weather_resist", 0)) + 1
+        elif effect in {"veil_master", "veil_shadow"}:
+            ranged_units = [unit for unit in player["board"] if unit["row"] == "ranged"]
+            bonus = 2 if effect == "veil_master" else (2 if len(ranged_units) >= 2 else 1)
+            for unit in ranged_units:
+                unit["bonus"] = int(unit.get("bonus", 0)) + bonus
+        elif effect in {"arcane_archmage", "arcane_oracle"}:
+            had_weather = any(int(v or 0) > 0 for v in state["weather"].values())
+            state["weather"] = {r: 0 for r in ROWS}
+            bonus = 2 if effect == "arcane_oracle" and had_weather else 1
+            for unit in player["board"]:
+                if unit["row"] == "siege":
+                    unit["bonus"] = int(unit.get("bonus", 0)) + bonus
+        state["last_event"] = f"Líder {leader['name']} ativado."
     elif action == "weather":
         if player["weather_used"]:
             return {"error": "Seu efeito climático já foi usado nesta partida."}
@@ -319,6 +343,16 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             elif skill == "eco_arcano":
                 if any(c.get("especial") for c in player["discard"]):
                     card["bonus"] += 2
+            # Sinergias de cartas: recompensam composições e posicionamento coordenado.
+            if skill == "dupla_fornalha" and any(c.get("tipo") == "Força" and c.get("row") == row for c in player["board"]):
+                card["bonus"] += 2
+            elif skill == "irmandade_veu" and any(c.get("tipo") == "Destreza" and c.get("row") != row for c in player["board"]):
+                card["bonus"] += 2
+            elif skill == "circulo_arcano" and (
+                any(c.get("tipo") == "Magia" and c.get("row") == row for c in player["board"])
+                or any(c.get("especial") for c in player["discard"])
+            ):
+                card["bonus"] += 2
             # Bônus de facção: uma vez por rodada, primeira unidade da facção recebe +1.
             if card.get("tipo") in FACTIONS and FACTIONS[card["tipo"]] == player["faction"] and not player["faction_boost_used"]:
                 card["bonus"] += 1

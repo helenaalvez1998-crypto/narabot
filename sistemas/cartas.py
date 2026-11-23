@@ -82,6 +82,9 @@ HABILIDADES: dict[str, dict[str, str]] = {
     "gwent_vinculo": {"nome": "Juramento de Sangue", "texto": "Concede +2 às suas unidades da fileira escolhida se houver pelo menos duas."},
     "gwent_batedor": {"nome": "Batedor do Véu", "texto": "Compra uma carta da reserva, se disponível."},
     "gwent_muralha": {"nome": "Muralha dos Ancestrais", "texto": "Concede +1 às suas unidades na fileira escolhida."},
+    "dupla_fornalha": {"nome": "Pacto da Fornalha", "texto": "+2 se houver outra unidade de Força na mesma fileira."},
+    "irmandade_veu": {"nome": "Formação do Véu", "texto": "+2 se houver uma unidade de Destreza em outra fileira."},
+    "circulo_arcano": {"nome": "Círculo de Ressonância", "texto": "+2 se houver Magia aliada na mesma fileira ou especial no descarte."},
 }
 
 
@@ -162,6 +165,9 @@ _CARTAS_BASE = [
     Carta("gwent_unidade_gigante", "Gigante do Portão Antigo", "Chefe", "Força", 7, "Épica", 3, "instinto", "Uma presença colossal na linha de frente."),
     Carta("gwent_unidade_cartografa", "Cartógrafa das Marés", "Covenant", "Destreza", 4, "Comum", 1, "adaptacao", "Encontra rotas onde os outros veem obstáculos."),
     Carta("gwent_unidade_invocador", "Invocador do Sol Negro", "Magia", "Magia", 7, "Épica", 3, "cacador_arcano", "Converte conhecimento arcano em força de combate."),
+    Carta("gwent_unidade_mestre_forja", "Mestre da Forja Rubra", "Chefe", "Força", 5, "Rara", 2, "dupla_fornalha", "Luta melhor ao lado de outra unidade da Ordem de Ferro."),
+    Carta("gwent_unidade_dupla_veu", "Gêmea das Passagens", "Covenant", "Destreza", 5, "Rara", 2, "irmandade_veu", "Coordena ataques com aliados posicionados em outra fileira."),
+    Carta("gwent_unidade_circulo", "Adepto do Círculo", "Magia", "Magia", 5, "Rara", 2, "circulo_arcano", "Amplifica a magia quando encontra aliados ou resíduos arcanos."),
 ]
 
 CARTAS_PRIMORDIAIS = [
