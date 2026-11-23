@@ -63,10 +63,10 @@ EXTENSOES = (
     "cogs.colizeu", "cogs.cargos", "cogs.progressao", "cogs.youtube",
     "cogs.ofertas", "cogs.zerados", "cogs.santuario", "cogs.soulslike",
     "cogs.transmissoes", "cogs.nara_ia", "cogs.painel_rotativo",
-    "cogs.painel_membros", "cogs.catalogo_integrado", "cogs.game_news",
+    "cogs.painel_membros", "cogs.catalogo_integrado", "cogs.game_news", "cogs.painel_jogo",
 )
 
-COMANDOS_PRINCIPAIS = frozenset({"nara", "adm"})
+COMANDOS_PRINCIPAIS = frozenset({"nara", "jogo", "adm"})
 
 
 def _manter_apenas_comandos_principais(tree) -> list[str]:
@@ -79,7 +79,7 @@ def _manter_apenas_comandos_principais(tree) -> list[str]:
     restantes = {comando.name for comando in tree.get_commands()}
     if restantes != COMANDOS_PRINCIPAIS:
         raise RuntimeError(
-            "A árvore de comandos precisa conter exatamente os comandos principais aprovados; "
+            "A árvore de comandos precisa conter exatamente /nara, /jogo e /adm; "
             f"encontrados: {sorted(restantes)}"
         )
     return removidos
@@ -578,7 +578,7 @@ class NaraBot(commands.Bot):
         # O motor antigo de cartas não é carregado; somente o Gwent permanece ativo.
         removidos = _manter_apenas_comandos_principais(self.tree)
         log.info(
-            "Comandos slash locais filtrados: removidos=%s | permitidos=/nara,/adm",
+            "Comandos slash locais filtrados: removidos=%s | permitidos=/nara,/jogo,/adm",
             len(removidos),
         )
 
@@ -588,7 +588,7 @@ class NaraBot(commands.Bot):
         # O canal de moderação agora é configurado por servidor no /adm.
         # Não validar apenas MOD_CHANNEL_ID aqui: o valor pode estar salvo no banco.
         if not config.GUILD_ID:
-            log.warning("GUILD_ID vazio: /nara e /adm serão sincronizados globalmente; a propagação do Discord pode levar algum tempo.")
+            log.warning("GUILD_ID vazio: /nara, /jogo e /adm serão sincronizados globalmente; a propagação do Discord pode levar algum tempo.")
         if not any((os.getenv("GEMINI_API_KEY"), os.getenv("GEMINI_BACKUP_API_KEY"), os.getenv("GEMINI_THIRD_API_KEY"))):
             log.warning("Nenhuma chave Gemini configurada: a Nara continuará com funções locais, mas sem geração de IA.")
 
@@ -636,7 +636,7 @@ class NaraBot(commands.Bot):
                 "database": "connected",
             })
 
-        app = web.Application()
+        app = web.Application(client_max_size=9 * 1024 * 1024)
         app.router.add_get("/", pagina_inicial)
         app.router.add_get("/style.css", estilo_site)
         app.router.add_get("/app.js", script_site)
@@ -647,7 +647,19 @@ class NaraBot(commands.Bot):
         app.router.add_get("/api/players", self._api_players)
         app.router.add_post("/api/presence/heartbeat", self._api_presence_heartbeat)
         app.router.add_get("/api/gwent/cards", self._api_gwent_cards)
+        app.router.add_get("/api/gwent/exemplars", self._api_gwent_exemplars)
+        app.router.add_get("/api/gwent/drops/history", self._api_gwent_drop_history)
+        app.router.add_post("/api/gwent/evolve", self._api_gwent_evolve)
+        app.router.add_post("/api/gwent/upgrade", self._api_gwent_upgrade)
         app.router.add_get("/api/gwent/cards/{card_id}/image", self._api_gwent_card_image)
+        app.router.add_get("/api/gwent/atelier/prompt", self._api_gwent_atelier_prompt)
+        app.router.add_post("/api/gwent/atelier/submit", self._api_gwent_atelier_submit)
+        app.router.add_get("/api/gwent/atelier/history", self._api_gwent_atelier_history)
+        app.router.add_get("/api/gwent/atelier/review", self._api_gwent_atelier_review_list)
+        app.router.add_get("/api/gwent/atelier/submission/{submission_id}/image", self._api_gwent_atelier_submission_image)
+        app.router.add_post("/api/gwent/atelier/review/{submission_id}", self._api_gwent_atelier_review_decide)
+        app.router.add_get("/api/gwent/atelier/art/{card_id}", self._api_gwent_atelier_official_art)
+        app.router.add_get("/api/gwent/atelier/official/{card_id}", self._api_gwent_atelier_official_metadata)
         app.router.add_get("/api/gwent/store", self._api_gwent_store)
         app.router.add_post("/api/gwent/store/pack", self._api_gwent_store_pack)
         app.router.add_post("/api/gwent/store/forge", self._api_gwent_store_forge)
@@ -655,6 +667,7 @@ class NaraBot(commands.Bot):
         app.router.add_post("/api/gwent/deck", self._api_gwent_deck_save)
         app.router.add_get("/api/gwent/matches", self._api_gwent_matches)
         app.router.add_post("/api/gwent/matches", self._api_gwent_match_create)
+        app.router.add_post("/api/gwent/matches/{match_id}/respond", self._api_gwent_match_respond)
         app.router.add_get("/api/gwent/matches/{match_id}", self._api_gwent_match_detail)
         app.router.add_post("/api/gwent/matches/{match_id}/action", self._api_gwent_match_action)
         app.router.add_post("/auth/logout", self._oauth_logout)
@@ -851,32 +864,56 @@ class NaraBot(commands.Bot):
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         await self._gwent_prepare_user(user_id)
         import json
-        row = await self.db._one("SELECT card_ids_json, faction, leader_id FROM cartas_gwent_decks WHERE user_id=?", (user_id,))
+        row = await self.db._one(
+            "SELECT card_ids_json, exemplar_ids_json, faction, leader_id FROM cartas_gwent_decks WHERE user_id=?",
+            (user_id,),
+        )
         ids = json.loads(row["card_ids_json"]) if row else []
+        exemplar_ids = json.loads(row["exemplar_ids_json"] or "[]") if row and row["exemplar_ids_json"] else []
+        exemplars = await self.db.coliseu_listar_exemplares(user_id)
+        exemplar_by_id = {int(e["id"]): e for e in exemplars}
         owned = await self.db.coliseu_listar_colecao(user_id)
-        from sistemas.cartas import get_carta, carta_de_jogo_por_id
+        game_by_id = {str(r["card_id"]): str(r["game_name"] or "") for r in owned}
+        from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar
         from sistemas.gwent import preparar_carta
-        by_id = {str(r["card_id"]): r for r in owned}
         cards = []
-        for card_id in ids:
-            record = by_id.get(str(card_id))
-            if not record: continue
+        for index, card_id in enumerate(ids):
+            exemplar_id = int(exemplar_ids[index]) if index < len(exemplar_ids) and exemplar_ids[index] else 0
+            record = exemplar_by_id.get(exemplar_id) if exemplar_id else None
+            # Compatibilidade com decks anteriores: selecionar o melhor exemplar disponível.
+            if record is None or str(record["card_id"]) != str(card_id):
+                candidates = [e for e in exemplars if str(e["card_id"]) == str(card_id)]
+                order = {"Singular": 7, "Primordial": 6, "Mítica": 5, "Lendária": 4, "Épica": 3, "Rara": 2, "Comum": 1}
+                record = max(candidates, key=lambda e: (order.get(str(e["rarity"]), 0), int(e["power"]), -int(e["id"]))) if candidates else None
+            if not record:
+                continue
+            game_name = game_by_id.get(str(card_id), "")
             card = get_carta(str(card_id))
-            if card is None and str(card_id).startswith("jogo_") and record["game_name"]:
-                try: card = carta_de_jogo_por_id(str(card_id), str(record["game_name"]))
-                except ValueError: card = None
+            if card is None and str(card_id).startswith("jogo_") and game_name:
+                try:
+                    card = carta_de_jogo_por_id(str(card_id), game_name)
+                except ValueError:
+                    card = None
             if card:
-                item = preparar_carta(card.para_dict())
+                payload = card.para_dict()
+                rarity = str(record["rarity"] or payload.get("raridade", "Comum"))
+                payload["raridade"] = rarity
+                payload["poder"] = int(record["power"] or payload.get("poder", 0))
+                payload["custo"] = int(CUSTO_RARIDADE.get(rarity, payload.get("custo", 0)))
+                item = preparar_carta(payload)
+                item["card_id"] = str(card_id)
+                item["exemplar_id"] = int(record["id"])
+                item["id"] = f"{card_id}::{int(record['id'])}"
+                item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
                 item["image_url"] = f"/api/gwent/cards/{card_id}/image"
                 cards.append(item)
-        from sistemas.gwent import FACTIONS, LEADERS, DEFAULT_LEADERS
+        from sistemas.gwent import LEADERS, DEFAULT_LEADERS, FACTIONS
         faction = str(row["faction"] or "") if row else ""
         if faction not in DEFAULT_LEADERS:
             counts = {"Força": 0, "Destreza": 0, "Magia": 0}
             for card in cards:
                 if card.get("categoria", "").casefold() != "especial" and card.get("tipo") in counts:
                     counts[card["tipo"]] += 1
-            from sistemas.gwent import FACTIONS
             inferred_type = max(counts, key=lambda kind: (counts[kind], kind))
             faction = FACTIONS[inferred_type]
         leader_id = str(row["leader_id"] or "") if row else ""
@@ -896,33 +933,50 @@ class NaraBot(commands.Bot):
 
     async def _api_gwent_deck_save(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
-        if user_id is None: return web.json_response({"error": "Autenticação necessária."}, status=401)
-        if not self._api_origin_ok(request): return web.json_response({"error": "Origem não autorizada."}, status=403)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
         try:
             body = await request.json()
-            ids = body.get("card_ids")
+            raw_cards = body.get("cards")
+            if isinstance(raw_cards, list):
+                entries = [(str(item.get("card_id", "")), int(item.get("exemplar_id", 0)))
+                           for item in raw_cards if isinstance(item, dict)]
+            else:
+                # Compatibilidade com clientes antigos: usa o exemplar mais forte de cada modelo.
+                entries = [(str(card_id), 0) for card_id in body.get("card_ids", [])]
             faction = str(body.get("faction", "Ordem de Ferro"))
             leader_id = str(body.get("leader_id", "comandante_fornalha"))
         except Exception:
-            return web.json_response({"error": "JSON inválido."}, status=400)
-        if (not isinstance(ids, list) or len(ids) != 12
-                or any(not isinstance(x, str) or not x or len(x) > 120 for x in ids)
+            return web.json_response({"error": "JSON inválido ou exemplar inválido."}, status=400)
+        ids = [entry[0] for entry in entries]
+        if (len(entries) != 12 or any(not card_id or len(card_id) > 120 or exemplar_id < 0 for card_id, exemplar_id in entries)
                 or len(set(ids)) != 12):
-            return web.json_response({"error": "O deck Gwent exige exatamente 12 cartas diferentes."}, status=400)
+            return web.json_response({"error": "O deck Gwent exige exatamente 12 modelos diferentes."}, status=400)
         from sistemas.gwent import DEFAULT_LEADERS, LEADERS
         if faction not in DEFAULT_LEADERS:
             return web.json_response({"error": "Facção inválida."}, status=400)
         if leader_id not in LEADERS or LEADERS[leader_id]["faction"] != faction:
             return web.json_response({"error": "O líder selecionado não pertence à facção escolhida."}, status=400)
-        owned = await self.db.coliseu_listar_colecao(user_id)
-        owned_ids = {str(r["card_id"]) for r in owned}
-        if not set(ids).issubset(owned_ids): return web.json_response({"error": "O deck contém cartas que não pertencem à sua coleção."}, status=403)
+        exemplars = await self.db.coliseu_listar_exemplares(user_id)
+        by_exemplar = {int(e["id"]): e for e in exemplars}
+        resolved = []
+        for card_id, exemplar_id in entries:
+            if not exemplar_id:
+                candidates = [e for e in exemplars if str(e["card_id"]) == card_id]
+                order = {"Singular": 7, "Primordial": 6, "Mítica": 5, "Lendária": 4, "Épica": 3, "Rara": 2, "Comum": 1}
+                exemplar = max(candidates, key=lambda e: (order.get(str(e["rarity"]), 0), int(e["power"]), -int(e["id"]))) if candidates else None
+            else:
+                exemplar = by_exemplar.get(exemplar_id)
+            if not exemplar or str(exemplar["card_id"]) != card_id:
+                return web.json_response({"error": f"O exemplar selecionado não pertence à carta {card_id}."}, status=403)
+            resolved.append(int(exemplar["id"]))
         from sistemas.cartas import get_carta
         unit_count = 0
         special_count = 0
         for card_id in ids:
             card = get_carta(card_id)
-            # Cartas de jogos são geradas a partir do registro de conquistas e contam como unidades.
             if card is None and card_id.startswith("jogo_"):
                 unit_count += 1
             elif card is None:
@@ -936,30 +990,53 @@ class NaraBot(commands.Bot):
         import json
         async with self.db.transaction() as tx:
             await tx.conn.execute(
-                """INSERT INTO cartas_gwent_decks(user_id,card_ids_json,faction,leader_id)
-                   VALUES (?,?,?,?)
+                """INSERT INTO cartas_gwent_decks(user_id,card_ids_json,exemplar_ids_json,faction,leader_id)
+                   VALUES (?,?,?,?,?)
                    ON CONFLICT(user_id) DO UPDATE SET card_ids_json=excluded.card_ids_json,
-                   faction=excluded.faction, leader_id=excluded.leader_id, updated_at=CURRENT_TIMESTAMP""",
-                (user_id, json.dumps(ids), faction, leader_id))
-        return web.json_response({"ok": True, "card_ids": ids, "faction": faction, "leader_id": leader_id})
+                   exemplar_ids_json=excluded.exemplar_ids_json, faction=excluded.faction,
+                   leader_id=excluded.leader_id, updated_at=CURRENT_TIMESTAMP""",
+                (user_id, json.dumps(ids), json.dumps(resolved), faction, leader_id))
+        return web.json_response({"ok": True, "card_ids": ids, "exemplar_ids": resolved,
+                                  "faction": faction, "leader_id": leader_id})
 
     async def _gwent_deck_snapshots(self, user_id: int):
         import json
-        from sistemas.cartas import get_carta, carta_de_jogo_por_id
-        row = await self.db._one("SELECT card_ids_json FROM cartas_gwent_decks WHERE user_id=?", (user_id,))
-        if not row: return None
-        ids = json.loads(row["card_ids_json"])
-        owned = {str(r["card_id"]): str(r["game_name"] or "") for r in await self.db.coliseu_listar_colecao(user_id)}
+        from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE
         from sistemas.gwent import preparar_carta
+        row = await self.db._one(
+            "SELECT card_ids_json, exemplar_ids_json FROM cartas_gwent_decks WHERE user_id=?", (user_id,))
+        if not row:
+            return None
+        ids = json.loads(row["card_ids_json"])
+        exemplar_ids = json.loads(row["exemplar_ids_json"] or "[]") if row["exemplar_ids_json"] else []
+        exemplars = await self.db.coliseu_listar_exemplares(user_id)
+        exemplar_by_id = {int(e["id"]): e for e in exemplars}
+        owned_rows = await self.db.coliseu_listar_colecao(user_id)
+        game_by_id = {str(r["card_id"]): str(r["game_name"] or "") for r in owned_rows}
         cards = []
-        for card_id in ids:
-            if card_id not in owned: return None
+        for index, card_id in enumerate(ids):
+            exemplar_id = int(exemplar_ids[index]) if index < len(exemplar_ids) and exemplar_ids[index] else 0
+            record = exemplar_by_id.get(exemplar_id) if exemplar_id else None
+            if record is None or str(record["card_id"]) != str(card_id):
+                candidates = [e for e in exemplars if str(e["card_id"]) == str(card_id)]
+                order = {"Singular": 7, "Primordial": 6, "Mítica": 5, "Lendária": 4, "Épica": 3, "Rara": 2, "Comum": 1}
+                record = max(candidates, key=lambda e: (order.get(str(e["rarity"]), 0), int(e["power"]), -int(e["id"]))) if candidates else None
+            if record is None:
+                return None
             card = get_carta(card_id)
-            if card is None and card_id.startswith("jogo_") and owned[card_id]:
-                try: card = carta_de_jogo_por_id(card_id, owned[card_id])
-                except ValueError: card = None
-            if card is None: return None
-            cards.append(preparar_carta(card.para_dict()))
+            if card is None and card_id.startswith("jogo_") and game_by_id.get(card_id):
+                try:
+                    card = carta_de_jogo_por_id(card_id, game_by_id[card_id])
+                except ValueError:
+                    card = None
+            if card is None:
+                return None
+            payload = card.para_dict()
+            rarity = str(record["rarity"] or payload.get("raridade", "Comum"))
+            payload["raridade"] = rarity
+            payload["poder"] = int(record["power"] or payload.get("poder", 0))
+            payload["custo"] = int(CUSTO_RARIDADE.get(rarity, payload.get("custo", 0)))
+            cards.append(preparar_carta(payload))
         return cards if len(cards) == 12 else None
 
     async def _api_gwent_matches(self, request: web.Request) -> web.Response:
@@ -981,55 +1058,149 @@ class NaraBot(commands.Bot):
 
     async def _api_gwent_match_create(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
-        if user_id is None: return web.json_response({"error": "Autenticação necessária."}, status=401)
-        if not self._api_origin_ok(request): return web.json_response({"error": "Origem não autorizada."}, status=403)
-        try: body = await request.json(); opponent_id = int(body.get("opponent_id", 0))
-        except Exception: return web.json_response({"error": "Jogador inválido."}, status=400)
-        if opponent_id <= 0 or opponent_id == user_id: return web.json_response({"error": "Escolha outro jogador."}, status=400)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            body = await request.json()
+            opponent_id = int(body.get("opponent_id", 0))
+        except Exception:
+            return web.json_response({"error": "Jogador inválido."}, status=400)
+        if opponent_id <= 0 or opponent_id == user_id:
+            return web.json_response({"error": "Escolha outro jogador."}, status=400)
+
         guild = self.get_guild(int(getattr(config, "GUILD_ID", 0) or 0))
-        if not guild or not guild.get_member(user_id) or not guild.get_member(opponent_id): return web.json_response({"error": "Os dois jogadores precisam estar no servidor."}, status=404)
-        deck_a = await self._gwent_deck_snapshots(user_id); deck_b = await self._gwent_deck_snapshots(opponent_id)
-        if not deck_a or not deck_b: return web.json_response({"error": "Os dois jogadores precisam salvar um deck Gwent de 12 cartas."}, status=409)
+        if not guild or not guild.get_member(user_id) or not guild.get_member(opponent_id):
+            return web.json_response({"error": "Os dois jogadores precisam estar no servidor."}, status=404)
+
+        deck_a = await self._gwent_deck_snapshots(user_id)
+        deck_b = await self._gwent_deck_snapshots(opponent_id)
+        if not deck_a or not deck_b:
+            return web.json_response({"error": "Os dois jogadores precisam salvar um deck Gwent de 12 cartas."}, status=409)
+
         import json
+        configs = {}
+        for participant_id in (user_id, opponent_id):
+            saved = await self.db._one(
+                "SELECT faction,leader_id FROM cartas_gwent_decks WHERE user_id=?",
+                (participant_id,),
+            )
+            if saved:
+                configs[str(participant_id)] = {
+                    "faction": str(saved["faction"] or ""),
+                    "leader_id": str(saved["leader_id"] or ""),
+                }
+
+        # A partida só começa depois da aceitação. O snapshot impede que alterações
+        # posteriores nos decks modifiquem uma disputa já enviada.
+        invitation = {
+            "pending_invitation": True,
+            "decks": {str(user_id): deck_a, str(opponent_id): deck_b},
+            "configs": configs,
+        }
         async with self.db.transaction() as tx:
             for participant_id in (user_id, opponent_id):
                 active = await tx._one(
                     """SELECT COUNT(*) AS n FROM cartas_gwent_matches
-                       WHERE status='active' AND (creator_id=? OR opponent_id=?)""",
+                       WHERE status IN ('active','pending') AND (creator_id=? OR opponent_id=?)""",
                     (participant_id, participant_id),
                 )
                 if int(active["n"] or 0) >= 3:
                     return web.json_response(
-                        {"error": "Um dos jogadores já possui três partidas em andamento."},
+                        {"error": "Um dos jogadores já possui três partidas ou convites em andamento."},
                         status=409,
                     )
-            cur = await tx.conn.execute("INSERT INTO cartas_gwent_matches(creator_id,opponent_id,status,state_json) VALUES (?,?, 'active','{}')", (user_id, opponent_id))
-            match_id = cur.lastrowid
-            from sistemas.gwent import novo_estado, DEFAULT_LEADERS
-            configs = {}
-            for participant_id in (user_id, opponent_id):
-                async with tx.conn.execute(
-                    "SELECT faction, leader_id FROM cartas_gwent_decks WHERE user_id=?", (participant_id,)) as cur:
-                    saved = await cur.fetchone()
-                if saved:
-                    faction = str(saved["faction"] or "")
-                    leader_id = str(saved["leader_id"] or "")
-                    if faction:
-                        configs[str(participant_id)] = {
-                            "faction": faction,
-                            "leader_id": leader_id or DEFAULT_LEADERS.get(faction, "comandante_fornalha"),
-                        }
-            state = novo_estado(match_id, user_id, opponent_id,
-                                {str(user_id): deck_a, str(opponent_id): deck_b}, configs)
-            await tx.conn.execute("UPDATE cartas_gwent_matches SET state_json=? WHERE id=?", (json.dumps(state, ensure_ascii=False), match_id))
-        # Aviso opcional no Discord; falha de DM não interfere na partida do site.
+            cur = await tx.conn.execute(
+                "INSERT INTO cartas_gwent_matches(creator_id,opponent_id,status,state_json) VALUES (?,?, 'pending',?)",
+                (user_id, opponent_id, json.dumps(invitation, ensure_ascii=False)),
+            )
+            match_id = int(cur.lastrowid)
+
+        # Aviso por DM é auxiliar; o convite também aparece na lista do site.
         try:
             opponent = guild.get_member(opponent_id)
             base_url = os.getenv("SOULSBOT_PUBLIC_URL", "https://narabot.sbs").rstrip("/")
-            await opponent.send(f"⚔️ Você recebeu uma partida Gwent no SoulsBot. Abra a arena: {base_url}/?gwent={match_id}")
+            await opponent.send(
+                f"⚔️ Você recebeu um convite para uma partida Gwent no SoulsBot. "
+                f"Entre no site para aceitar ou recusar: {base_url}/?gwent={match_id}"
+            )
         except Exception:
-            log.info("Não foi possível enviar DM de aviso da partida Gwent #%s.", match_id)
-        return web.json_response({"ok": True, "match_id": match_id}, status=201)
+            log.info("Não foi possível enviar DM do convite Gwent #%s.", match_id)
+        return web.json_response({"ok": True, "match_id": match_id, "status": "pending"}, status=201)
+
+    async def _api_gwent_match_respond(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            match_id = int(request.match_info["match_id"])
+            body = await request.json()
+            action = str(body.get("action", "")).casefold()
+        except Exception:
+            return web.json_response({"error": "Resposta ao convite inválida."}, status=400)
+        if action not in {"accept", "decline", "cancel"}:
+            return web.json_response({"error": "Ação de convite inválida."}, status=400)
+
+        import json
+        async with self.db.transaction() as tx:
+            row = await tx._one("SELECT * FROM cartas_gwent_matches WHERE id=?", (match_id,))
+            if not row:
+                return web.json_response({"error": "Convite não encontrado."}, status=404)
+            creator_id = int(row["creator_id"])
+            opponent_id = int(row["opponent_id"])
+            if action in {"accept", "decline"} and user_id != opponent_id:
+                return web.json_response({"error": "Somente o adversário convidado pode responder."}, status=403)
+            if action == "cancel" and user_id != creator_id:
+                return web.json_response({"error": "Somente quem enviou o convite pode cancelá-lo."}, status=403)
+            if row["status"] != "pending":
+                return web.json_response({"error": "Este convite já foi respondido ou não está mais disponível."}, status=409)
+
+            if action == "accept":
+                invitation = json.loads(row["state_json"] or "{}")
+                if not invitation.get("pending_invitation"):
+                    return web.json_response({"error": "Dados do convite inválidos."}, status=409)
+                from sistemas.gwent import novo_estado
+                state = novo_estado(
+                    match_id, creator_id, opponent_id,
+                    invitation.get("decks", {}), invitation.get("configs", {}),
+                )
+                cursor = await tx.conn.execute(
+                    "UPDATE cartas_gwent_matches SET status='active',state_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'",
+                    (json.dumps(state, ensure_ascii=False), match_id),
+                )
+                if cursor.rowcount != 1:
+                    return web.json_response({"error": "O convite já foi respondido."}, status=409)
+                result_status = "active"
+            else:
+                result_status = "declined" if action == "decline" else "cancelled"
+                cursor = await tx.conn.execute(
+                    "UPDATE cartas_gwent_matches SET status=?,state_json='{}',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'",
+                    (result_status, match_id),
+                )
+                if cursor.rowcount != 1:
+                    return web.json_response({"error": "O convite já foi respondido."}, status=409)
+
+        # A notificação não faz parte da transação: falha de DM não desfaz a resposta.
+        try:
+            guild = self.get_guild(int(getattr(config, "GUILD_ID", 0) or 0))
+            notified_id = creator_id if action in {"accept", "decline"} else opponent_id
+            notified = guild.get_member(notified_id) if guild else None
+            if notified:
+                base_url = os.getenv("SOULSBOT_PUBLIC_URL", "https://narabot.sbs").rstrip("/")
+                if result_status == "active":
+                    message = f"⚔️ Seu convite Gwent #{match_id} foi aceito. Entre na arena: {base_url}/?gwent={match_id}"
+                elif result_status == "declined":
+                    message = f"O convite Gwent #{match_id} foi recusado."
+                else:
+                    message = f"O convite Gwent #{match_id} foi cancelado."
+                await notified.send(message)
+        except Exception:
+            log.info("Não foi possível enviar a notificação da resposta ao convite Gwent #%s.", match_id)
+
+        return web.json_response({"ok": True, "match_id": match_id, "status": result_status})
 
     async def _api_gwent_match_detail(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
@@ -1038,13 +1209,37 @@ class NaraBot(commands.Bot):
         except ValueError: return web.json_response({"error": "Partida inválida."}, status=400)
         row = await self.db._one("SELECT * FROM cartas_gwent_matches WHERE id=?", (match_id,))
         if not row or user_id not in (int(row["creator_id"]), int(row["opponent_id"])): return web.json_response({"error": "Partida não encontrada."}, status=404)
+        if row["status"] not in {"active", "finished"}:
+            return web.json_response({"match_id": match_id, "status": str(row["status"])})
         import json
         from sistemas.gwent import placar
         state = json.loads(row["state_json"])
         reward_row = await self.db._one(
-            "SELECT reward_denarios,reward_xp,mmr_delta FROM cartas_gwent_rewards WHERE match_id=? AND user_id=?",
+            """SELECT reward_denarios,reward_xp,mmr_delta,drop_event_key,milestone_drop_event_key
+               FROM cartas_gwent_rewards WHERE match_id=? AND user_id=?""",
             (match_id, user_id),
         )
+        reward_drops = []
+        if reward_row:
+            for event_key in (str(reward_row["drop_event_key"] or ""),
+                              str(reward_row["milestone_drop_event_key"] or "")):
+                if not event_key:
+                    continue
+                drop_row = await self.db._one(
+                    """SELECT card_id,rarity,outcome,exemplar_id,power,origin,almas_delta,fragmentos_delta
+                       FROM cartas_recompensas WHERE event_key=?""", (event_key,))
+                if drop_row:
+                    from sistemas.cartas import get_carta
+                    model = get_carta(str(drop_row["card_id"] or ""))
+                    reward_drops.append({
+                        "card_id": str(drop_row["card_id"] or ""),
+                        "card_name": model.nome if model else str(drop_row["card_id"] or "Carta"),
+                        "rarity": str(drop_row["rarity"]),
+                        "outcome": str(drop_row["outcome"]), "exemplar_id": drop_row["exemplar_id"],
+                        "power": int(drop_row["power"] or 0), "origin": str(drop_row["origin"] or ""),
+                        "almas_delta": int(drop_row["almas_delta"] or 0),
+                        "fragmentos_delta": int(drop_row["fragmentos_delta"] or 0),
+                    })
         own = state["players"][str(user_id)]
         opponent_id = next((uid for uid in state["players"] if uid != str(user_id)), "")
         opponent = state["players"].get(opponent_id, {})
@@ -1072,7 +1267,7 @@ class NaraBot(commands.Bot):
                 "leader_name": opponent.get("leader_name", "Líder"),
             },
             "event_log": state.get("event_log", [])[-12:],
-            "reward": dict(reward_row) if reward_row else None,
+            "reward": ({**dict(reward_row), "drops": reward_drops} if reward_row else None),
         }
         return web.json_response(public)
 
@@ -1173,11 +1368,24 @@ class NaraBot(commands.Bot):
                         "UPDATE users SET denarios=denarios+?, xp=xp+? WHERE user_id=?",
                         (reward_denarios, reward_xp, participant),
                     )
+                    drop_event_key = ""
+                    milestone_drop_event_key = ""
+                    if won:
+                        wins_row = await tx._one(
+                            "SELECT wins FROM cartas_gwent_rankings WHERE user_id=?", (participant,)
+                        )
+                        total_wins = int(wins_row["wins"] or 0) if wins_row else 0
+                        from sistemas.recompensas_gwent import conceder_drops_de_vitoria
+                        drop_event_key, milestone_drop_event_key = await conceder_drops_de_vitoria(
+                            tx, self.db, participant, match_id, total_wins
+                        )
+
                     await tx.conn.execute(
                         """INSERT OR IGNORE INTO cartas_gwent_rewards
-                           (match_id,user_id,reward_denarios,reward_xp,mmr_delta)
-                           VALUES (?,?,?,?,?)""",
-                        (match_id, participant, reward_denarios, reward_xp, delta),
+                           (match_id,user_id,reward_denarios,reward_xp,mmr_delta,drop_event_key,milestone_drop_event_key)
+                           VALUES (?,?,?,?,?,?,?)""",
+                        (match_id, participant, reward_denarios, reward_xp, delta,
+                         drop_event_key, milestone_drop_event_key),
                     )
                 finished_participants = participants
 
@@ -1221,7 +1429,7 @@ class NaraBot(commands.Bot):
             await self.db.coliseu_reivindicar_patentes(int(user_id), unlocked)
 
     async def _gwent_prepare_user(self, user_id: int) -> None:
-        """Entrega o kit inicial Gwent uma única vez e sincroniza marcos já aprovados."""
+        """Entrega drops globais de boas-vindas a contas novas e sincroniza marcos pendentes."""
         user_id = int(user_id)
         if user_id in self._gwent_bootstrapped:
             return
@@ -1229,19 +1437,7 @@ class NaraBot(commands.Bot):
         async with lock:
             if user_id in self._gwent_bootstrapped:
                 return
-            await self.db.coliseu_entregar_kit_inicial(
-                user_id,
-                ["chefe_cervo_sombrio", "arma_lamina_peregrino", "magia_brasa_errante",
-                 "arma_agulha_astro", "covenant_sentinelas"],
-            )
-            await self.db.coliseu_entregar_kit_gwent(
-                user_id,
-                ["chefe_vigia_cinzento", "arma_lanca_fornalha", "arma_arco_peregrino",
-                 "magia_fagulha", "covenant_peregrinos_nevoa"],
-            )
-            await self.db.coliseu_entregar_kit_especial_gwent(
-                user_id, ["gwent_especial_nevoa", "gwent_especial_chifre"],
-            )
+            await self.db.coliseu_entregar_drops_iniciais(user_id, quantidade=12)
             await self.db.coliseu_sincronizar_conquistas(user_id)
             await self._gwent_sync_patents(user_id)
             self._gwent_bootstrapped.add(user_id)
@@ -1251,34 +1447,21 @@ class NaraBot(commands.Bot):
         if user_id is None:
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         await self._gwent_prepare_user(user_id)
-        from sistemas.cartas import CARTAS_PACOTE, CUSTO_FORJA, PRECO_PACOTE_FOGUEIRA, CARTAS_POR_PACOTE, PITY_CARTAS
         state = await self.db.coliseu_estado_usuario(user_id)
-        opened = await self.db._one(
-            """SELECT COUNT(*) AS n FROM cartas_transacoes
-               WHERE user_id=? AND kind='pacote_fogueira' AND created_at>=datetime('now','-1 day')""",
-            (user_id,),
+        fragments = await self.db._one(
+            "SELECT quantidade FROM cartas_fragmentos WHERE user_id=?", (int(user_id),)
         )
-        packs_used = int(opened["n"] or 0) if opened else 0
-        owned = {str(row["card_id"]) for row in await self.db.coliseu_listar_colecao(user_id)}
-        forge_cards = []
-        from sistemas.gwent import preparar_carta
-        for card in CARTAS_PACOTE:
-            cost = int(CUSTO_FORJA.get(card.raridade, 0))
-            if cost <= 0 or card.raridade == "Primordial" or card.id in owned:
-                continue
-            item = preparar_carta(card.para_dict())
-            item["custo_almas"] = cost
-            forge_cards.append(item)
-        forge_cards.sort(key=lambda item: (["Comum", "Rara", "Épica", "Lendária"].index(item["raridade"])
-                                           if item["raridade"] in ["Comum", "Rara", "Épica", "Lendária"] else 9,
-                                           item["nome"]))
+        packs = await self.db._one(
+            "SELECT COUNT(*) AS n FROM cartas_transacoes WHERE user_id=? AND kind='pacote_fogueira' AND created_at>=datetime('now','-1 day')",
+            (int(user_id),),
+        )
+        usados = int(packs["n"] or 0) if packs else 0
         return web.json_response({
             "summary": {"souls": int(state["almas"]), "denarios": int(state["denarios"]),
-                        "pity": int(state["pity"])},
-            "pack": {"price": int(PRECO_PACOTE_FOGUEIRA), "cards": int(CARTAS_POR_PACOTE),
-                     "daily_limit": 3, "pity_limit": int(PITY_CARTAS),
-                     "used_today": packs_used, "remaining": max(0, 3 - packs_used)},
-            "forge_cards": forge_cards,
+                        "pity": int(state["pity"]), "fragments": int(fragments["quantidade"] or 0) if fragments else 0},
+            "pack": {"available": usados < 3, "price": 120, "cards": 3,
+                     "daily_limit": 3, "remaining": max(0, 3-usados)},
+            "forge_cards": [],
         })
 
     async def _api_gwent_store_pack(self, request: web.Request) -> web.Response:
@@ -1287,109 +1470,63 @@ class NaraBot(commands.Bot):
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         if not self._api_origin_ok(request):
             return web.json_response({"error": "Origem não autorizada."}, status=403)
-        await self._gwent_prepare_user(user_id)
-        from sistemas.cartas import (
-            CARTAS_PACOTE_POR_RARIDADE, ALMAS_DUPLICATA,
-            PRECO_PACOTE_FOGUEIRA, CARTAS_POR_PACOTE, PITY_CARTAS,
-        )
-        from sistemas.gwent import preparar_carta
-        catalog = {
-            rarity: [card.para_dict() for card in cards]
-            for rarity, cards in CARTAS_PACOTE_POR_RARIDADE.items()
-        }
-        # A pool Primordial é única por servidor e controlada na transação do banco.
-        result = await self.db.coliseu_abrir_pacote(
-            user_id, catalog, ALMAS_DUPLICATA,
-            preco=PRECO_PACOTE_FOGUEIRA, quantidade=CARTAS_POR_PACOTE,
-            limite_pacotes_dia=3, limite_pity=PITY_CARTAS,
-        )
-        if result.get("status") != "ok":
-            messages = {
-                "sem_saldo": "Você não tem Denários suficientes para abrir este pacote.",
-                "limite_pacotes_dia": "Limite diário atingido: três pacotes a cada 24 horas.",
-                "catalogo_invalido": "O catálogo de cartas está indisponível.",
-            }
-            return web.json_response({"error": messages.get(result.get("status"), "Não foi possível abrir o pacote."),
-                                      "details": result}, status=409)
-        opened = []
-        for entry in result.get("cards", []):
-            card_data = dict(entry["carta"])
-            try:
-                from sistemas.cartas import get_carta
-                card = get_carta(str(card_data.get("id", "")))
-                if card:
-                    card_data = card.para_dict()
-            except Exception:
-                pass
-            item = preparar_carta(card_data)
-            item["image_url"] = f"/api/gwent/cards/{item['id']}/image"
-            item["duplicata"] = bool(entry.get("duplicata"))
-            item["almas_ganhas"] = int(entry.get("almas", 0))
-            item["primordial"] = bool(entry.get("primordial"))
-            opened.append(item)
+        result = await self.db.coliseu_abrir_pacote(user_id, preco=120, quantidade=3, limite_pacotes_dia=3)
+        status = str(result.get("status", "erro"))
+        if status == "sem_saldo":
+            return web.json_response({"error": "Denários insuficientes.", **result}, status=402)
+        if status == "limite_pacotes_dia":
+            return web.json_response({"error": "Você já abriu o limite de três pacotes nas últimas 24 horas.", **result}, status=429)
+        if status != "ok":
+            return web.json_response({"error": "Não foi possível abrir o pacote.", **result}, status=400)
         state = await self.db.coliseu_estado_usuario(user_id)
-        return web.json_response({
-            "ok": True, "cards": opened, "souls_gained": int(result.get("almas_ganhas", 0)),
-            "pity": int(result.get("pity", 0)), "packs_remaining": int(result.get("pacotes_restantes", 0)),
-            "summary": {"souls": int(state["almas"]), "denarios": int(state["denarios"])},
-        })
+        return web.json_response({"ok": True, **result,
+                                  "summary": {"denarios": int(state["denarios"]),
+                                              "souls": int(state["almas"]),
+                                              "fragments": int(state["fragmentos"])}})
 
     async def _api_gwent_store_forge(self, request: web.Request) -> web.Response:
-        user_id = self._api_user_id(request)
-        if user_id is None:
-            return web.json_response({"error": "Autenticação necessária."}, status=401)
-        if not self._api_origin_ok(request):
-            return web.json_response({"error": "Origem não autorizada."}, status=403)
-        await self._gwent_prepare_user(user_id)
-        try:
-            body = await request.json()
-            card_id = str(body.get("card_id", ""))[:120]
-        except Exception:
-            return web.json_response({"error": "Pedido inválido."}, status=400)
-        from sistemas.cartas import get_carta, CUSTO_FORJA, CARTAS_PACOTE
-        allowed_ids = {item.id for item in CARTAS_PACOTE}
-        card = get_carta(card_id) if card_id in allowed_ids else None
-        if card is None or card.raridade == "Primordial":
-            return web.json_response({"error": "Esta carta não pode ser forjada."}, status=400)
-        cost = int(CUSTO_FORJA.get(card.raridade, 0))
-        if cost <= 0:
-            return web.json_response({"error": "Esta carta não possui custo de forja."}, status=400)
-        result = await self.db.coliseu_forjar_carta(user_id, card.para_dict(), cost)
-        if result != "ok":
-            message = {"ja_tem": "Você já possui esta carta.", "sem_almas": "Almas insuficientes para forjar esta carta."}.get(result, "Não foi possível forjar a carta.")
-            return web.json_response({"error": message}, status=409)
-        state = await self.db.coliseu_estado_usuario(user_id)
-        from sistemas.gwent import preparar_carta
-        item = preparar_carta(card.para_dict())
-        item["image_url"] = f"/api/gwent/cards/{card_id}/image"
-        return web.json_response({"ok": True, "card": item,
-                                  "summary": {"souls": int(state["almas"]), "denarios": int(state["denarios"])}})
+        return web.json_response(
+            {"error": "A forja direta foi desativada. Cartas são conquistadas por drops; duplicatas geram Almas ou fragmentos."},
+            status=410,
+        )
 
     async def _api_gwent_cards(self, request: web.Request) -> web.Response:
-        """Retorna o acervo de cartas disponível ao construtor do Gwent autenticado."""
+        """Retorna cada exemplar como opção independente para o construtor do Gwent."""
         user_id = self._api_user_id(request)
         if user_id is None:
             return web.json_response({"authenticated": False, "error": "Autenticação necessária."}, status=401)
         try:
             await self._gwent_prepare_user(user_id)
             await self._gwent_sync_patents(user_id)
-            from sistemas.cartas import get_carta, carta_de_jogo_por_id
+            from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar
+            from sistemas.gwent import preparar_carta
             estado = await self.db.coliseu_estado_usuario(user_id)
-            rows = await self.db.coliseu_listar_colecao(user_id)
+            owned_rows = await self.db.coliseu_listar_colecao(user_id)
+            game_by_id = {str(r["card_id"]): str(r["game_name"] or "") for r in owned_rows}
+            exemplar_rows = await self.db.coliseu_listar_exemplares(user_id)
             cards = []
-            for row in rows:
-                card_id = str(row["card_id"])
+            for record in exemplar_rows:
+                card_id = str(record["card_id"])
                 card = get_carta(card_id)
-                if card is None and card_id.startswith("jogo_") and row["game_name"]:
+                if card is None and card_id.startswith("jogo_") and game_by_id.get(card_id):
                     try:
-                        card = carta_de_jogo_por_id(card_id, str(row["game_name"]))
+                        card = carta_de_jogo_por_id(card_id, game_by_id[card_id])
                     except ValueError:
                         card = None
                 if card is None:
                     continue
-                from sistemas.gwent import preparar_carta
-                item = preparar_carta(card.para_dict())
-                item["quantidade"] = int(row["quantidade"] or 1)
+                rarity = str(record["rarity"] or "Comum")
+                payload = card.para_dict()
+                payload["raridade"] = rarity
+                payload["poder"] = int(record["power"] or payload.get("poder", 0))
+                payload["custo"] = int(CUSTO_RARIDADE.get(rarity, payload.get("custo", 0)))
+                item = preparar_carta(payload)
+                item["card_id"] = card_id
+                item["exemplar_id"] = int(record["id"])
+                item["id"] = f"{card_id}::{int(record['id'])}"
+                item["exemplares"] = 1
+                item["source"] = str(record["source"] or "")
+                item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
                 item["image_url"] = f"/api/gwent/cards/{card_id}/image"
                 cards.append(item)
             from levels import nivel_por_xp
@@ -1398,6 +1535,7 @@ class NaraBot(commands.Bot):
                 "authenticated": True,
                 "summary": {
                     "souls": int(estado["almas"]),
+                    "fragments": int(estado["fragmentos"]),
                     "denarios": int(estado["denarios"]),
                     "xp": xp,
                     "level": nivel_por_xp(xp),
@@ -1408,6 +1546,237 @@ class NaraBot(commands.Bot):
             log.exception("Falha ao carregar cartas Gwent do usuário %s.", user_id)
             raise web.HTTPInternalServerError(text="Não foi possível carregar as cartas do Gwent.")
 
+    async def _api_gwent_upgrade(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            body = await request.json()
+            exemplar_id = int(body.get("exemplar_id", 0))
+        except (TypeError, ValueError, AttributeError):
+            return web.json_response({"error": "Exemplar inválido."}, status=400)
+        result = await self.db.coliseu_aprimorar_exemplar(user_id, exemplar_id)
+        status = 200 if result.get("status") == "ok" else 409
+        return web.json_response(result, status=status)
+
+    async def _api_gwent_drop_history(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        from sistemas.cartas import CARTAS_POR_ID, carta_de_jogo_por_id
+        rows = await self.db.coliseu_historico_drops(user_id, 20)
+        movement_rows = await self.db.coliseu_historico_movimentacoes(user_id, 20)
+        history = []
+        movements = []
+        for movement in movement_rows:
+            item = dict(movement)
+            card = CARTAS_POR_ID.get(str(item.get("card_id") or ""))
+            item["card_name"] = card.nome if card else str(item.get("card_id") or "Carta")
+            movements.append(item)
+        for row in rows:
+            item = dict(row)
+            card = CARTAS_POR_ID.get(str(item["card_id"] or ""))
+            if card is None and str(item["card_id"] or "").startswith("jogo_"):
+                legacy = await self.db._one(
+                    "SELECT game_name FROM cartas_colecao WHERE user_id=? AND card_id=?",
+                    (int(user_id), str(item["card_id"])),
+                )
+                if legacy and legacy["game_name"]:
+                    try: card = carta_de_jogo_por_id(str(item["card_id"]), str(legacy["game_name"]))
+                    except ValueError: card = None
+            item["card_name"] = card.nome if card else str(item["card_id"] or "Carta")
+            history.append(item)
+        return web.json_response({"history": history, "movements": movements})
+
+    async def _api_gwent_exemplars(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        rows = await self.db.coliseu_listar_exemplares(user_id)
+        return web.json_response({"exemplars": [dict(row) for row in rows]})
+
+    async def _api_gwent_evolve(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            body = await request.json()
+            exemplar_id = int(body.get("exemplar_id", 0))
+        except (TypeError, ValueError, AttributeError):
+            return web.json_response({"error": "Exemplar inválido."}, status=400)
+        result = await self.db.coliseu_evoluir_exemplar(user_id, exemplar_id)
+        status = 200 if result.get("status") == "ok" else 409
+        return web.json_response(result, status=status)
+
+    def _atelier_admin_ids(self) -> set[int]:
+        ids = {int(config.BOT_OWNER_ID)} if int(config.BOT_OWNER_ID or 0) > 0 else set()
+        raw = os.getenv("COLISEUM_ART_REVIEWER_IDS", "")
+        for value in raw.split(","):
+            value = value.strip()
+            if value.isdigit() and int(value) > 0:
+                ids.add(int(value))
+        return ids
+
+    def _atelier_is_admin(self, user_id: int) -> bool:
+        return int(user_id) in self._atelier_admin_ids()
+
+    async def _api_gwent_atelier_prompt(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        card_id = str(request.query.get("card_id", "")).strip()[:120]
+        if not card_id:
+            return web.json_response({"error": "Selecione uma carta."}, status=400)
+        try:
+            owned = await self.db._one(
+                "SELECT card_id,game_name FROM cartas_colecao WHERE user_id=? AND card_id=?",
+                (user_id, card_id),
+            )
+            if not owned:
+                return web.json_response({"error": "Você precisa possuir essa carta para enviar arte."}, status=403)
+            from sistemas.cartas import get_carta, carta_de_jogo_por_id
+            from sistemas.atelie_coliseu import gerar_prompt_carta
+            card = get_carta(card_id)
+            if card is None and card_id.startswith("jogo_") and owned["game_name"]:
+                card = carta_de_jogo_por_id(card_id, str(owned["game_name"]))
+            if card is None:
+                return web.json_response({"error": "Modelo de carta não encontrado no catálogo."}, status=404)
+            payload = card.para_dict()
+            return web.json_response({"card_id": card_id, "name": payload.get("nome", card_id),
+                                      "prompt": gerar_prompt_carta(payload)})
+        except Exception:
+            log.exception("Falha ao gerar prompt do Ateliê para %s.", user_id)
+            raise web.HTTPInternalServerError(text="Não foi possível gerar o prompt da carta.")
+
+    async def _api_gwent_atelier_submit(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            form = await request.post()
+            card_id = str(form.get("card_id", "")).strip()[:120]
+            prompt_text = str(form.get("prompt_text", ""))[:12000]
+            if not prompt_text.strip():
+                return web.json_response({"error": "Gere o prompt individual antes de enviar a ilustração."}, status=400)
+            artist_name = "".join(ch for ch in str(form.get("artist_name", "")).strip() if ch.isprintable())[:80]
+            if not artist_name:
+                artist_name = f"Artista Discord {user_id}"
+            upload = form.get("image")
+            if not card_id or upload is None or not hasattr(upload, "file"):
+                return web.json_response({"error": "Carta e arquivo de imagem são obrigatórios."}, status=400)
+            raw = upload.file.read(8 * 1024 * 1024 + 1)
+            from sistemas.atelie_coliseu import normalizar_imagem_carta, ArteInvalida
+            try:
+                normalized = normalizar_imagem_carta(raw)
+            except ArteInvalida as exc:
+                return web.json_response({"error": str(exc)}, status=400)
+            result = await self.db.coliseu_atelie_criar_submissao_web(
+                user_id, card_id, prompt_text, normalized.dados, "image/jpeg",
+                artist_name,
+            )
+            statuses = {
+                "not_owned": (403, "Você precisa possuir essa carta."),
+                "pending_exists": (409, "Você já tem uma submissão pendente para esta carta."),
+                "pending_limit": (429, "Limite de três submissões pendentes atingido."),
+            }
+            if result.get("status") in statuses:
+                code, message = statuses[result["status"]]
+                return web.json_response({"error": message, **result}, status=code)
+            return web.json_response({"ok": True, **result}, status=201)
+        except web.HTTPException:
+            raise
+        except Exception:
+            log.exception("Falha ao receber arte do Ateliê do usuário %s.", user_id)
+            raise web.HTTPInternalServerError(text="Não foi possível registrar a arte enviada.")
+
+    async def _api_gwent_atelier_history(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        history = await self.db.coliseu_atelie_historico_web(user_id)
+        return web.json_response({"history": history})
+
+    async def _api_gwent_atelier_review_list(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._atelier_is_admin(user_id):
+            return web.json_response({"error": "Acesso restrito à equipe de revisão."}, status=403)
+        rows = await self.db.coliseu_atelie_listar_pendentes_web()
+        return web.json_response({"pending": rows})
+
+    async def _api_gwent_atelier_submission_image(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            raise web.HTTPUnauthorized(text="Faça login com o Discord.")
+        if not self._atelier_is_admin(user_id):
+            raise web.HTTPForbidden(text="Acesso restrito à equipe de revisão.")
+        try:
+            submission_id = int(request.match_info.get("submission_id", 0))
+        except (TypeError, ValueError):
+            raise web.HTTPNotFound(text="Submissão não encontrada.")
+        art = await self.db._one(
+            "SELECT image_data,mime_type FROM cartas_atelie_submissoes WHERE id=? AND status='pending'",
+            (submission_id,),
+        )
+        if not art:
+            raise web.HTTPNotFound(text="Submissão não encontrada.")
+        response = web.Response(body=bytes(art["image_data"]), content_type=str(art["mime_type"] or "image/jpeg"))
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    async def _api_gwent_atelier_review_decide(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        if not self._atelier_is_admin(user_id):
+            return web.json_response({"error": "Acesso restrito à equipe de revisão."}, status=403)
+        try:
+            submission_id = int(request.match_info.get("submission_id", 0))
+            body = await request.json()
+            approve = bool(body.get("approve"))
+            reason = str(body.get("reason", ""))[:500]
+        except (TypeError, ValueError, AttributeError):
+            return web.json_response({"error": "Decisão inválida."}, status=400)
+        result = await self.db.coliseu_atelie_decidir_web(submission_id, user_id, approve, reason)
+        if result.get("status") != "ok":
+            return web.json_response({"error": "Submissão já processada ou inexistente."}, status=404)
+        return web.json_response({"ok": True, "status": result["new_status"]})
+
+    async def _api_gwent_atelier_official_metadata(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        card_id = str(request.match_info.get("card_id", "")).strip()[:120]
+        art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+        if not art:
+            return web.json_response({"official": False})
+        return web.json_response({"official": True, "artist_name": str(art["artist_name"] or "Artista da comunidade"),
+                                  "created_at": str(art["created_at"] or ""),
+                                  "image_url": f"/api/gwent/atelier/art/{card_id}"})
+
+    async def _api_gwent_atelier_official_art(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            raise web.HTTPUnauthorized(text="Faça login com o Discord.")
+        card_id = str(request.match_info.get("card_id", "")).strip()[:120]
+        art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+        if not art:
+            raise web.HTTPNotFound(text="Esta carta ainda utiliza a arte-base.")
+        response = web.Response(body=bytes(art["image_data"]), content_type=str(art["mime_type"] or "image/jpeg"))
+        response.headers["Cache-Control"] = "private, max-age=300"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
     async def _api_gwent_card_image(self, request: web.Request) -> web.Response:
         """Renderiza arte de carta para o Gwent sem depender do cog antigo."""
         user_id = self._api_user_id(request)
@@ -1417,6 +1786,15 @@ class NaraBot(commands.Bot):
         if not card_id or len(card_id) > 120:
             raise web.HTTPNotFound(text="Carta não encontrada.")
         try:
+            # Arte aprovada no Ateliê é global por modelo e substitui a ilustração-base.
+            official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+            if official_art:
+                return web.Response(
+                    body=bytes(official_art["image_data"]),
+                    content_type=str(official_art["mime_type"] or "image/jpeg"),
+                    headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300",
+                             "X-Content-Type-Options": "nosniff"},
+                )
             # A imagem deve funcionar também para cartas do adversário no campo.
             # A posse local continua exigida para abrir imagens fora de uma partida.
             rows = await self.db.coliseu_listar_colecao(user_id)
@@ -1464,6 +1842,11 @@ class NaraBot(commands.Bot):
             from sistemas.gwent import preparar_carta
             from sistemas.arte_cartas import render_carta
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
+            if owned_row is not None and owned_row["rarity"]:
+                from sistemas.cartas import CUSTO_RARIDADE
+                source["raridade"] = str(owned_row["rarity"])
+                source["poder"] = int(owned_row["exemplar_power"] or source.get("poder", 0))
+                source["custo"] = int(CUSTO_RARIDADE.get(source["rariedade"], source.get("custo", 0)))
             gwent = preparar_carta(source)
             source.update({
                 "gwent_mode": True,
@@ -1532,13 +1915,13 @@ class NaraBot(commands.Bot):
                             len(sincronizados),
                             ", ".join(sorted(c.name for c in sincronizados)) or "(nenhum)",
                         )
-                    # /nara e /adm ficam no escopo do servidor configurado,
+                    # /nara, /jogo e /adm ficam no escopo do servidor configurado,
                     # removendo também a versão global antiga.
                     self.tree.clear_commands(guild=None)
                     await self.tree.sync()
                     log.info("Comandos globais antigos removidos.")
                 else:
-                    # Sem GUILD_ID, publica somente os dois comandos globalmente.
+                    # Sem GUILD_ID, publica somente os três comandos globalmente.
                     sincronizados = await self.tree.sync()
                     log.info(
                         "Sincronização global forçada: %s comando(s): %s",
@@ -1553,7 +1936,7 @@ class NaraBot(commands.Bot):
                 self.sync_ok = True
             except Exception:
                 self.sync_ok = False
-                log.exception("Falha ao forçar a sincronização exclusiva de /nara e /adm.")
+                log.exception("Falha ao forçar a sincronização exclusiva de /nara, /jogo e /adm.")
         log.info(
             "NARA conectado como %s | guilds=%s | cogs=%s | comandos_sync=%s | extensoes_com_falha=%s",
             self.user, len(self.guilds), len(self.cogs), self.sync_ok, len(self.failed_extensions),
