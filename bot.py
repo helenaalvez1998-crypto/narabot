@@ -771,6 +771,15 @@ class NaraBot(commands.Bot):
             return None
         return int(user_id)
 
+    async def _api_presence_heartbeat(self, request: web.Request) -> web.Response:
+        """Registra que o usuário autenticado está ativo no site."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+
+        self._web_presence[user_id] = time.time()
+        return web.json_response({"ok": True})
+
     async def _api_players(self, request: web.Request) -> web.Response:
         """Lista membros humanos do servidor configurado e combina presença Discord/site."""
         user_id = self._api_user_id(request)
