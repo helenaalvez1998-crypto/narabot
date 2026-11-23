@@ -481,3 +481,21 @@ body{background:radial-gradient(1000px 520px at 80% -10%,rgba(80,110,220,.22),tr
 #tour-box button{padding:7px 14px;border-radius:4px;border:1px solid #4a76c2;background:none;color:#cfe2ff;font:800 11px var(--serif);letter-spacing:1px;text-transform:uppercase;cursor:pointer}
 #tour-box button.go{background:var(--metal);color:#2a1a05;border-color:#ffe3a0}
 .tour-again{margin-top:14px}
+
+/* aviso flutuante (visível mesmo rolado no fim da página) */
+#toast{position:fixed;left:50%;bottom:84px;z-index:400;max-width:min(92vw,520px);padding:12px 20px;border-radius:8px;border:2px solid #4a76c2;background:#0d1730;color:#eef3fb;font:700 15px var(--serif);text-align:center;box-shadow:0 10px 34px rgba(0,0,0,.6);opacity:0;transform:translate(-50%,16px);pointer-events:none;transition:opacity .25s,transform .25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast.success{border-color:#2fd0b0;color:#aaf5e6}#toast.error{border-color:#ff6b7d;color:#ffc2ca}
+/* fila de aprovação: layout em 2 colunas contido no painel */
+#atelier-review-panel{margin-top:22px}
+#atelier-review-queue{display:grid;gap:14px}
+.atelier-review-item{display:grid!important;grid-template-columns:minmax(140px,220px) minmax(0,1fr)!important;gap:16px!important;align-items:start;padding:14px;border:1px solid #2d4a7a;border-radius:8px;background:rgba(10,18,36,.7);max-width:100%;overflow:hidden}
+.atelier-review-item img{width:100%!important;max-height:240px;aspect-ratio:1/1;object-fit:cover;border-radius:6px}
+.atelier-review-item>div{min-width:0;display:flex;flex-direction:column;gap:6px}
+.atelier-review-item b{overflow-wrap:anywhere;font:800 14px var(--serif);letter-spacing:1px;color:#ffe3a0;text-transform:uppercase}
+.atelier-review-item small{display:block;overflow-wrap:anywhere}
+.atelier-review-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.atelier-review-actions button{padding:9px 16px;font-size:12px}
+.atelier-review-actions button:disabled{opacity:.5;cursor:wait}
+@media(max-width:560px){.atelier-review-item{grid-template-columns:1fr!important}.atelier-review-item img{max-height:260px}}
+@media(min-width:801px) and (max-width:1100px){.hud{grid-template-columns:auto 1fr auto auto!important}.hud .player{display:flex}.hud .player .profile>div{display:none}}

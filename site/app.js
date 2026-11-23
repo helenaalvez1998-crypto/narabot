@@ -5,7 +5,14 @@ const text = (value, fallback = '—') => value === null || value === undefined 
 const number = (value) => new Intl.NumberFormat('pt-BR').format(Number(value || 0));
 const imageUrl = (card) => card.image_url || `/api/gwent/cards/${encodeURIComponent(card.id)}/image`;
 function escapeHTML(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-function showNotice(message, kind = 'info') { const el = $('#notice'); if (el) { el.textContent = message; el.className = `notice ${kind}`; el.hidden = !message; } }
+function showNotice(message, kind = 'info') {
+  const el = $('#notice'); if (el) { el.textContent = message; el.className = `notice ${kind}`; el.hidden = !message; }
+  if (!message) return;
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = message; t.className = `toast ${kind} show`;
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 5000);
+}
 async function loadAccount() {
   try {
     const meResponse = await fetch('/api/me', {credentials:'same-origin', cache:'no-store'});
@@ -200,8 +207,9 @@ async function submitAtelierArt() {
 }
 
 async function decideAtelierSubmission(id, approve) {
+  document.querySelectorAll('[data-atelier-approve],[data-atelier-reject]').forEach(b => b.disabled = true);
   let reason = '';
-  if (!approve) { reason = window.prompt('Informe o motivo da rejeição (opcional):', '') ?? null; if (reason === null) return; }
+  if (!approve) { reason = window.prompt('Informe o motivo da rejeição (opcional):', '') ?? null; if (reason === null) { await loadAtelierReviewQueue(); return; } }
   try {
     const response = await fetch(`/api/gwent/atelier/review/${id}`, {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({approve, reason})});
     const data = await response.json();
@@ -209,7 +217,7 @@ async function decideAtelierSubmission(id, approve) {
     showNotice(approve ? 'Arte aprovada e publicada como ilustração oficial.' : 'Arte rejeitada; o motivo foi registrado.', 'success');
     await loadAtelierReviewQueue();
     await loadAtelierOfficialArt();
-  } catch (error) { showNotice(error.message, 'error'); }
+  } catch (error) { showNotice(error.message, 'error'); await loadAtelierReviewQueue(); }
 }
 
 async function loadGwentStore() {
