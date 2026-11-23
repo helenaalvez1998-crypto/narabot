@@ -26,8 +26,8 @@ async function loadAccount() {
       return;
     }
     const me = await meResponse.json(); currentUser = me.user;
-    $('#profile-name').textContent = 'Conta Discord';
-    $('#profile-status').textContent = `ID ${text(currentUser?.id)}`;
+    $('#profile-name').textContent = $('#profile-name').dataset.n || 'Conta Discord';
+    $('#profile-status').textContent = $('#profile-status').dataset.s || `ID ${text(currentUser?.id)}`;
     $('#login-button').hidden = true; $('#logout-button').hidden = false;
     const response = await fetch('/api/gwent/cards', {credentials:'same-origin', cache:'no-store'});
     const data = await response.json();
@@ -582,3 +582,63 @@ function revealPack() {
   const h = box.querySelector('h4'); if (h) h.insertAdjacentHTML('afterend', '<small class="pk-skip">Clique para revelar tudo</small>');
 }
 const RARANK = { comum: 0, rara: 1, epica: 2, lendaria: 3, mitica: 4, primordial: 5, singular: 6 };
+
+// --- Hub: início, comunidade e Nara (dados locais, sem custo de IA). ---
+const hubFmt = (iso) => { const d = new Date(String(iso).replace(' ', 'T') + (String(iso).includes('Z') || String(iso).includes('+') ? '' : 'Z')); if (isNaN(d)) return ''; const m = Math.max(0, (Date.now() - d) / 60000); return m < 60 ? `${Math.floor(m) || 1} min` : m < 1440 ? `${Math.floor(m / 60)} h` : `${Math.floor(m / 1440)} d`; };
+const hubAvatar = (url, name) => url ? `<img class="hub-av" src="${escapeHTML(url)}" alt="" loading="lazy">` : `<span class="hub-av">${escapeHTML((name || '?')[0].toUpperCase())}</span>`;
+const hubRows = (rows, unit) => rows.length ? rows.map(r => `<div class="rank-row${r.pos <= 3 ? ' top' + r.pos : ''}"><b class="rank-pos">${r.pos <= 3 ? ['🥇','🥈','🥉'][r.pos - 1] : r.pos}</b>${hubAvatar(r.avatar, r.name)}<span class="rank-name">${escapeHTML(r.name)}</span><strong>${number(r.valor)} <small>${unit}</small></strong></div>`).join('') : '<p class="muted">Ainda sem dados.</p>';
+async function loadHub() {
+  try {
+    const r = await fetch('/api/hub/overview', {credentials: 'same-origin', cache: 'no-store'});
+    if (!r.ok) return;
+    const d = await r.json(), s = d.server;
+    $('#hub-server').textContent = s.name;
+    $('#hub-members').textContent = number(s.members); $('#hub-online').textContent = number(s.online); $('#hub-onsite').textContent = number(s.on_site);
+    const icon = $('#hub-icon'); if (s.icon) { icon.src = s.icon; icon.hidden = false; }
+    const inv = $('#hub-invite'); if (s.invite) { inv.href = s.invite; inv.hidden = false; }
+    if (!d.authenticated) return;
+    const m = d.me;
+    $('#profile-name').dataset.n = m.name || 'Conta Discord'; $('#profile-status').dataset.s = m.patente; $('#profile-name').textContent = m.name || 'Conta Discord'; $('#profile-status').textContent = m.patente;
+    if (m.avatar) $('.profile .avatar').innerHTML = `<img src="${escapeHTML(m.avatar)}" alt="" style="width:100%;height:100%;border-radius:50%">`;
+    $('#hub-me-name').textContent = m.name || 'Você'; $('#hub-me-rank').textContent = `#${number(m.posicao)} no ranking`;
+    const pct = Math.min(100, Math.round(m.xp_nivel_atual / Math.max(1, m.xp_nivel_total) * 100));
+    $('#hub-me-body').innerHTML = `<div class="me-level"><b>Nível ${m.nivel}</b><span>${escapeHTML(m.patente)}</span></div><div class="xpbar" title="${pct}%"><i style="width:${pct}%"></i></div><small class="muted">${number(m.xp_nivel_atual)} / ${number(m.xp_nivel_total)} XP para o próximo nível</small><div class="me-stats"><div><b>${number(m.platinas)}</b><small>Platinas</small></div><div><b>${number(m.zerados)}</b><small>Zerados</small></div><div><b>${number(m.runs)}</b><small>Runs</small></div><div><b>${number(m.denarios)}</b><small>Denários</small></div></div>${m.pendentes ? `<p class="muted">⏳ ${m.pendentes} envio(s) aguardando aprovação.</p>` : ''}`;
+    $('#hub-tops').innerHTML = [['xp','Mais XP','XP'],['platinas','Platinas','plat.'],['zerados','Zerados','jogos']].map(([k, t, u]) => `<section class="hub-card"><h4>${t}</h4>${hubRows(d.top[k], u)}</section>`).join('');
+    $('#hub-recent').innerHTML = d.recent.length ? d.recent.map(a => `<div class="recent-item"><i>${a.tipo === 'platina' ? '💎' : '🏆'}</i><div><b>${escapeHTML(a.user)}</b> ${a.tipo === 'platina' ? 'platinou' : 'zerou'} <b>${escapeHTML(a.game)}</b></div><small>${hubFmt(a.quando)}</small></div>`).join('') : '<p class="muted">Nenhuma conquista recente.</p>';
+  } catch (e) { /* hub é complementar: falha silenciosa */ }
+}
+let hubRank = 'xp';
+async function loadRank(tipo = hubRank) {
+  hubRank = tipo;
+  document.querySelectorAll('#rank-seg button').forEach(b => b.classList.toggle('on', b.dataset.rank === tipo));
+  try {
+    const r = await fetch(`/api/hub/ranking?tipo=${tipo}&limite=25`, {credentials: 'same-origin', cache: 'no-store'});
+    if (!r.ok) return;
+    const d = await r.json(); $('#rank-list').innerHTML = hubRows(d.rows, d.label.toLowerCase());
+  } catch (e) {}
+}
+async function loadPlayers() {
+  try {
+    const r = await fetch('/api/players', {credentials: 'same-origin', cache: 'no-store'});
+    if (!r.ok) return;
+    const d = await r.json(), q = ($('#players-search').value || '').toLowerCase();
+    const st = {online: 'Online', idle: 'Ausente', dnd: 'Ocupado', offline: 'Offline'};
+    $('#players-list').innerHTML = d.players.filter(p => p.name.toLowerCase().includes(q)).slice(0, 60).map(p => `<div class="player-chip"><i class="dot ${p.web_online ? 'on' : p.discord_presence}"></i><span>${escapeHTML(p.name)}</span><small>${p.web_online ? 'no site' : st[p.discord_presence] || ''}</small></div>`).join('') || '<p class="muted">Ninguém encontrado.</p>';
+  } catch (e) {}
+}
+function naraSay(txt, who) { const log = $('#nara-log'), p = document.createElement('p'); p.className = `nara-msg ${who}`; p.textContent = txt; log.appendChild(p); log.scrollTop = log.scrollHeight; return p; }
+async function naraAsk(q) {
+  if (!currentUser) { naraSay('Entre com Discord para falar comigo.', 'bot'); return; }
+  naraSay(q, 'me'); const wait = naraSay('…', 'bot');
+  try {
+    const r = await fetch('/api/hub/nara', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({message: q})});
+    const d = await r.json(); wait.textContent = d.reply || d.error || 'Algo deu errado.';
+    (d.suggestions || []).forEach(s => { const b = document.createElement('button'); b.type = 'button'; b.className = 'nara-sug'; b.textContent = s; b.onclick = () => naraAsk(s); $('#nara-log').appendChild(b); });
+  } catch (e) { wait.textContent = 'Sem conexão com o servidor.'; }
+}
+$('#nara-form')?.addEventListener('submit', (e) => { e.preventDefault(); const i = $('#nara-input'), q = i.value.trim(); if (q) { i.value = ''; naraAsk(q); } });
+$('#rank-seg')?.addEventListener('click', (e) => { const b = e.target.closest('[data-rank]'); if (b) loadRank(b.dataset.rank); });
+$('#players-search')?.addEventListener('input', loadPlayers);
+document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="community"],[data-goto="community"]')) { loadRank(); loadPlayers(); } });
+loadHub(); setTimeout(() => { if (currentUser) { loadRank(); loadPlayers(); } }, 1200);
+setInterval(() => { if (!document.hidden && $('#tab-home')?.classList.contains('show')) loadHub(); }, 60000);

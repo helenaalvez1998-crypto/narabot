@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#07080d"><title>SoulsBot — Gwent do Coliseu</title>
+  <meta name="theme-color" content="#07080d"><title>SoulsBot — Comunidade e Gwent do Coliseu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Cormorant+Garamond:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -38,7 +38,9 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   <div class="hud">
   <div class="brand"><div class="sigil">⚜</div><div><b>SOULSBOT</b><small>GWENT DO COLISEU</small></div></div>
   <nav>
-    <button class="nav active" data-tab="arena"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M9.5 6.5 21 18v3h-3L6.5 9.5"/></svg></i><span>Arena</span><em class="nbadge" id="nb-arena" hidden>!</em></button>
+    <button class="nav active" data-tab="home"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 3l9 8M5 10v10h14V10"/></svg></i><span>Início</span></button>
+    <button class="nav" data-tab="community"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg></i><span>Comunidade</span></button>
+    <button class="nav" data-tab="arena"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M9.5 6.5 21 18v3h-3L6.5 9.5"/></svg></i><span>Arena</span><em class="nbadge" id="nb-arena" hidden>!</em></button>
     <button class="nav" data-tab="deck"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="13" height="18" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2"/></svg></i><span>Deck</span><em class="nbadge" id="nb-deck">0/12</em></button>
     <button class="nav" data-tab="market"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 22 12 12 22 2 12z"/></svg></i><span>Mercado</span></button>
     <button class="nav" data-tab="atelier"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1 1.5-2-.6-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16.5" cy="9.5" r="1"/></svg></i><span>Ateliê</span></button>
@@ -50,9 +52,15 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 </div>
   <main>
     <div class="screen-title"><small class="eyebrow">O COLISEU AGUARDA</small><h1 id="page-title">Arena</h1></div>
-    <div id="notice" class="notice" role="status">Conecte sua conta Discord para acessar o Gwent.</div>
+    <div id="notice" class="notice" role="status">Conecte sua conta Discord para ver seu perfil, ranking e jogar Gwent.</div>
     <section id="gwent" class="page show">
-  <div class="tab show" id="tab-arena" data-title="Arena"><div class="stage">
+  <div class="tab show" id="tab-home" data-title="Início"><section class="hub-hero"><img id="hub-icon" class="hub-icon" alt="" hidden><div class="hub-hero-txt"><small class="eyebrow">BEM-VINDO AO</small><h2 id="hub-server">Servidor</h2><p class="muted">Perfil, ranking, Gwent e a Nara — tudo do seu servidor num só lugar.</p><div class="hub-chips"><span>👥 <b id="hub-members">—</b> membros</span><span><i class="dot on"></i><b id="hub-online">—</b> online no Discord</span><span>🌐 <b id="hub-onsite">—</b> no site</span></div><div class="hub-cta"><a id="hub-invite" class="primary linkbtn" target="_blank" rel="noopener" hidden>Entrar no Discord</a><button class="big gold" data-goto="arena" type="button">⚔ Jogar Gwent</button><button class="big" data-goto="community" type="button">Ver ranking</button></div></div></section>
+<div class="hub-grid"><section class="hub-card" id="hub-me"><div class="section-head"><div><small class="eyebrow">SEU PERFIL</small><h3 id="hub-me-name">Visitante</h3></div><b id="hub-me-rank" class="muted"></b></div><div id="hub-me-body"><p class="muted">Entre com Discord para ver seu nível, XP, platinas e posição no ranking.</p></div></section>
+<section class="hub-card"><div class="section-head"><div><small class="eyebrow">PERGUNTE À NARA</small><h3>Dúvidas do servidor</h3></div></div><div id="nara-log" class="nara-log" aria-live="polite"><p class="nara-msg bot">Fale comigo, guerreiro. Pergunte sobre XP, platinas, zerados, cartas ou como o bot funciona.</p></div><form id="nara-form" class="nara-form"><input id="nara-input" maxlength="300" placeholder="Ex.: como ganho cartas?" autocomplete="off"><button class="primary" type="submit">Enviar</button></form></section></div>
+<div class="section-head"><div><small class="eyebrow">DESTAQUES</small><h3>Top 5 do servidor</h3></div><button class="text-btn" data-goto="community" type="button">Ranking completo →</button></div><div class="hub-tops" id="hub-tops"><p class="muted">Entre com Discord para ver o ranking.</p></div>
+<div class="section-head"><div><small class="eyebrow">AO VIVO</small><h3>Atividade recente</h3></div></div><div id="hub-recent" class="hub-recent"><p class="muted">Entre com Discord para ver as conquistas da comunidade.</p></div></div>
+  <div class="tab" id="tab-community" data-title="Comunidade"><div class="section-head"><div><small class="eyebrow">COMUNIDADE</small><h3>Ranking</h3></div><div class="seg" id="rank-seg"><button class="on" data-rank="xp" type="button">XP</button><button data-rank="platinas" type="button">Platinas</button><button data-rank="zerados" type="button">Zerados</button></div></div><div id="rank-list" class="rank-list"><p class="muted">Entre com Discord para ver o ranking.</p></div><div class="section-head"><div><small class="eyebrow">MEMBROS</small><h3>Quem está online</h3></div><input id="players-search" class="deck-search" type="search" placeholder="Buscar membro..." style="max-width:260px;margin:0"></div><div id="players-list" class="players-list"></div></div>
+  <div class="tab" id="tab-arena" data-title="Arena"><div class="stage">
   <div class="stage-cards"><i>⚔</i><i>✦</i><i>♜</i></div>
   <div class="stage-center">
     <div class="stage-emblem"><div class="ring"></div><div class="ring r2"></div><span>⚜</span></div>
