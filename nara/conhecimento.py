@@ -83,7 +83,7 @@ def inventario_runtime(bot: Any, member: Any = None, *, limite: int = 45) -> str
     cogs = cogs_carregados(bot)
     comandos = comandos_visiveis(bot, member)
     ordenados = sorted(comandos, key=lambda c: (_grupo_ajuda(c.caminho)[0], c.caminho.casefold()))
-    linhas = ["INVENTÁRIO REAL DO SOULSBOT (runtime; não presumir recursos ausentes):"]
+    linhas = ["INVENTÁRIO REAL DO NARABOT (runtime; não presumir recursos ausentes):"]
     linhas.append("Cogs atualmente carregados: " + (", ".join(cogs) if cogs else "nenhum identificado"))
     if ordenados:
         linhas.append("Comandos slash disponíveis para este usuário, agrupados por função:")
