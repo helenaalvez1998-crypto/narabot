@@ -40,7 +40,7 @@ def preparar_carta(card: dict) -> dict:
         "habilidade_nome": str(card.get("habilidade_nome", skill_data.get("nome", skill.replace("_", " ").title()))),
         "habilidade_texto": str(card.get("habilidade_texto", skill_data.get("texto", card.get("descricao", ""))))[:180],
         "descricao": str(card.get("descricao", ""))[:240],
-        "image_url": f"/api/cards/{card['id']}/image",
+        "image_url": f"/api/gwent/cards/{card['id']}/image",
     }
 
 
