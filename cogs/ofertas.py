@@ -752,7 +752,7 @@ async def fetch_cheapshark_offers(
                 "sortBy": "DealRating",
                 "onSale": 1,
             },
-            headers={"User-Agent": "SoulsBot/1.0 (Discord game deals monitor)"},
+            headers={"User-Agent": "NARABOT/1.0 (Discord game deals monitor)"},
         )
         if not isinstance(page_data, list):
             log.warning(
@@ -1072,7 +1072,7 @@ class Ofertas(commands.Cog):
 
     async def cog_load(self):
         self.http_session = aiohttp.ClientSession(headers={
-            "User-Agent": "SoulsBot/1.0 (Discord game deals monitor)"
+            "User-Agent": "NARABOT/1.0 (Discord game deals monitor)"
         })
         self.cheapshark_stores = await fetch_cheapshark_stores(self.http_session)
         await asyncio.to_thread(init_offers_db)

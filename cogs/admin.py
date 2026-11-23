@@ -1803,7 +1803,7 @@ class AdminAtalhosSelect(discord.ui.Select):
                 ),
                 discord.SelectOption(
                     label="Publicar ou atualizar painéis", value="publish",
-                    description="Gerenciar painéis públicos do SoulsBot", emoji="📌",
+                    description="Gerenciar painéis públicos do NARABOT", emoji="📌",
                 ),
                 discord.SelectOption(
                     label="Ver diagnóstico", value="status",
@@ -2389,7 +2389,7 @@ async def _mostrar_painel_principal(interaction: discord.Interaction, bot):
     embed = discord.Embed(
         title="⚙️ Central administrativa",
         description=(
-            "Gerencie o SoulsBot por áreas. As ações mais usadas ficam no acesso rápido; "
+            "Gerencie o NARABOT por áreas. As ações mais usadas ficam no acesso rápido; "
             "as demais estão organizadas nas categorias abaixo.\n\n"
             "**Escolha uma categoria ou use o seletor de acesso rápido.**"
         ),
@@ -2608,7 +2608,7 @@ async def _executar_configuracao_automatica(interaction: discord.Interaction, bo
         )
 
     await interaction.response.defer(ephemeral=True, thinking=True)
-    category_name = "SOULSBOT • CANAIS OFICIAIS"
+    category_name = "NARABOT • CANAIS OFICIAIS"
     category = discord.utils.get(guild.categories, name=category_name)
     criados = []
     reutilizados = []

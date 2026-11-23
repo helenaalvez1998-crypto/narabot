@@ -174,7 +174,7 @@ MEMBROS_CATEGORIAS = {
     },
     "ajuda": {
         "titulo": "❔ Ajuda e suporte",
-        "descricao": "Encontre orientações rápidas e suporte para usar os recursos do SoulsBot.",
+        "descricao": "Encontre orientações rápidas e suporte para usar os recursos do NARABOT.",
         "acoes": [
             ("ajuda", "Central de ajuda", "📖", discord.ButtonStyle.primary),
             ("tutorial_transmissao", "Como transmitir a tela", "📺", discord.ButtonStyle.success),
@@ -724,7 +724,7 @@ async def _executar_acao_membro(
             content=(
                 "🔔 **Notificações pessoais**\n"
                 "Ative apenas os avisos que deseja receber por mensagem direta. "
-                "Se as DMs estiverem fechadas, o SoulsBot não consegue entregá-los."
+                "Se as DMs estiverem fechadas, o NARABOT não consegue entregá-los."
             ), embed=None, view=view,
         )
 
