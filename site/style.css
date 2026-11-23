@@ -40,3 +40,6 @@
 .gwent-config p{grid-column:1/-1;margin:0;font-size:.82rem}
 .gwent-faction{margin:12px 0;padding:10px 13px;border-left:3px solid var(--gold,#c9a45c);background:rgba(201,164,92,.08);border-radius:6px;font-size:.9rem}
 @media(max-width:640px){.gwent-config{grid-template-columns:1fr}}
+
+/* Nova versão: Gwent é a experiência principal; interface clássica fica arquivada. */
+.legacy-page{display:none!important}

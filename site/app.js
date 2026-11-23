@@ -21,7 +21,7 @@ function showNotice(message, kind = 'info') {
 function showPage(page) {
   document.querySelectorAll('.page').forEach((element) => element.classList.toggle('show', element.id === page));
   document.querySelectorAll('.nav').forEach((button) => button.classList.toggle('active', button.dataset.page === page));
-  $('#page-title').textContent = page === 'collection' ? 'Minha coleção' : page === 'deck' ? 'Meu deck' : page === 'duels' ? 'Meus duelos' : page === 'gwent' ? 'Arena Gwent' : 'Visão geral';
+  $('#page-title').textContent = page === 'gwent' ? 'Gwent do Coliseu' : page === 'collection' ? 'Minha coleção' : page === 'deck' ? 'Meu deck' : page === 'duels' ? 'Meus duelos' : 'Gwent do Coliseu';
   if (page === 'deck') loadDeck();
   if (page === 'duels') loadDuels();
 }
@@ -335,7 +335,7 @@ $('#logout-button').addEventListener('click', async () => {
   await loadAccount();
 });
 
-loadAccount().then(() => { if (currentUser) { loadPlayers(); window.setInterval(loadPlayers, 30000); } const requested = new URLSearchParams(window.location.search).get('duel'); if (requested && currentUser && /^\d+$/.test(requested)) openDuel(requested); const gwentRequested = new URLSearchParams(window.location.search).get('gwent'); if (gwentRequested && currentUser && /^\d+$/.test(gwentRequested)) { showPage('gwent'); openGwentMatch(gwentRequested); } });
+loadAccount().then(() => { showPage('gwent'); if (currentUser) { loadPlayers(); window.setInterval(loadPlayers, 30000); } const gwentRequested = new URLSearchParams(window.location.search).get('gwent'); if (gwentRequested && currentUser && /^\d+$/.test(gwentRequested)) openGwentMatch(gwentRequested); });
 
 // --- Arena Gwent: motor de três rodadas separado do duelo clássico. ---
 let gwentDeckIds = [];
@@ -406,7 +406,7 @@ async function loadGwentDeck() {
     gwentSavedLeader = data.leader_id || 'comandante_fornalha';
     $('#gwent-faction').value = gwentSavedFaction;
     renderGwentLeaderOptions(gwentSavedLeader);
-    $('#gwent-deck-status').textContent = gwentSavedIds.length === 12 ? 'Deck carregado.' : 'Monte um deck com 12 cartas únicas. O deck clássico de 5 cartas não foi alterado.';
+    $('#gwent-deck-status').textContent = gwentSavedIds.length === 12 ? 'Deck carregado.' : 'Monte seu deck Gwent com 12 cartas únicas para liberar a arena.';
     renderGwentBuilder();
   } catch (e) { $('#gwent-deck-status').textContent = e.message; }
 }
@@ -417,7 +417,7 @@ async function saveGwentDeck() {
     const r = await fetch('/api/gwent/deck', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_ids:gwentDeckIds, faction:$('#gwent-faction').value, leader_id:$('#gwent-leader').value})});
     const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Falha ao salvar deck.');
     gwentSavedIds = [...gwentDeckIds]; gwentSavedFaction = $('#gwent-faction').value; gwentSavedLeader = $('#gwent-leader').value;
-    $('#gwent-deck-status').textContent = 'Deck, facção e líder salvos. O deck clássico permanece independente.';
+    $('#gwent-deck-status').textContent = 'Deck, facção e líder salvos. Seu exército está pronto para a arena.';
     showNotice('Deck Gwent atualizado.', 'success');
   } catch(e) { $('#gwent-deck-status').textContent = e.message; }
   finally { button.textContent = 'Salvar deck Gwent'; renderGwentBuilder(); }
