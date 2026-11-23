@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from config import get_data_dir
 
 from .cartas import HABILIDADES, VERSAO_ARTES
 from . import templates_cartas
