@@ -21,7 +21,7 @@ function showNotice(message, kind = 'info') {
 function showPage(page) {
   document.querySelectorAll('.page').forEach((element) => element.classList.toggle('show', element.id === page));
   document.querySelectorAll('.nav').forEach((button) => button.classList.toggle('active', button.dataset.page === page));
-  $('#page-title').textContent = page === 'collection' ? 'Minha coleção' : page === 'deck' ? 'Meu deck' : page === 'duels' ? 'Meus duelos' : 'Visão geral';
+  $('#page-title').textContent = page === 'collection' ? 'Minha coleção' : page === 'deck' ? 'Meu deck' : page === 'duels' ? 'Meus duelos' : page === 'gwent' ? 'Arena Gwent' : 'Visão geral';
   if (page === 'deck') loadDeck();
   if (page === 'duels') loadDuels();
 }
@@ -335,4 +335,147 @@ $('#logout-button').addEventListener('click', async () => {
   await loadAccount();
 });
 
-loadAccount().then(() => { if (currentUser) { loadPlayers(); window.setInterval(loadPlayers, 30000); } const requested = new URLSearchParams(window.location.search).get('duel'); if (requested && currentUser && /^\d+$/.test(requested)) openDuel(requested); });
+loadAccount().then(() => { if (currentUser) { loadPlayers(); window.setInterval(loadPlayers, 30000); } const requested = new URLSearchParams(window.location.search).get('duel'); if (requested && currentUser && /^\d+$/.test(requested)) openDuel(requested); const gwentRequested = new URLSearchParams(window.location.search).get('gwent'); if (gwentRequested && currentUser && /^\d+$/.test(gwentRequested)) { showPage('gwent'); openGwentMatch(gwentRequested); } });
+
+// --- Arena Gwent: motor de três rodadas separado do duelo clássico. ---
+let gwentDeckIds = [];
+let gwentSavedIds = [];
+let currentGwentMatch = null;
+let gwentPoll = null;
+let gwentListPoll = null;
+
+const gwentRows = [
+  ['melee', 'Corpo a corpo'], ['ranged', 'Longa distância'], ['siege', 'Cerco']
+];
+
+function renderGwentBuilder() {
+  const selected = gwentDeckIds.map(id => collection.find(c => c.id === id)).filter(Boolean);
+  $('#gwent-deck-count').textContent = `${selected.length}/12 cartas`;
+  $('#gwent-deck-selected').innerHTML = selected.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${escapeHTML(card.categoria === "Especial" ? "Especial" : card.tipo)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-remove="${escapeHTML(card.id)}">Remover</button></article>`).join('') || '<div class="empty-state">Selecione 12 cartas (unidades e especiais) da coleção.</div>';
+  const q = ($('#gwent-card-search').value || '').trim().toLocaleLowerCase('pt-BR');
+  const selectedSet = new Set(gwentDeckIds);
+  const pool = collection.filter(c => !selectedSet.has(c.id) && (`${c.nome} ${c.tipo} ${c.categoria} ${c.habilidade}`.toLocaleLowerCase('pt-BR').includes(q)));
+  $('#gwent-card-pool').innerHTML = pool.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : card.tipo)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-add="${escapeHTML(card.id)}" ${gwentDeckIds.length >= 12 ? 'disabled' : ''}>Adicionar</button></article>`).join('') || '<div class="empty-state">Nenhuma unidade disponível.</div>';
+  $('#gwent-save-deck').disabled = selected.length !== 12 || JSON.stringify(gwentDeckIds) === JSON.stringify(gwentSavedIds);
+}
+
+async function loadGwentDeck() {
+  if (!currentUser) return;
+  try {
+    const r = await fetch('/api/gwent/deck', {credentials:'same-origin', cache:'no-store'});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Não foi possível carregar o deck Gwent.');
+    gwentSavedIds = (data.deck || []).map(c => c.id);
+    gwentDeckIds = [...gwentSavedIds];
+    $('#gwent-deck-status').textContent = gwentSavedIds.length === 12 ? 'Deck carregado.' : 'Monte um deck com 12 cartas únicas. O deck clássico de 5 cartas não foi alterado.';
+    renderGwentBuilder();
+  } catch (e) { $('#gwent-deck-status').textContent = e.message; }
+}
+
+async function saveGwentDeck() {
+  const button = $('#gwent-save-deck'); button.disabled = true; button.textContent = 'Salvando...';
+  try {
+    const r = await fetch('/api/gwent/deck', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_ids:gwentDeckIds})});
+    const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Falha ao salvar deck.');
+    gwentSavedIds = [...gwentDeckIds]; $('#gwent-deck-status').textContent = 'Deck Gwent salvo. O deck clássico permanece independente.';
+    showNotice('Deck Gwent atualizado.', 'success');
+  } catch(e) { $('#gwent-deck-status').textContent = e.message; }
+  finally { button.textContent = 'Salvar deck Gwent'; renderGwentBuilder(); }
+}
+
+async function loadGwentMatches() {
+  if (!currentUser) return;
+  try {
+    const r = await fetch('/api/gwent/matches', {credentials:'same-origin', cache:'no-store'}); const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Falha ao carregar partidas.');
+    const rank = data.ranking || {mmr:1000,wins:0,losses:0,draws:0,tier:'Bronze'};
+    const leaderboard = `<article class="duel-item gwent-leaderboard"><div><small class="eyebrow">TOP 10 DO SERVIDOR</small><h3>Classificação</h3><p>${(data.leaderboard || []).map((p,i) => `${i+1}. ${escapeHTML(p.name)} — ${number(p.mmr)} MMR`).join('<br>') || 'Ainda sem partidas ranqueadas.'}</p></div></article>`;
+    $('#gwent-match-list').innerHTML = `<article class="duel-item gwent-rank"><div><small class="eyebrow">SEU RANKING</small><h3>${escapeHTML(rank.tier)} · ${number(rank.mmr)} MMR</h3><p>${number(rank.wins)} vitórias · ${number(rank.losses)} derrotas · ${number(rank.draws)} empates</p></div><span>+25 MMR por vitória</span></article>` + leaderboard + ((data.matches || []).map(m => `<article class="duel-item"><div><small class="eyebrow">GWENT #${number(m.id)}</small><h3>Partida ${m.status === 'active' ? 'em andamento' : 'finalizada'}</h3><p>${m.creator_id === String(currentUser.id) ? 'Você é o desafiante' : 'Você foi desafiado'} · ${escapeHTML(m.created_at || '')}</p></div><button class="primary" data-gwent-open="${m.id}">Abrir arena</button></article>`).join('') || '<div class="empty-state">Nenhuma partida Gwent registrada.</div>');
+  } catch(e) { $('#gwent-match-list').innerHTML = `<div class="empty-state">${escapeHTML(e.message)}</div>`; }
+}
+
+async function createGwentMatch() {
+  const opponent_id = $('#gwent-opponent').value;
+  if (!opponent_id) return showNotice('Selecione um adversário.', 'error');
+  if (gwentSavedIds.length !== 12) return showNotice('Salve primeiro um deck Gwent com 12 cartas.', 'error');
+  const button = $('#gwent-create-match'); button.disabled = true;
+  try {
+    const r = await fetch('/api/gwent/matches', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({opponent_id})});
+    const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Não foi possível iniciar partida.');
+    await openGwentMatch(data.match_id); await loadGwentMatches();
+  } catch(e) { showNotice(e.message, 'error'); }
+  finally { button.disabled = false; }
+}
+
+function gwentCardView(card) {
+  return `<article class="gwent-board-card"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${number(Number(card.poder) + Number(card.bonus || 0))} poder · ${escapeHTML(card.row_label)}</small></article>`;
+}
+
+function renderGwentArena(data) {
+  const arena = $('#gwent-arena'); arena.hidden = false;
+  const score = data.score || {}; const ids = Object.keys(score);
+  const my = data.your_id; const enemy = ids.find(id => id !== my);
+  const mine = score[my]; const theirs = score[enemy] || {};
+  const board = (side) => gwentRows.map(([key,label]) => `<div class="gwent-row"><h4>${label} · ${number((side.board || []).filter(c => c.row === key).reduce((n,c) => n + Math.max(1, c.poder + Number(c.bonus || 0) - Number((data.weather && data.weather[key]) || 0)),0))} poder</h4><div class="gwent-board-cards">${(side.board || []).filter(c => c.row === key).map(gwentCardView).join('') || '<small class="muted">Nenhuma unidade</small>'}</div></div>`).join('');
+  const prep = data.phase === 'mulligan';
+  const mulliganControls = prep ? `<div class="gwent-prep"><b>Preparação inicial</b><p>Selecione até duas cartas para trocar. Você tem ${number(data.draw_count || 0)} carta(s) de reserva.</p><button class="secondary" data-gwent-keep ${data.mulligan_done || !data.is_your_turn ? 'disabled' : ''}>Manter minha mão</button><button class="primary" data-gwent-mulligan ${data.mulligan_done || !data.is_your_turn ? 'disabled' : ''}>Trocar selecionadas</button></div>` : '';
+  arena.innerHTML = `<div class="gwent-arena-head"><div><small class="eyebrow">RODADA ${number(data.round)} / 3</small><h2>Arena Gwent</h2><p class="gwent-log">${escapeHTML(data.last_event || '')}</p></div><b>${data.status === 'finished' ? (data.winner_id ? `Vencedor: ${data.winner_id}` : 'Empate') : (prep ? (data.is_your_turn ? 'Sua preparação' : 'Preparação do adversário') : (data.is_your_turn ? 'Sua vez' : 'Vez do adversário'))}</b></div>
+    <div class="gwent-faction">Sua facção: <strong>${escapeHTML(data.faction || mine.faction || '—')}</strong> · bônus de facção: +1 na primeira unidade da rodada</div>${mulliganControls}
+    <div class="gwent-score"><article><small>VOCÊ</small><h3>${number(mine.score)} poder</h3><small>${number(mine.crowns)} coroas · ${number(mine.hand)} cartas na mão ${mine.passed ? '· passou' : ''}</small></article><article><small>ADVERSÁRIO</small><h3>${number(theirs.score)} poder</h3><small>${number(theirs.crowns)} coroas · ${number(theirs.hand)} cartas na mão ${theirs.passed ? '· passou' : ''}</small></article></div>
+    <h3>Seu campo</h3>${board(mine)}<h3>Campo adversário</h3>${board(theirs)}
+    <div class="gwent-actions"><button class="secondary" data-gwent-pass ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>Passar rodada</button><select id="gwent-leader-row"><option value="melee">Fileira: Corpo a corpo</option><option value="ranged">Fileira: Longa distância</option><option value="siege">Fileira: Cerco</option></select><button class="secondary" data-gwent-leader ${!data.is_your_turn || data.leader_used || data.status !== 'active' || prep ? 'disabled' : ''}>Usar líder</button><button class="secondary" data-gwent-weather ${!data.is_your_turn || data.weather_used || data.status !== 'active' || prep ? 'disabled' : ''}>Clima</button></div>
+    <h3>Sua mão</h3><div class="gwent-hand">${(data.hand || []).map(c => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(c))}" alt=""><b>${escapeHTML(c.nome)}</b><small>${c.especial ? 'Carta especial' : `${number(c.poder)} poder · ${escapeHTML(c.row_label)}`}</small><small title="${escapeHTML(c.habilidade_texto || '')}">${escapeHTML(c.habilidade_nome || 'Unidade')} · ${escapeHTML(c.habilidade_texto || 'Sem efeito adicional')}</small>${prep ? `<label><input type="checkbox" data-gwent-swap value="${escapeHTML(c.id)}" ${data.mulligan_done || !data.is_your_turn || !(data.draw_count > 0) ? 'disabled' : ''}> Trocar</label>` : `<select data-gwent-row="${escapeHTML(c.id)}"><option value="${c.row}">${escapeHTML(c.row_label)}</option>${gwentRows.filter(([r])=>r!==c.row).map(([r,l])=>`<option value="${r}">${l}</option>`).join('')}</select><button data-gwent-play="${escapeHTML(c.id)}" ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>${c.especial ? 'Usar especial' : 'Jogar unidade'}</button>`}</article>`).join('') || '<div class="empty-state">Sua mão está vazia.</div>'}</div>`;
+}
+
+async function refreshGwentMatch() {
+  if (!currentGwentMatch) return;
+  try { const r = await fetch(`/api/gwent/matches/${currentGwentMatch}`, {credentials:'same-origin', cache:'no-store'}); const data = await r.json(); if (r.ok) renderGwentArena(data); }
+  catch (_) {}
+}
+async function openGwentMatch(id) {
+  currentGwentMatch = Number(id); if (gwentPoll) clearInterval(gwentPoll);
+  await refreshGwentMatch(); gwentPoll = setInterval(refreshGwentMatch, 3500);
+  $('#gwent-arena').scrollIntoView({behavior:'smooth', block:'start'});
+}
+async function sendGwentAction(action, card_id = '', row = '', card_ids = []) {
+  if (!currentGwentMatch) return;
+  try {
+    const r = await fetch(`/api/gwent/matches/${currentGwentMatch}/action`, {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, card_id, row, card_ids})});
+    const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Jogada recusada.');
+    await refreshGwentMatch();
+  } catch(e) { showNotice(e.message, 'error'); }
+}
+
+$('#gwent-card-search').addEventListener('input', renderGwentBuilder);
+$('#gwent-save-deck').addEventListener('click', saveGwentDeck);
+$('#gwent-create-match').addEventListener('click', createGwentMatch);
+document.addEventListener('click', event => {
+  const add = event.target.closest('[data-gwent-add]'); const remove = event.target.closest('[data-gwent-remove]');
+  const play = event.target.closest('[data-gwent-play]'); const open = event.target.closest('[data-gwent-open]');
+  if (add && gwentDeckIds.length < 12) { gwentDeckIds.push(add.dataset.gwentAdd); renderGwentBuilder(); }
+  if (remove) { gwentDeckIds = gwentDeckIds.filter(id => id !== remove.dataset.gwentRemove); renderGwentBuilder(); }
+  if (play) { const row = document.querySelector(`[data-gwent-row="${CSS.escape(play.dataset.gwentPlay)}"]`)?.value || ''; sendGwentAction('play', play.dataset.gwentPlay, row); }
+  if (open) openGwentMatch(open.dataset.gwentOpen);
+  if (event.target.closest('[data-gwent-mulligan]')) {
+    const card_ids = [...document.querySelectorAll('[data-gwent-swap]:checked')].map(x => x.value);
+    sendGwentAction('mulligan', '', '', card_ids);
+  }
+  if (event.target.closest('[data-gwent-keep]')) sendGwentAction('keep');
+  if (event.target.closest('[data-gwent-pass]')) sendGwentAction('pass');
+  if (event.target.closest('[data-gwent-leader]')) sendGwentAction('leader', '', $('#gwent-leader-row').value);
+  if (event.target.closest('[data-gwent-weather]')) sendGwentAction('weather', '', $('#gwent-leader-row').value);
+});
+
+// Adiciona o seletor de adversário Gwent junto à lista já carregada pelo endpoint de presença.
+const originalLoadPlayers = loadPlayers;
+loadPlayers = async function() {
+  await originalLoadPlayers();
+  const source = $('#challenge-player');
+  if (source && $('#gwent-opponent')) $('#gwent-opponent').innerHTML = source.innerHTML;
+};
+
+const originalShowPage = showPage;
+showPage = function(page) {
+  originalShowPage(page);
+  if (page === 'gwent' && currentUser) { loadGwentDeck(); loadGwentMatches(); if (!gwentListPoll) gwentListPoll = setInterval(loadGwentMatches, 12000); } else if (gwentListPoll) { clearInterval(gwentListPoll); gwentListPoll = null; }
+};
