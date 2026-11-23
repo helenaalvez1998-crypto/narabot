@@ -2,7 +2,7 @@
 
 Gera prompts com direção artística híbrida: dark fantasy monumental e pictórico
 com energia, silhuetas e efeitos de anime épico. A moldura oficial é aplicada
-separadamente pelo renderizador do SoulsBot.
+separadamente pelo renderizador do NARABOT.
 """
 from __future__ import annotations
 
@@ -18,13 +18,13 @@ TAMANHO_MAXIMO_UPLOAD = 8 * 1024 * 1024
 PIXELS_MAXIMOS = 18_000_000
 
 DIRECAO_ARTE = """
-SOULSBOT COLISEUM — HYBRID MYTHIC DARK FANTASY / EPIC ANIME ART DIRECTION
+NARABOT COLISEUM — HYBRID MYTHIC DARK FANTASY / EPIC ANIME ART DIRECTION
 
 CORE IDENTITY
 Create premium collectible-card key art that combines the monumental, tragic,
 ancient dark-fantasy atmosphere of modern mythic action RPG worlds with the
 expressive energy and visual clarity of high-end epic anime illustration.
-The result must feel like one coherent SoulsBot art universe: painterly and
+The result must feel like one coherent NARABOT art universe: painterly and
 material-rich environments, mythic scale, solemn atmosphere, but characters
 with elegant readable silhouettes, expressive poses, decisive gesture lines,
 and spectacular controlled supernatural effects. This is an original visual
@@ -97,7 +97,7 @@ CARD ART ONLY — STRICT OUTPUT RULES
 Create only the illustration, not a finished card. Do NOT draw any border,
 frame, card edge, title, lettering, numbers, stats, icons, rarity gem, UI,
 logo, watermark, signature or text of any kind. Do not reserve a fake frame
-inside the image. The SoulsBot renderer adds the official fixed rarity frame,
+inside the image. The NARABOT renderer adds the official fixed rarity frame,
 name, stats and ability separately. Keep important content away from the outer
 edges so the official frame never covers it.
 """.strip()
@@ -138,7 +138,7 @@ DIRETRIZES_CATEGORIA = {
     "patente": (
         "SUBJECT DIRECTION — RANK / ACHIEVEMENT: create a physical ceremonial relic, insignia, "
         "weapon, mantle or symbolic scene that communicates earned mastery. It must feel like "
-        "an object from the SoulsBot world, not a digital badge, trophy icon or interface element."
+        "an object from the NARABOT world, not a digital badge, trophy icon or interface element."
     ),
     "reliquia": (
         "SUBJECT DIRECTION — PRIMORDIAL RELIC: portray an ancient object or entity that seems "
@@ -226,7 +226,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "Errantes do Véu": "FACTION IDENTITY: agile wanderers, veiled scouts, wind-worn cloaks, teal spectral light, curved blades, misty passes and motion.",
         "Conclave Arcano": "FACTION IDENTITY: arcane scholars and battle-mages, runic geometry, violet astral light, ancient observatories and controlled magic.",
     }
-    origem = "SOURCE: original SoulsBot Gwent universe only. Do not reference, depict or name an external video game, franchise, copyrighted character, logo, costume or location."
+    origem = "SOURCE: original NARABOT Gwent universe only. Do not reference, depict or name an external video game, franchise, copyrighted character, logo, costume or location."
     diretriz_fileira = {
         "melee": "TACTICAL ROLE: close-combat frontline unit; communicate physical presence and a readable melee weapon or defensive stance.",
         "ranged": "TACTICAL ROLE: ranged specialist; communicate precision, scouting, bow, crossbow or long-range tool.",
@@ -251,7 +251,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "FINAL ART DIRECTION CHECK: the image must have one specific visual hook, a readable silhouette, "
         "a deliberate cinematic camera angle, foreground/midground/background depth, motivated lighting, "
         "and a story beat that is unique to this card. Landscape 5:4. Artwork only. No frame, border, text, "
-        "logo, watermark, stats or UI. The fixed official rarity frame is added by the SoulsBot renderer."
+        "logo, watermark, stats or UI. The fixed official rarity frame is added by the NARABOT renderer."
     )
     return "\n\n".join(blocos)
 

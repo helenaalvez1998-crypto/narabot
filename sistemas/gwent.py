@@ -1,4 +1,4 @@
-"""Motor estratégico Gwent do SoulsBot: regras puras, sem dependência do Discord."""
+"""Motor estratégico Gwent do NARABOT: regras puras, sem dependência do Discord."""
 from __future__ import annotations
 from copy import deepcopy
 

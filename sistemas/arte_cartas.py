@@ -132,6 +132,123 @@ def _draw_ruins(draw: ImageDraw.ImageDraw, box, accent, rng: random.Random):
     draw.polygon([(x2, y2), (x2 - width * .22, horizon), (x2 - width * .48, y2)], fill=(11, 16, 24, 230))
 
 
+
+def _draw_unique_scene(art: Image.Image, card: dict[str, Any], rng: random.Random,
+                       accent: tuple[int, int, int], metal: tuple[int, int, int],
+                       top: tuple[int, int, int]) -> None:
+    """Acrescenta cenário e assinatura visual determinísticos por carta.
+
+    A diversidade vem de eixos independentes (bioma, arquitetura, clima,
+    enquadramento e objeto de cena), não só de trocar a paleta.
+    """
+    w, h = art.size
+    d = ImageDraw.Draw(art, "RGBA")
+    seed = _seed(card)
+    local = random.Random(seed ^ 0x4E415241)
+    identity = " ".join((str(card.get("id", "")), str(card.get("nome", "")),
+                         str(card.get("descricao", "")))).casefold()
+    biome = seed % 12
+    horizon = int(h * (0.68 + (seed % 7) * 0.012))
+    ground = _mix(top, (5, 7, 12), .72)
+    d.rectangle((0, horizon, w, h), fill=(*ground, 190))
+
+    # Doze famílias de cenário com silhuetas distintas.
+    if biome in (0, 1):  # floresta antiga / bosque morto
+        for x in range(-10, w + 20, max(25, w // 7)):
+            trunk = local.randint(max(5, w // 35), max(9, w // 18))
+            base = local.randint(int(h*.52), int(h*.78))
+            d.polygon([(x, base), (x+trunk, base), (x+trunk//2, int(h*.18))],
+                      fill=(8, 15, 16, 210), outline=(*accent, 65))
+            for j in range(3):
+                yy = int(h*.22) + j*int(h*.11) + local.randint(-8, 8)
+                d.ellipse((x-w*.12, yy-w*.08, x+w*.12, yy+w*.08), fill=(8, 24, 22, 125))
+    elif biome in (2, 3):  # muralha / catedral
+        for x in (int(w*.08), int(w*.78)):
+            tower_h = local.randint(int(h*.28), int(h*.48))
+            d.rectangle((x, horizon-tower_h, x+int(w*.14), horizon), fill=(8, 12, 19, 225), outline=(*metal, 90), width=2)
+            d.polygon([(x-5, horizon-tower_h), (x+int(w*.07), horizon-tower_h-int(h*.08),),
+                       (x+int(w*.14)+5, horizon-tower_h)], fill=(9, 13, 20, 230))
+            for wy in range(horizon-tower_h+18, horizon-12, 28):
+                d.arc((x+int(w*.045), wy, x+int(w*.10), wy+34), 180, 360, fill=(*accent, 100), width=2)
+    elif biome in (4, 5):  # costa / ruínas inundadas
+        for yy in range(horizon, h, max(9, h//24)):
+            d.line((0, yy, w, yy+local.randint(-5, 5)), fill=(*accent, local.randint(18, 48)), width=1)
+        for x in range(int(w*.12), w, int(w*.24)):
+            d.line((x, horizon, x+local.randint(-12, 12), horizon-local.randint(20, 65)), fill=(9, 15, 20, 210), width=5)
+    elif biome in (6, 7):  # vulcão / forja
+        for _ in range(9):
+            x = local.randint(0, w); y = local.randint(int(h*.25), horizon)
+            r = local.randint(3, max(5, w//22))
+            d.ellipse((x-r, y-r, x+r, y+r), fill=(255, 105, 38, local.randint(18, 65)))
+        d.polygon([(0,horizon),(int(w*.2),horizon-int(h*.25)),(int(w*.36),horizon),
+                   (int(w*.62),horizon-int(h*.18)),(w,horizon)], fill=(18, 12, 14, 225))
+    elif biome in (8, 9):  # necrópole / pântano
+        for x in range(int(w*.08), w, int(w*.19)):
+            yy = local.randint(int(h*.43), horizon)
+            d.line((x, yy, x, horizon), fill=(7, 12, 17, 220), width=max(2, w//65))
+            d.line((x-int(w*.035), yy+int(h*.06), x+int(w*.035), yy+int(h*.06)), fill=(*metal, 115), width=3)
+        for _ in range(7):
+            x=local.randint(0,w); y=local.randint(int(h*.55),h)
+            d.ellipse((x-10,y-5,x+10,y+5), fill=(*accent, 35))
+    else:  # geleira / planície de guerra
+        for _ in range(8):
+            x=local.randint(-20,w); y=local.randint(int(h*.45),horizon)
+            d.polygon([(x,y+25),(x+local.randint(12,35),y-local.randint(10,40)),(x+55,y+25)],
+                      fill=(9, 15, 23, 190), outline=(*metal, 55))
+
+    # Clima independente: névoa, chuva, cinzas, neve ou faíscas.
+    weather = (seed >> 9) % 5
+    for _ in range(34):
+        x=local.randint(2,w-3); y=local.randint(2,h-3)
+        if weather == 0:
+            d.ellipse((x-2,y-2,x+2,y+2), fill=(205,220,226,local.randint(12,45)))
+        elif weather == 1:
+            d.line((x,y,x-4,y+local.randint(8,18)), fill=(*metal,local.randint(25,85)), width=1)
+        elif weather == 2:
+            d.ellipse((x-2,y-2,x+2,y+2), fill=(255,116,54,local.randint(30,110)))
+        elif weather == 3:
+            d.line((x,y,x+local.randint(-4,4),y+local.randint(4,12)), fill=(220,235,245,local.randint(25,90)), width=2)
+        else:
+            d.arc((x-8,y-5,x+8,y+5), 10, 170, fill=(*accent,local.randint(20,65)), width=1)
+
+    # Um objeto narrativo em posição assimétrica, com forma escolhida por carta.
+    prop = (seed >> 17) % 10
+    px = int(w * (.18 + ((seed >> 24) % 60) / 100))
+    py = int(h * (.70 + ((seed >> 31) % 12) / 100))
+    scale = max(10, w//14)
+    ink = (*metal, 205)
+    if prop == 0:  # monólito
+        d.polygon([(px-scale,py),(px-scale//2,py-scale*3),(px+scale//2,py-scale*3),(px+scale,py)], fill=(12,17,23,230), outline=ink)
+        d.line((px,py-scale*2,px,py-scale), fill=(*accent,210), width=3)
+    elif prop == 1:  # árvore caída
+        d.line((px-scale*2,py-scale,px+scale*2,py), fill=(18,16,14,240), width=max(5,scale//2))
+        for side in (-1,1): d.line((px+side*scale,py-scale//2,px+side*scale*2,py-scale*2), fill=ink, width=3)
+    elif prop == 2:  # altar
+        d.rectangle((px-scale,py-scale,px+scale,py), fill=(15,19,25,235), outline=ink, width=2)
+        d.ellipse((px-scale//2,py-scale*2,px+scale//2,py-scale), outline=(*accent,220), width=3)
+    elif prop == 3:  # estandarte
+        d.line((px,py-scale*3,px,py), fill=ink, width=4)
+        d.polygon([(px,py-scale*3),(px+scale*2,py-scale*2),(px+scale,py-scale),(px,py-scale)], fill=(*accent,135), outline=ink)
+    elif prop == 4:  # crânio/relíquia
+        d.ellipse((px-scale,py-scale*2,px+scale,py), fill=(28,27,25,230), outline=ink, width=2)
+        d.ellipse((px-scale//2,py-scale,px-scale//5,py-scale//2), fill=(*accent,190))
+        d.ellipse((px+scale//5,py-scale,px+scale//2,py-scale//2), fill=(*accent,190))
+    elif prop == 5:  # portal pequeno
+        d.ellipse((px-scale,py-scale*3,px+scale,py), outline=(*accent,180), width=4)
+        d.ellipse((px-scale//2,py-scale*2,px+scale//2,py-scale), outline=ink, width=2)
+    elif prop == 6:  # coluna partida
+        d.rectangle((px-scale//2,py-scale*3,px+scale//2,py), fill=(18,21,27,225), outline=ink)
+        d.polygon([(px-scale,py-scale*3),(px,py-scale*4),(px+scale,py-scale*3)], fill=(20,24,29,230), outline=ink)
+    elif prop == 7:  # rocha/cristal
+        d.polygon([(px,py-scale*3),(px+scale,py-scale),(px+scale//2,py),(px-scale,py-scale)], fill=(*accent,85), outline=ink)
+    elif prop == 8:  # roda/engrenagem
+        d.ellipse((px-scale,py-scale*2,px+scale,py), outline=ink, width=4)
+        d.ellipse((px-scale//3,py-scale*4//3,px+scale//3,py-scale*2//3), outline=(*accent,190), width=3)
+    else:  # fogueira
+        d.polygon([(px,py-scale*3),(px+scale,py-scale),(px,py-scale*2),(px-scale,py-scale)], fill=(255,120,45,110), outline=(*accent,220))
+        d.line((px-scale,py,px+scale,py-scale//2), fill=ink, width=4)
+
+
 def _draw_boss(draw: ImageDraw.ImageDraw, box, accent, rng: random.Random, card: dict[str, Any]):
     x1, y1, x2, y2 = box
     cx = (x1 + x2) // 2
@@ -769,6 +886,62 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     for i in range(8):
         yy=rng.randint(int(ah*.63),int(ah*.96))
         a.line((0,yy,aw,yy+rng.randint(-8,8)),fill=(*metal,rng.randint(12,34)),width=max(1,Y(5)))
+
+    # Camada de cenário exclusiva fica atrás do personagem/motivo principal.
+    _draw_unique_scene(art, card, rng, accent, metal, top)
+
+    # Motivo narrativo individual: o ID define a família visual e o nome/descrição
+    # refinam o tema. Tudo é vetorial, determinístico e não depende de assets externos.
+    card_id = str(card.get("id", "")).casefold()
+    identity = " ".join((card_id, str(card.get("nome", "")), str(card.get("descricao", "")))).casefold()
+    motif = ImageDraw.Draw(art, "RGBA")
+    mx, my = aw // 2, int(ah * .39)
+    glow = (*accent, 38)
+    if card_id.startswith("chefe_") or any(k in identity for k in ("chefe", "guardiao", "guardião", "cervo", "dama", "rei afogado", "sem rosto")):
+        # Arco de ameaça e chifres/coroa variáveis para chefes.
+        motif.ellipse((mx-int(aw*.27), my-int(ah*.26), mx+int(aw*.27), my+int(ah*.20)), outline=(*accent,105), width=max(2,X(4)))
+        points=[]
+        for j in range(12):
+            ang=-math.pi/2+j*math.pi/6
+            rad=int(aw*(.19 if j%2==0 else .145))
+            points.append((mx+int(math.cos(ang)*rad), my-int(ah*.06)+int(math.sin(ang)*rad)))
+        motif.line(points+[points[0]], fill=(*metal,150), width=max(2,X(3)), joint="curve")
+        for side in (-1,1):
+            motif.line((mx+side*int(aw*.12),my-int(ah*.12),mx+side*int(aw*.22),my-int(ah*.31),mx+side*int(aw*.18),my-int(ah*.12)), fill=(*accent,185), width=max(3,X(6)))
+    elif card_id.startswith("arma_") or any(k in identity for k in ("lâmina", "lamina", "martelo", "cajado", "arco", "sino", "lança", "lanca", "agulha")):
+        # Silhueta de equipamento grande ao fundo, com forma conforme o nome.
+        if any(k in identity for k in ("arco", "batedor")):
+            motif.arc((mx-int(aw*.30),my-int(ah*.27),mx+int(aw*.30),my+int(ah*.28)),260,100,fill=(*metal,190),width=max(4,X(8)))
+            motif.line((mx,my-int(ah*.27),mx,my+int(ah*.28)),fill=(*accent,180),width=max(2,X(3)))
+        elif any(k in identity for k in ("martelo", "sino")):
+            motif.line((mx-int(aw*.18),my+int(ah*.28),mx+int(aw*.18),my-int(ah*.25)),fill=(*metal,175),width=max(7,X(12)))
+            motif.polygon([(mx+int(aw*.08),my-int(ah*.29)),(mx+int(aw*.29),my-int(ah*.25)),(mx+int(aw*.27),my-int(ah*.08)),(mx+int(aw*.06),my-int(ah*.12))],fill=(*accent,100),outline=(*metal,220))
+        else:
+            motif.polygon([(mx,my-int(ah*.34)),(mx+int(aw*.045),my-int(ah*.02)),(mx+int(aw*.018),my+int(ah*.24)),(mx,my+int(ah*.31)),(mx-int(aw*.018),my+int(ah*.24)),(mx-int(aw*.045),my-int(ah*.02))],fill=(*metal,115),outline=(*accent,210))
+            motif.line((mx-int(aw*.12),my+int(ah*.14),mx+int(aw*.12),my+int(ah*.14)),fill=(*accent,220),width=max(3,X(6)))
+    elif card_id.startswith("magia_") or any(k in identity for k in ("orbe", "oráculo", "oraculo", "brasa", "trovão", "trovao", "névoa", "nevoa", "sol negro", "fagulha", "chama")):
+        # Portal arcano com órbitas e partículas em posições exclusivas.
+        for j in range(4):
+            rr=int(aw*(.12+j*.055))
+            motif.ellipse((mx-rr,my-int(rr*.82),mx+rr,my+int(rr*.82)),outline=(*accent,max(48,160-j*24)),width=max(2,X(3)))
+        for j in range(9):
+            ang=math.radians(j*40+seed%31)
+            ex=mx+int(math.cos(ang)*aw*.29); ey=my+int(math.sin(ang)*ah*.24)
+            motif.line((mx,my,ex,ey),fill=(*metal,95),width=max(1,X(2)))
+            motif.ellipse((ex-X(3),ey-Y(3),ex+X(3),ey+Y(3)),fill=(*accent,210))
+    elif card_id.startswith("covenant_") or any(k in identity for k in ("covenant", "pacto", "irmandade", "lobos", "lua velada", "sentinelas", "abismo")):
+        # Estandarte e brasão da ordem, com variação heráldica por carta.
+        pole=int(aw*.19); motif.line((pole,int(ah*.13),pole,int(ah*.79)),fill=(*metal,190),width=max(3,X(5)))
+        motif.polygon([(pole,my-int(ah*.17)),(pole+int(aw*.25),my-int(ah*.10)),(pole+int(aw*.21),my+int(ah*.12)),(pole,my+int(ah*.16))],fill=(*accent,105),outline=(*metal,220))
+        motif.ellipse((mx-int(aw*.10),my-int(aw*.10),mx+int(aw*.10),my+int(aw*.10)),outline=(*metal,220),width=max(3,X(4)))
+        motif.line((mx-int(aw*.08),my,mx+int(aw*.08),my),fill=(*accent,230),width=max(3,X(4)))
+    else:
+        # Brasão singular para cartas geradas de jogos/patentes e demais famílias.
+        sides=5+(seed%4); radius=int(aw*(.13+(seed%5)*.012))
+        pts=[(mx+int(math.cos(-math.pi/2+j*2*math.pi/sides)*radius),my+int(math.sin(-math.pi/2+j*2*math.pi/sides)*radius)) for j in range(sides)]
+        motif.polygon(pts,fill=glow,outline=(*metal,175))
+        motif.ellipse((mx-X(8),my-Y(8),mx+X(8),my+Y(8)),fill=(*accent,210))
+
     # Arte enviada pelo jogador ocupa a janela toda, mas recebe a moldura nova.
     custom=False
     if illustration_bytes:
@@ -783,6 +956,25 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
         a=ImageDraw.Draw(art,"RGBA")
         cx=int(aw*rng.uniform(.44,.57)); ground=int(ah*.94)
         archetype=seed%8
+        # Arquétipos narrativos dirigidos pelo conteúdo da carta, não apenas pelo acaso.
+        # O seed ainda varia pose, proporções, ornamentos e cenário dentro de cada família.
+        if card_id.startswith("chefe_"):
+            if any(k in identity for k in ("cervo", "lobo", "fera")): archetype=3
+            elif any(k in identity for k in ("dama", "aparição", "aparicao", "oráculo", "oraculo")): archetype=2
+            elif any(k in identity for k in ("afogado", "abismo", "esqueleto")): archetype=4
+            elif any(k in identity for k in ("caçador", "cacador", "sem rosto")): archetype=5
+            else: archetype=0
+        elif card_id.startswith("magia_"):
+            archetype=6 if any(k in identity for k in ("brasa", "chama", "fagulha", "fogo")) else 2
+        elif card_id.startswith("arma_"):
+            if any(k in identity for k in ("duelista", "dançarina", "dancarino", "batedor")): archetype=5
+            elif any(k in identity for k in ("oráculo", "oraculo", "tecela", "tecelã")): archetype=2
+            else: archetype=0
+        elif card_id.startswith("covenant_"):
+            if any(k in identity for k in ("lobo", "lobos")): archetype=3
+            elif any(k in identity for k in ("lua", "véu", "veu")): archetype=2
+            elif any(k in identity for k in ("abismo", "coroa")): archetype=4
+            else: archetype=0
         body=_mix((12,16,20),accent,.22); cloth=_mix(top,metal,.18)
         # capa, com pontas e dobras ao vento
         cape=cx+rng.choice((-1,1))*int(aw*.27)
@@ -893,6 +1085,10 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     d=ImageDraw.Draw(im,"RGBA")
     # Moldura de metal envelhecido e acabamento diferente por raridade.
     d.rounded_rectangle(B(5,5,415,615),radius=X(18),fill=(8,9,11,255),outline=(*rdark,255),width=max(4,X(7)))
+    # A moldura é desenhada antes da pintura para não cobrir a ilustração procedural.
+    # Cabeçalho, medalhão e painel inferior são compostos depois, sobre a arte.
+    im.alpha_composite(art,(X(18),Y(92)))
+    d=ImageDraw.Draw(im,"RGBA")
     d.rounded_rectangle(B(12,12,408,608),radius=X(14),outline=(*rlight,255),width=max(1,X(2)))
     d.rounded_rectangle(B(18,18,402,602),radius=X(10),outline=(*metal,95),width=max(1,X(1)))
     # Cantoneiras rebitadas e filetes laterais.
@@ -1311,7 +1507,7 @@ def _painel_arena_base(width: int, height: int, subtitle: str = "") -> tuple[Ima
                            outline=(222, 198, 150, 35), width=1)
     for x in range(60, width - 40, 100):
         draw.line((x, 40, x, height - 40), fill=(150, 173, 194, 13), width=1)
-    draw.text((58, 42), "SOULSBOT  /  COLOSSEUM", font=_font(17, True), fill=(216, 182, 112, 255))
+    draw.text((58, 42), "NARABOT  /  COLOSSEUM", font=_font(17, True), fill=(216, 182, 112, 255))
     if subtitle:
         draw.text((60, 67), subtitle.upper(), font=_font(10, True), fill=(133, 153, 174, 245))
     return image, draw
