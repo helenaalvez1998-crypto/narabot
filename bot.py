@@ -482,6 +482,7 @@ DISCORD_OAUTH_AUTHORIZE_URL = "https://discord.com/oauth2/authorize"
 DISCORD_OAUTH_TOKEN_URL = "https://discord.com/api/oauth2/token"
 DISCORD_API_ME_URL = "https://discord.com/api/users/@me"
 OAUTH_STATE_COOKIE = "soulsbot_oauth_state"
+OAUTH_NEXT_COOKIE = "soulsbot_oauth_next"
 WEB_SESSION_COOKIE = "soulsbot_web_session"
 WEB_SESSION_MAX_AGE = 60 * 60 * 24 * 7
 
@@ -537,6 +538,8 @@ class NaraBot(commands.Bot):
         self._tarefas_auto_defer: set[asyncio.Task] = set()
         self._tarefa_lag: asyncio.Task | None = None
         self._web_runner: web.AppRunner | None = None
+        self._web_presence: dict[int, float] = {}
+        self._web_sockets: dict[int, set[web.WebSocketResponse]] = {}
 
     def _handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
         exception = context.get("exception")
@@ -638,6 +641,14 @@ class NaraBot(commands.Bot):
         app.router.add_get("/api/collection", self._api_collection)
         app.router.add_get("/api/deck", self._api_deck)
         app.router.add_post("/api/deck", self._api_deck_save)
+        app.router.add_get("/api/players", self._api_players)
+        app.router.add_post("/api/presence/heartbeat", self._api_presence_heartbeat)
+        app.router.add_post("/api/duels", self._api_duel_create)
+        app.router.add_get("/api/duels", self._api_duels)
+        app.router.add_get("/api/duels/{duel_id}", self._api_duel_detail)
+        app.router.add_post("/api/duels/{duel_id}/accept", self._api_duel_accept)
+        app.router.add_post("/api/duels/{duel_id}/moves", self._api_duel_move)
+        app.router.add_get("/ws/duels/{duel_id}", self._ws_duel_room)
         app.router.add_get("/api/cards/{card_id}/image", self._api_card_image)
         app.router.add_post("/auth/logout", self._oauth_logout)
         runner = web.AppRunner(app, access_log=None)
@@ -661,6 +672,9 @@ class NaraBot(commands.Bot):
         except RuntimeError:
             raise web.HTTPServiceUnavailable(text="Chave de sessão do site não configurada.")
         state = secrets.token_urlsafe(32)
+        next_path = request.query.get("next", "/")
+        if not next_path.startswith("/") or next_path.startswith("//") or "\\" in next_path:
+            next_path = "/"
         oauth_params = urlencode({
             "client_id": client_id,
             "redirect_uri": redirect_uri,
@@ -670,6 +684,7 @@ class NaraBot(commands.Bot):
         })
         response = web.HTTPFound(f"{DISCORD_OAUTH_AUTHORIZE_URL}?{oauth_params}")
         _cookie_seguro(response, OAUTH_STATE_COOKIE, _assinar_payload(state), max_age=600)
+        _cookie_seguro(response, OAUTH_NEXT_COOKIE, _assinar_payload(next_path), max_age=600)
         raise response
 
     async def _oauth_callback(self, request: web.Request) -> web.Response:
@@ -731,10 +746,311 @@ class NaraBot(commands.Bot):
         # A sessão contém apenas o ID autenticado e expiração; nenhum token OAuth é armazenado.
         expires_at = int(time.time()) + WEB_SESSION_MAX_AGE
         session_payload = f"{user_id}:{expires_at}"
-        response = web.HTTPFound("/")
+        next_cookie = _validar_payload_assinado(request.cookies.get(OAUTH_NEXT_COOKIE, ""))
+        next_path = next_cookie if next_cookie and next_cookie.startswith("/") and not next_cookie.startswith("//") else "/"
+        response = web.HTTPFound(next_path)
         _cookie_seguro(response, WEB_SESSION_COOKIE, _assinar_payload(session_payload), max_age=WEB_SESSION_MAX_AGE)
         response.del_cookie(OAUTH_STATE_COOKIE, path="/")
+        response.del_cookie(OAUTH_NEXT_COOKIE, path="/")
         return response
+
+    def _api_user_id(self, request: web.Request) -> int | None:
+        """Valida a sessão assinada do site e retorna o ID Discord autenticado."""
+        payload = _validar_payload_assinado(request.cookies.get(WEB_SESSION_COOKIE, ""))
+        if not payload:
+            return None
+        try:
+            user_id, expires_raw = payload.split(":", 1)
+            expires_at = int(expires_raw)
+        except (ValueError, TypeError):
+            return None
+        if not user_id.isdigit() or expires_at < int(time.time()):
+            return None
+        return int(user_id)
+
+    async def _api_players(self, request: web.Request) -> web.Response:
+        """Lista membros humanos do servidor configurado e combina presença Discord/site."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        try:
+            guild_id = int(getattr(config, "GUILD_ID", 0) or 0)
+        except (TypeError, ValueError):
+            guild_id = 0
+        guild = self.get_guild(guild_id) if guild_id else None
+        if guild is None:
+            return web.json_response({"error": "Servidor do SoulsBot indisponível."}, status=503)
+        now = time.time()
+        # Heartbeats expirados não são tratados como usuários online no site.
+        self._web_presence = {uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75}
+        players = []
+        for member in guild.members:
+            if member.bot:
+                continue
+            status = str(member.status)
+            players.append({
+                "id": str(member.id), "name": member.display_name,
+                "discord_presence": status,
+                "web_online": member.id in self._web_presence,
+                "is_self": member.id == user_id,
+            })
+        players.sort(key=lambda item: (not item["web_online"], item["discord_presence"] == "offline", item["name"].casefold()))
+        return web.json_response({"players": players, "server": guild.name})
+
+    async def _broadcast_duel_event(self, duel_id: int, event: str = "duel_updated") -> None:
+        """Notifica em tempo real apenas os sockets autenticados da sala correspondente."""
+        sockets = self._web_sockets.get(int(duel_id), set()).copy()
+        if not sockets:
+            return
+        payload = json.dumps({"type": event, "duel_id": int(duel_id)})
+        stale = []
+        for socket in sockets:
+            try:
+                await socket.send_str(payload)
+            except Exception:
+                stale.append(socket)
+        for socket in stale:
+            self._web_sockets.get(int(duel_id), set()).discard(socket)
+
+    async def _ws_duel_room(self, request: web.Request) -> web.StreamResponse:
+        """Canal de eventos da sala; a autorização continua baseada na sessão e participação."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            raise web.HTTPUnauthorized(text="Faça login com Discord.")
+        try:
+            duel_id = int(request.match_info["duel_id"])
+        except (TypeError, ValueError):
+            raise web.HTTPBadRequest(text="Duelo inválido.")
+        duel = await self.db.coliseu_obter_duelo(duel_id)
+        if not duel or user_id not in (int(duel["creator_id"]), int(duel["opponent_id"])):
+            raise web.HTTPNotFound(text="Duelo não encontrado.")
+        ws = web.WebSocketResponse(heartbeat=25, max_msg_size=1024)
+        await ws.prepare(request)
+        room = self._web_sockets.setdefault(duel_id, set())
+        room.add(ws)
+        await ws.send_json({"type": "connected", "duel_id": duel_id})
+        try:
+            async for message in ws:
+                if message.type == web.WSMsgType.ERROR:
+                    break
+        finally:
+            room.discard(ws)
+            if not room:
+                self._web_sockets.pop(duel_id, None)
+        return ws
+
+    async def _api_presence_heartbeat(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        self._web_presence[user_id] = time.time()
+        return web.json_response({"ok": True, "web_online": True})
+
+    def _api_origin_ok(self, request: web.Request) -> bool:
+        """Aceita apenas POSTs originados na mesma origem do painel, quando Origin existe."""
+        origin = request.headers.get("Origin")
+        if not origin:
+            return True
+        from urllib.parse import urlsplit
+        parsed = urlsplit(origin)
+        return parsed.scheme == "https" and parsed.netloc.lower() == request.host.lower()
+
+    async def _api_duel_create(self, request: web.Request) -> web.Response:
+        """Cria convite pelo site e publica no canal Discord configurado."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem da solicitação não autorizada."}, status=403)
+        try:
+            body = await request.json()
+            opponent_id = int(body.get("opponent_id", 0))
+            aposta = int(body.get("aposta", 0))
+        except (TypeError, ValueError):
+            return web.json_response({"error": "Informe jogador e aposta válidos."}, status=400)
+        if opponent_id <= 0 or opponent_id == user_id or aposta < 0 or aposta > 500:
+            return web.json_response({"error": "Jogador ou aposta inválidos. A aposta máxima é 500 Denários."}, status=400)
+        try:
+            guild_id = int(getattr(config, "GUILD_ID", 0) or 0)
+            channel_id = int(os.getenv("SOULSBOT_DUELOS_CHANNEL_ID", "0") or 0)
+        except (TypeError, ValueError):
+            guild_id, channel_id = 0, 0
+        guild = self.get_guild(guild_id) if guild_id else None
+        channel = guild.get_channel(channel_id) if guild and channel_id else None
+        if guild is None or channel is None or not hasattr(channel, "send"):
+            return web.json_response({"error": "Configure SOULSBOT_DUELOS_CHANNEL_ID com o ID do canal de convites no Discord."}, status=503)
+        creator = guild.get_member(user_id)
+        opponent = guild.get_member(opponent_id)
+        if creator is None or opponent is None or creator.bot or opponent.bot:
+            return web.json_response({"error": "Os dois jogadores precisam ser membros humanos do servidor SoulsBot."}, status=404)
+        cog = self.get_cog("ColiseuCartas")
+        if cog is None:
+            return web.json_response({"error": "Motor do Coliseu indisponível."}, status=503)
+        from cogs.cartas_coliseu import ConviteDueloView, DIFERENCA_MAXIMA_PODER_DECK, TEMPO_RODADA_SEGUNDOS
+        result = await self.db.coliseu_criar_convite(
+            guild.id, channel.id, user_id, opponent_id, aposta,
+            nivel_minimo=5, limite_diario=5, limite_par=2, max_aposta_dia=1500,
+            cooldown_segundos=60, diferenca_maxima_poder=DIFERENCA_MAXIMA_PODER_DECK,
+        )
+        if result.get("status") != "ok":
+            return web.json_response({"error": str(result.get("status", "falha")), "details": result}, status=409)
+        duel_id = int(result["duel_id"])
+        embed = discord.Embed(
+            title="⚔️ Convite para o Coliseu",
+            description=(f"{creator.mention} desafiou {opponent.mention} para um duelo de cinco rodadas.\n\n"
+                         f"**Aposta por jogador:** {aposta} Denários\n**Pote total:** {aposta * 2} Denários\n"
+                         f"**Poder dos decks:** {result['deck_power'][user_id]} × {result['deck_power'][opponent_id]}\n"
+                         "As apostas só serão travadas quando o convite for aceito.\n"
+                         f"Cada rodada tem {TEMPO_RODADA_SEGUNDOS} segundos. O convite expira em dois minutos."),
+            color=config.COR_OURO,
+        )
+        embed.set_footer(text=f"Coliseu de Cartas • Duelo #{duel_id} • criado pelo site")
+        try:
+            embed, attachment = await cog.preparar_ficha_visual_duelo(duel_id, guild)
+            kwargs = {"content": opponent.mention, "embed": embed, "view": ConviteDueloView(duel_id),
+                      "allowed_mentions": discord.AllowedMentions(users=[opponent], roles=False, everyone=False)}
+            if attachment is not None:
+                kwargs["file"] = attachment
+            message = await channel.send(**kwargs)
+            await self.db.coliseu_definir_mensagem_convite(duel_id, message.id)
+        except Exception:
+            log.exception("Falha ao publicar convite web do duelo #%s", duel_id)
+            await self.db.coliseu_decidir_convite(duel_id, user_id, False)
+            return web.json_response({"error": "Não foi possível publicar o convite no Discord; o convite foi cancelado."}, status=502)
+        base_url = os.getenv("SOULSBOT_PUBLIC_URL", "https://narabot.sbs").rstrip("/")
+        await self._broadcast_duel_event(duel_id, "duel_created")
+        return web.json_response({"ok": True, "duel_id": duel_id, "discord_message": message.jump_url,
+                                  "match_url": f"{base_url}/?duel={duel_id}"}, status=201)
+
+    async def _api_duels(self, request: web.Request) -> web.Response:
+        """Lista apenas duelos dos quais a conta autenticada participa."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        try:
+            rows = await self.db.coliseu_listar_duelos_usuario(user_id, limite=30)
+            duels = []
+            for row in rows:
+                duel = dict(row)
+                duels.append({
+                    "id": int(duel["id"]), "status": str(duel["status"]),
+                    "creator_id": str(duel["creator_id"]), "opponent_id": str(duel["opponent_id"]),
+                    "aposta": int(duel["aposta"] or 0), "current_round": int(duel["current_round"] or 0),
+                    "created_at": duel.get("created_at"), "expires_at": duel.get("expires_at"),
+                    "round_deadline": duel.get("round_deadline"),
+                    "is_creator": user_id == int(duel["creator_id"]),
+                })
+            return web.json_response({"duels": duels})
+        except Exception:
+            log.exception("Falha ao listar duelos no site para user_id=%s", user_id)
+            return web.json_response({"error": "Não foi possível carregar seus duelos."}, status=500)
+
+    async def _api_duel_detail(self, request: web.Request) -> web.Response:
+        """Entrega estado e mão privada somente ao participante autenticado."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        try:
+            duel_id = int(request.match_info["duel_id"])
+        except (TypeError, ValueError):
+            return web.json_response({"error": "Duelo inválido."}, status=400)
+        duel = await self.db.coliseu_obter_duelo(duel_id)
+        if not duel or user_id not in (int(duel["creator_id"]), int(duel["opponent_id"])):
+            return web.json_response({"error": "Duelo não encontrado."}, status=404)
+        rounds = [dict(row) for row in await self.db.coliseu_historico_rodadas(duel_id)]
+        picks = await self.db.coliseu_contagem_jogadas_rodada(duel_id) if duel["status"] == "active" else 0
+        available = await self.db.coliseu_cartas_disponiveis(duel_id, user_id) if duel["status"] == "active" else []
+        # Nunca revelar a escolha secreta do adversário antes da resolução da rodada.
+        own_pick = await self.db._one(
+            "SELECT 1 FROM cartas_duelo_jogadas WHERE duel_id=? AND round_no=? AND user_id=?",
+            (duel_id, int(duel["current_round"] or 0), user_id),
+        ) if duel["status"] == "active" else None
+        return web.json_response({
+            "duel": {
+                "id": duel_id, "status": str(duel["status"]),
+                "creator_id": str(duel["creator_id"]), "opponent_id": str(duel["opponent_id"]),
+                "aposta": int(duel["aposta"] or 0), "current_round": int(duel["current_round"] or 0),
+                "round_deadline": duel.get("round_deadline"), "winner_id": str(duel["winner_id"]) if duel.get("winner_id") else None,
+                "payout": int(duel.get("payout") or 0), "burned": int(duel.get("burned") or 0),
+                "is_creator": user_id == int(duel["creator_id"]),
+            },
+            "score": {
+                "creator": sum(1 for row in rounds if row["winner_side"] == "a"),
+                "opponent": sum(1 for row in rounds if row["winner_side"] == "b"),
+                "rounds_played": len(rounds), "choices_received": picks,
+                "own_choice_submitted": bool(own_pick),
+            },
+            "available_cards": available,
+            "rounds": rounds,
+        })
+
+    async def _api_duel_accept(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem da solicitação não autorizada."}, status=403)
+        try:
+            duel_id = int(request.match_info["duel_id"])
+        except (TypeError, ValueError):
+            return web.json_response({"error": "Duelo inválido."}, status=400)
+        duel = await self.db.coliseu_obter_duelo(duel_id)
+        if not duel or int(duel["opponent_id"]) != user_id:
+            return web.json_response({"error": "Somente o jogador convidado pode aceitar."}, status=403)
+        resultado = await self.db.coliseu_decidir_convite(duel_id, user_id, True)
+        if resultado.get("status") != "ok":
+            return web.json_response({"error": str(resultado.get("status", "indisponivel")), "details": resultado}, status=409)
+        cog = self.get_cog("ColiseuCartas")
+        if cog:
+            try:
+                await cog.atualizar_mensagem_duelo(duel_id)
+            except Exception:
+                log.exception("Falha ao sincronizar mensagem Discord após aceitar duelo #%s pelo site", duel_id)
+        await self._broadcast_duel_event(duel_id, "duel_accepted")
+        base_url = os.getenv("SOULSBOT_PUBLIC_URL", "https://narabot.sbs").rstrip("/")
+        return web.json_response({"ok": True, "duel_id": duel_id, "match_url": f"{base_url}/?duel={duel_id}"})
+
+    async def _api_duel_move(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem da solicitação não autorizada."}, status=403)
+        try:
+            duel_id = int(request.match_info["duel_id"])
+            body = await request.json()
+            card_id = str(body.get("card_id", "")).strip()
+        except (TypeError, ValueError):
+            return web.json_response({"error": "Dados da jogada inválidos."}, status=400)
+        if not card_id or len(card_id) > 100:
+            return web.json_response({"error": "Carta inválida."}, status=400)
+        duel = await self.db.coliseu_obter_duelo(duel_id)
+        if not duel or user_id not in (int(duel["creator_id"]), int(duel["opponent_id"])):
+            return web.json_response({"error": "Duelo não encontrado."}, status=404)
+        resultado = await self.db.coliseu_registrar_jogada(duel_id, user_id, card_id)
+        if resultado.get("status") == "pronto":
+            cog = self.get_cog("ColiseuCartas")
+            if cog is None:
+                return web.json_response({"error": "Motor do Coliseu indisponível."}, status=503)
+            try:
+                await cog.resolver_rodada(resultado)
+                await cog.atualizar_mensagem_duelo(duel_id, revelar_ultima_rodada=True)
+            except Exception:
+                log.exception("Falha ao resolver rodada %s do duelo #%s via site", resultado.get("round_no"), duel_id)
+                return web.json_response({"error": "A jogada foi registrada, mas houve falha ao resolver a rodada. Atualize a partida."}, status=500)
+            await self._broadcast_duel_event(duel_id, "round_resolved")
+            return web.json_response({"ok": True, "status": "round_resolved"})
+        if resultado.get("status") == "aguardando":
+            cog = self.get_cog("ColiseuCartas")
+            if cog:
+                try:
+                    await cog.atualizar_mensagem_duelo(duel_id)
+                except Exception:
+                    log.exception("Falha ao atualizar painel Discord do duelo #%s", duel_id)
+            await self._broadcast_duel_event(duel_id, "move_received")
+            return web.json_response({"ok": True, "status": "waiting_opponent"})
+        status_http = 409 if resultado.get("status") in {"ja_escolheu", "carta_usada", "carta_invalida", "expirado", "inativo"} else 403
+        return web.json_response({"error": str(resultado.get("status", "falha"))}, status=status_http)
 
     async def _api_me(self, request: web.Request) -> web.Response:
         raw_session = request.cookies.get(WEB_SESSION_COOKIE, "")
