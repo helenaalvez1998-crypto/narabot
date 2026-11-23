@@ -1990,7 +1990,7 @@ class NaraBot(commands.Bot):
                 from sistemas.cartas import CUSTO_RARIDADE
                 source["raridade"] = str(owned_row["rarity"])
                 source["poder"] = int(owned_row["exemplar_power"] or source.get("poder", 0))
-                source["custo"] = int(CUSTO_RARIDADE.get(source["rariedade"], source.get("custo", 0)))
+                source["custo"] = int(CUSTO_RARIDADE.get(source["raridade"], source.get("custo", 0)))
             gwent = preparar_carta(source)
             source.update({
                 "gwent_mode": True,
