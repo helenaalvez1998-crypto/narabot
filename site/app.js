@@ -313,7 +313,10 @@ async function saveGwentDeck() {
     gwentSavedIds = [...gwentDeckIds]; gwentSavedFaction = $('#gwent-faction').value; gwentSavedLeader = $('#gwent-leader').value;
     $('#gwent-deck-status').textContent = 'Deck, facção e líder salvos. Seu exército está pronto para a arena.';
     showNotice('Deck Gwent atualizado.', 'success');
-  } catch(e) { $('#gwent-deck-status').textContent = e.message; }
+  } catch(e) {
+    $('#gwent-deck-status').textContent = `Não foi possível salvar: ${e.message}`;
+    showNotice(`Falha ao salvar o deck: ${e.message}`, 'error');
+  }
   finally { button.textContent = 'Salvar deck Gwent'; renderGwentBuilder(); }
 }
 
