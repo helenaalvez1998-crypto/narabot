@@ -783,3 +783,246 @@ html[data-theme] .hub-hero{background:linear-gradient(120deg,rgba(var(--glow),.2
 .gwent-board-card img,.duel-card img{height:auto!important;aspect-ratio:420/620!important;object-fit:contain!important}
 .gwent-unit>b,.card-meta b{margin:8px 8px 0!important}
 .cd-plate{margin:10px 14px 0!important}
+
+
+/* FIX UI 01 — manter a arte das cartas do deck em fundo integral.
+   A regra global de proporção no fim do arquivo não deve sobrescrever
+   o posicionamento absoluto usado nos cards do construtor. */
+#gwent-card-pool .gwent-unit > img,
+#gwent-deck-selected .gwent-unit > img {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+  object-position: center 28% !important;
+}
+
+/* NARABOT — redesign medieval equilibrado (deck e coleção) */
+:root {
+  --coliseum-gold: #c9a86b;
+  --coliseum-gold-light: #f0d69b;
+  --coliseum-ink: #090a10;
+  --coliseum-panel: #111522;
+  --coliseum-blue-muted: #303b56;
+}
+
+/* Cabeçalho: cinco áreas explícitas evitam que o perfil caia para outra linha. */
+.hud {
+  grid-template-columns: auto minmax(420px, 1fr) auto auto auto;
+  gap: clamp(8px, .85vw, 16px);
+  min-height: 66px;
+  height: auto;
+  padding: 7px clamp(12px, 1.5vw, 26px);
+}
+.hud nav { min-width: 0; gap: 2px; }
+.hud .nav {
+  gap: 6px;
+  padding-inline: clamp(7px, .72vw, 13px);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  white-space: nowrap;
+}
+.hud .nav i { font-size: 16px; }
+.hud .nav span { font-size: 11px; }
+.hud .wallet { gap: 5px; }
+.hud .wallet span { padding: 5px 8px; font-size: 11px; }
+.hud .player { gap: 8px; }
+.hud .player .profile { max-width: 155px; }
+.hud .player .profile b { max-width: 105px; }
+.hud .player .profile small { max-width: 105px; font-size: 9px; }
+
+/* Área de trabalho mais larga, com limites para monitores ultrawide. */
+main {
+  width: min(100% - 48px, 1720px);
+  max-width: 1720px;
+  padding: 26px 0 44px;
+}
+#gwent { width: 100%; }
+.gwent-builder {
+  width: 100%;
+  grid-template-columns: minmax(390px, .78fr) minmax(0, 1.22fr);
+  align-items: start;
+  gap: clamp(14px, 1.25vw, 22px);
+}
+.gwent-builder > div { min-width: 0; padding: clamp(15px, 1.2vw, 22px); }
+
+/* Medieval: ouro envelhecido como acento; azul reservado a superfícies e raridades. */
+.gwent-builder > div,
+.gwent-arena,
+.challenge-panel,
+.atelier-panel,
+.gwent-store,
+.gwent-drop-history {
+  border: 2px solid var(--coliseum-gold);
+  border-radius: 5px;
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(201,168,107,.075), transparent 58%),
+    linear-gradient(155deg, #151a29 0%, #0c101b 100%);
+  box-shadow: 0 12px 30px rgba(0,0,0,.48), inset 0 0 0 1px rgba(240,214,155,.08);
+}
+.gwent-builder .section-head { border-bottom-color: rgba(201,168,107,.48); }
+.gwent-builder .section-head h3 { color: var(--coliseum-gold-light); }
+.gwent-config {
+  border: 1px solid rgba(201,168,107,.38);
+  background: rgba(4,6,11,.42);
+}
+.gwent-config select,
+.gwent-filters select,
+.gwent-filters input {
+  border-color: rgba(201,168,107,.42);
+  background: #0b101b;
+}
+.gwent-filters {
+  grid-template-columns: minmax(190px, 1fr) minmax(125px, .58fr) minmax(125px, .58fr);
+  gap: 8px;
+}
+
+/* Cartas originais: preservar proporção e arte integral, sem imagem como fundo. */
+#gwent-card-pool,
+#gwent-deck-selected {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-auto-rows: auto;
+  align-items: start;
+  gap: 13px;
+  padding: 8px 2px;
+  overflow: visible;
+}
+#gwent-card-pool .gwent-unit,
+#gwent-deck-selected .gwent-unit {
+  position: relative;
+  isolation: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 0;
+  height: auto;
+  min-height: 0;
+  padding: 7px;
+  overflow: hidden;
+  border: 2px solid var(--coliseum-gold);
+  border-radius: 4px;
+  background: linear-gradient(160deg, #1b2130, #0b0f18 78%);
+  box-shadow: 0 7px 17px rgba(0,0,0,.42), inset 0 0 0 1px rgba(240,214,155,.08);
+  text-align: center;
+}
+#gwent-card-pool .gwent-unit > img,
+#gwent-deck-selected .gwent-unit > img {
+  position: static !important;
+  inset: auto !important;
+  z-index: auto;
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100%;
+  aspect-ratio: 420 / 620 !important;
+  object-fit: contain !important;
+  object-position: center;
+  margin: 0;
+  border: 1px solid rgba(201,168,107,.38);
+  border-radius: 2px;
+  background: #070a11;
+  opacity: 1;
+}
+#gwent-card-pool .gwent-unit::before,
+#gwent-deck-selected .gwent-unit::before { display: none; }
+#gwent-card-pool .gwent-unit > *,
+#gwent-deck-selected .gwent-unit > * {
+  position: static;
+  z-index: auto;
+  min-width: 0;
+}
+#gwent-card-pool .gwent-unit > b,
+#gwent-deck-selected .gwent-unit > b {
+  display: block;
+  width: auto;
+  min-height: 34px;
+  margin: 7px 0 0 !important;
+  padding: 7px 5px;
+  border: 1px solid #b99455;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #542d25, #301813);
+  color: #f0d69b;
+  font: 800 11px/1.3 Cinzel, Georgia, serif;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px #000;
+}
+#gwent-card-pool .gwent-unit > small,
+#gwent-deck-selected .gwent-unit > small {
+  display: block;
+  min-height: 0;
+  margin: 0;
+  padding: 7px 4px 2px;
+  border: 0;
+  background: transparent;
+  color: #cfc6b7;
+  font: 500 10px/1.4 var(--body, Inter, sans-serif);
+  text-shadow: none;
+  overflow-wrap: anywhere;
+}
+#gwent-card-pool .gwent-unit > button,
+#gwent-deck-selected .gwent-unit > button {
+  width: 100%;
+  min-height: 32px;
+  margin: 7px 0 0;
+  padding: 6px 4px;
+  border: 1px solid #a98a55;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #202a42, #101625);
+  color: #f0d69b;
+  font: 800 10px/1.2 Cinzel, Georgia, serif;
+  letter-spacing: .35px;
+}
+#gwent-card-pool .gwent-unit:hover,
+#gwent-deck-selected .gwent-unit:hover {
+  transform: translateY(-3px);
+  border-color: #efd49a;
+  box-shadow: 0 12px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(201,168,107,.2);
+}
+#gwent-card-pool .gwent-unit::after,
+#gwent-deck-selected .gwent-unit::after { display: none; }
+
+/* Telas médias: empilhar painéis antes de comprimir demais as cartas. */
+@media (max-width: 1250px) {
+  .hud {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .hud nav { grid-column: 1 / -1; grid-row: 2; min-height: 42px; justify-content: center; }
+  .hud .brand { grid-column: 1; grid-row: 1; }
+  .hud .wallet { grid-column: 2; grid-row: 1; justify-content: flex-end; }
+  .hud .vis-btn { grid-column: 3; grid-row: 1; }
+  .hud .player { display: none; }
+  .gwent-builder { grid-template-columns: minmax(0, 1fr); }
+  #gwent-card-pool { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+}
+@media (max-width: 800px) {
+  main { width: min(100% - 28px, 720px); padding: 18px 0 30px; }
+  .hud { grid-template-columns: minmax(0, 1fr) auto; padding: 7px 12px; }
+  .hud nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; overflow-x: auto; scrollbar-width: thin; }
+  .hud .brand { grid-column: 1; grid-row: 1; }
+  .hud .wallet { display: none; }
+  .hud .vis-btn { display: none; }
+  .hud .player { display: flex; grid-column: 2; grid-row: 1; }
+  .hud .player .profile { display: none; }
+  .hud .nav { flex: 0 0 auto; min-height: 40px; padding-inline: 10px; }
+  .hud .nav span { display: inline; font-size: 10px; }
+  .gwent-builder { grid-template-columns: minmax(0, 1fr); }
+  .gwent-builder > div { padding: 13px; }
+  #gwent-card-pool,
+  #gwent-deck-selected { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+@media (max-width: 420px) {
+  main { width: calc(100% - 20px); }
+  #gwent-card-pool,
+  #gwent-deck-selected { gap: 8px; }
+  #gwent-card-pool .gwent-unit,
+  #gwent-deck-selected .gwent-unit { padding: 5px; }
+  #gwent-card-pool .gwent-unit > b,
+  #gwent-deck-selected .gwent-unit > b { font-size: 9px; }
+  #gwent-card-pool .gwent-unit > small,
+  #gwent-deck-selected .gwent-unit > small { font-size: 9px; }
+}
