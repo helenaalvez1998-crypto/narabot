@@ -593,7 +593,8 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
         if com_template is not None:
             return com_template
     rarity = str(card.get("raridade", "Comum"))
-    category = str(card.get("categoria", "Carta"))
+    category_label = str(card.get("categoria", "Carta"))
+    category = str(card.get("categoria_arte", category_label))
     card_type = str(card.get("tipo", "Magia"))
     rarity_base, rarity_accent = CORES_RARIDADE.get(rarity, CORES_RARIDADE["Comum"])
     type_accent = CORES_TIPO.get(card_type, (190, 190, 190))
@@ -709,7 +710,7 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
         _draw_magic(draw, art_box, accent, rng, card)
 
     # Pequena assinatura de tipo na base da ilustração.
-    type_label = f"{card_type.upper()}  /  {category.upper()}"
+    type_label = f"{card_type.upper()}  /  {category_label.upper()}"
     label_font = _font(12, True)
     draw.rounded_rectangle((x1 + 12, y2 - 31, x1 + 174, y2 - 9), radius=7,
                            fill=(5, 9, 15, 205), outline=(*accent, 140), width=1)

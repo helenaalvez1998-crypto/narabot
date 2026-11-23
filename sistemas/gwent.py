@@ -30,12 +30,20 @@ def preparar_carta(card: dict) -> dict:
         skill_data = HABILIDADES.get(skill, {})
     except Exception:
         skill_data = {}
-    row = TYPE_ROW.get(str(card.get("tipo", "")), "melee")
+    row = str(card.get("fileira") or TYPE_ROW.get(str(card.get("tipo", "")), "melee"))
+    if row not in ROWS:
+        row = TYPE_ROW.get(str(card.get("tipo", "")), "melee")
+    kind = str(card.get("tipo", "Força"))
+    faction = str(card.get("faccao") or FACTIONS.get(kind, "Ordem de Ferro"))
+    category = "Especial" if special else "Unidade"
     return {
         "id": str(card["id"]), "nome": str(card.get("nome", "Carta")),
-        "categoria": str(card.get("categoria", "Unidade")), "especial": special,
+        "categoria": category, "categoria_origem": str(card.get("categoria_origem", card.get("categoria_arte", "Unidade"))),
+        "papel_gwent": str(card.get("papel_gwent", "Tática" if special else "Combatente")),
+        "especial": special,
         "poder": 0 if special else max(1, min(15, int(card.get("poder", 1)))),
-        "raridade": str(card.get("raridade", "Comum")), "tipo": str(card.get("tipo", "Força")),
+        "raridade": str(card.get("raridade", "Comum")), "tipo": kind,
+        "faccao": faction, "fileira": row,
         "row": row, "row_label": ROW_LABELS[row], "habilidade": skill,
         "habilidade_nome": str(card.get("habilidade_nome", skill_data.get("nome", skill.replace("_", " ").title()))),
         "habilidade_texto": str(card.get("habilidade_texto", skill_data.get("texto", card.get("descricao", ""))))[:180],

@@ -13,7 +13,7 @@ from typing import Any
 
 from levels import PATENTES
 
-VERSAO_ARTES = 6
+VERSAO_ARTES = 7
 
 TIPOS = ("Destreza", "Força", "Magia")
 EMOJIS_TIPO = {"Destreza": "🌀", "Força": "⚔️", "Magia": "🔮"}
@@ -47,25 +47,25 @@ HABILIDADES_PRIMORDIAIS = (
 )
 
 HABILIDADES: dict[str, dict[str, str]] = {
-    "primeira_luz": {"nome": "Primeira Luz", "texto": "+1 de poder na primeira rodada."},
-    "retaliacao": {"nome": "Retaliação", "texto": "+1 de poder se perdeu a rodada anterior."},
-    "impeto": {"nome": "Ímpeto", "texto": "+1 de poder se venceu a rodada anterior."},
-    "ultimo_folego": {"nome": "Último Fôlego", "texto": "+1 de poder na quinta rodada."},
-    "contragolpe": {"nome": "Contragolpe", "texto": "+1 de poder quando estiver em desvantagem de tipo."},
-    "encadeamento": {"nome": "Encadeamento", "texto": "+2 se venceu a rodada anterior e repetir o tipo da carta anterior."},
-    "adaptacao": {"nome": "Adaptação", "texto": "+1 se mudar o tipo em relação à sua carta anterior."},
-    "sangue_frio": {"nome": "Sangue-frio", "texto": "+2 se a rodada anterior terminou empatada."},
-    "instinto": {"nome": "Instinto", "texto": "+1 quando seu poder base for pelo menos 2 pontos menor que o rival."},
-    "precisao": {"nome": "Precisão", "texto": "+1 nas rodadas 2 e 4."},
-    "drenagem": {"nome": "Drenagem", "texto": "Reduz em 1 o bônus de tipo do rival quando ele tiver vantagem."},
-    "cacador_arcano": {"nome": "Caçador Arcano", "texto": "+1 contra cartas do tipo Magia."},
-    "quebra_ritmo": {"nome": "Quebra-ritmo", "texto": "+1 se o rival repetir o tipo usado na rodada anterior."},
+    "primeira_luz": {"nome": "Primeira Luz", "texto": "Recebe +1 de poder ao entrar na primeira rodada."},
+    "retaliacao": {"nome": "Retaliação", "texto": "Recebe +1 de poder quando sua pontuação está abaixo da rival."},
+    "impeto": {"nome": "Ímpeto", "texto": "Recebe +1 de poder quando sua pontuação está acima da rival."},
+    "ultimo_folego": {"nome": "Último Fôlego", "texto": "Recebe +1 de poder na terceira rodada."},
+    "contragolpe": {"nome": "Contragolpe", "texto": "Recebe +1 de poder quando sua pontuação está abaixo da rival."},
+    "encadeamento": {"nome": "Encadeamento", "texto": "Recebe +2 ao jogar na mesma fileira da sua unidade anterior."},
+    "adaptacao": {"nome": "Adaptação", "texto": "Recebe +1 ao jogar em uma fileira diferente da sua última unidade."},
+    "sangue_frio": {"nome": "Sangue-frio", "texto": "Recebe +2 quando as pontuações atuais estão empatadas."},
+    "instinto": {"nome": "Instinto", "texto": "Recebe +2 quando sua pontuação está abaixo da rival."},
+    "precisao": {"nome": "Precisão", "texto": "Recebe +1 ao entrar na fileira de longa distância."},
+    "drenagem": {"nome": "Drenagem", "texto": "Reduz em 1 o bônus de todas as unidades inimigas, até o limite de -2."},
+    "cacador_arcano": {"nome": "Caçador Arcano", "texto": "Recebe +1 se o adversário controlar uma unidade do Conclave Arcano."},
+    "quebra_ritmo": {"nome": "Quebra-ritmo", "texto": "Recebe +1 se o adversário jogou na mesma fileira em seu último turno."},
     # Efeitos exclusivos: somente a respectiva Primordial pode utilizá-los.
-    "lei_primeva": {"nome": "Lei Primeva", "texto": "+2 de poder na primeira rodada."},
-    "decreto_soberano": {"nome": "Decreto Soberano", "texto": "Reduz em 2 o bônus de tipo do rival quando ele tiver vantagem."},
-    "olho_tempestade": {"nome": "Olho da Tempestade", "texto": "+2 de poder quando esta carta tiver vantagem de tipo."},
-    "fome_abismo": {"nome": "Fome do Abismo", "texto": "+2 quando estiver atrás no poder antes das habilidades."},
-    "paradoxo_eterno": {"nome": "Paradoxo Eterno", "texto": "+2 na quinta rodada se perdeu a quarta rodada."},
+    "lei_primeva": {"nome": "Lei Primeva", "texto": "Recebe +2 de poder ao entrar na primeira rodada."},
+    "decreto_soberano": {"nome": "Decreto Soberano", "texto": "Reduz em 2 o bônus de todas as unidades inimigas, até o limite de -2."},
+    "olho_tempestade": {"nome": "Olho da Tempestade", "texto": "Recebe +2 quando sua fileira estiver sob efeito climático."},
+    "fome_abismo": {"nome": "Fome do Abismo", "texto": "Recebe +2 quando sua pontuação está abaixo da rival."},
+    "paradoxo_eterno": {"nome": "Paradoxo Eterno", "texto": "Recebe +2 na terceira rodada se o adversário venceu a segunda."},
     "guardiao_fileira": {"nome": "Guardião da Fileira", "texto": "+1 para cada outra unidade sua na mesma fileira, até +3."},
     "cacador_solitario": {"nome": "Caçador Solitário", "texto": "+2 se não houver outra unidade sua na fileira."},
     "estandarte": {"nome": "Estandarte", "texto": "Concede +1 às outras unidades aliadas da mesma fileira."},
@@ -102,7 +102,28 @@ class Carta:
     jogo_origem: str = ""
 
     def para_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        """Serializa a carta no padrão atual do Gwent sem alterar seu ID histórico.
+
+        categoria_arte preserva a identidade visual de origem para o renderizador;
+        categoria passa a representar somente os tipos aceitos no Gwent.
+        """
+        data = asdict(self)
+        categoria_origem = str(self.categoria or "Unidade")
+        faccoes = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
+        fileiras = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
+        papeis = {
+            "Chefe": "Elite", "Arma": "Combatente", "Magia": "Místico",
+            "Covenant": "Aliado", "Jogo": "Campeão", "Patente": "Veterano",
+            "Relíquia": "Primordial", "Especial": "Tática",
+        }
+        data["categoria_arte"] = categoria_origem
+        data["categoria_origem"] = categoria_origem
+        data["categoria"] = "Especial" if categoria_origem.casefold() == "especial" else "Unidade"
+        data["faccao"] = faccoes.get(self.tipo, "Ordem de Ferro")
+        data["fileira"] = fileiras.get(self.tipo, "melee")
+        data["papel_gwent"] = papeis.get(categoria_origem, "Unidade")
+        data["jogo_origem"] = self.jogo_origem
+        return data
 
 
 # Catálogo inicial. As cartas de jogos e patentes são geradas deterministicamente.
@@ -117,23 +138,23 @@ _CARTAS_BASE = [
     Carta("chefe_vigia_cinzento", "Vigia Cinzento", "Chefe", "Força", 4, "Comum", 1, "drenagem"),
     Carta("chefe_aparicao_veio", "Aparição do Véu", "Chefe", "Destreza", 3, "Comum", 1, "adaptacao"),
     # Armas
-    Carta("arma_lamina_peregrino", "Lâmina do Peregrino", "Arma", "Destreza", 4, "Comum", 1, "primeira_luz"),
-    Carta("arma_martelo_fornalha", "Martelo da Fornalha", "Arma", "Força", 6, "Rara", 2, "encadeamento"),
-    Carta("arma_cajado_marulho", "Cajado do Marulho", "Arma", "Magia", 5, "Rara", 2, "cacador_arcano"),
-    Carta("arma_duas_luas", "Lâminas das Duas Luas", "Arma", "Destreza", 7, "Épica", 3, "precisao"),
-    Carta("arma_grande_sino", "Grande Sino de Ferro", "Arma", "Força", 8, "Lendária", 4, "instinto"),
-    Carta("arma_agulha_astro", "Agulha Astral", "Arma", "Magia", 3, "Comum", 1, "primeira_luz"),
-    Carta("arma_lanca_fornalha", "Lança da Fornalha", "Arma", "Força", 4, "Comum", 1, "primeira_luz"),
-    Carta("arma_arco_peregrino", "Arco do Peregrino", "Arma", "Destreza", 5, "Comum", 1, "impeto"),
+    Carta("arma_lamina_peregrino", "Duelista do Peregrino", "Arma", "Destreza", 4, "Comum", 1, "primeira_luz"),
+    Carta("arma_martelo_fornalha", "Ferreiro de Guerra da Fornalha", "Arma", "Força", 6, "Rara", 2, "encadeamento"),
+    Carta("arma_cajado_marulho", "Oráculo do Marulho", "Arma", "Magia", 5, "Rara", 2, "cacador_arcano"),
+    Carta("arma_duas_luas", "Dançarina das Duas Luas", "Arma", "Destreza", 7, "Épica", 3, "precisao"),
+    Carta("arma_grande_sino", "Guardião do Sino de Ferro", "Arma", "Força", 8, "Lendária", 4, "instinto"),
+    Carta("arma_agulha_astro", "Tecelã da Agulha Astral", "Arma", "Magia", 3, "Comum", 1, "primeira_luz"),
+    Carta("arma_lanca_fornalha", "Lanceiro da Fornalha", "Arma", "Força", 4, "Comum", 1, "primeira_luz"),
+    Carta("arma_arco_peregrino", "Batedor do Peregrino", "Arma", "Destreza", 5, "Comum", 1, "impeto"),
     # Magias
-    Carta("magia_brasa_errante", "Brasa Errante", "Magia", "Magia", 3, "Comum", 1, "sangue_frio"),
-    Carta("magia_selo_vigilia", "Selo da Vigília", "Magia", "Destreza", 5, "Rara", 2, "adaptacao"),
-    Carta("magia_trovao_oco", "Trovão Oco", "Magia", "Força", 6, "Épica", 3, "drenagem"),
-    Carta("magia_nevoa_antiga", "Névoa Antiga", "Magia", "Magia", 7, "Épica", 3, "encadeamento"),
-    Carta("magia_sol_negro", "Sol Negro", "Magia", "Magia", 8, "Lendária", 4, "quebra_ritmo"),
-    Carta("magia_fagulha", "Fagulha", "Magia", "Destreza", 4, "Comum", 1, "cacador_arcano"),
-    Carta("magia_orbe_eco", "Orbe do Eco", "Magia", "Magia", 4, "Comum", 1, "precisao"),
-    Carta("magia_chama_fria", "Chama Fria", "Magia", "Magia", 3, "Comum", 1, "sangue_frio"),
+    Carta("magia_brasa_errante", "Piromante da Brasa Errante", "Magia", "Magia", 3, "Comum", 1, "sangue_frio"),
+    Carta("magia_selo_vigilia", "Guardiã do Selo da Vigília", "Magia", "Destreza", 5, "Rara", 2, "adaptacao"),
+    Carta("magia_trovao_oco", "Evocador do Trovão Oco", "Magia", "Força", 6, "Épica", 3, "drenagem"),
+    Carta("magia_nevoa_antiga", "Oráculo da Névoa Antiga", "Magia", "Magia", 7, "Épica", 3, "encadeamento"),
+    Carta("magia_sol_negro", "Arauto do Sol Negro", "Magia", "Magia", 8, "Lendária", 4, "quebra_ritmo"),
+    Carta("magia_fagulha", "Acólita da Fagulha", "Magia", "Destreza", 4, "Comum", 1, "cacador_arcano"),
+    Carta("magia_orbe_eco", "Guardião do Orbe do Eco", "Magia", "Magia", 4, "Comum", 1, "precisao"),
+    Carta("magia_chama_fria", "Feiticeira da Chama Fria", "Magia", "Magia", 3, "Comum", 1, "sangue_frio"),
     # Covenants / juramentos
     Carta("covenant_lobos_cinza", "Lobos da Cinza", "Covenant", "Força", 5, "Rara", 2, "instinto"),
     Carta("covenant_lua_velada", "Lua Velada", "Covenant", "Destreza", 6, "Épica", 3, "primeira_luz"),
@@ -171,11 +192,11 @@ _CARTAS_BASE = [
 ]
 
 CARTAS_PRIMORDIAIS = [
-    Carta("primordial_origem", "Origem Inominável", "Relíquia", "Magia", 8, "Primordial", 4, "lei_primeva", "Única do servidor. Sua habilidade é a Lei Primeva."),
-    Carta("primordial_trono", "Trono do Primeiro Rei", "Relíquia", "Força", 8, "Primordial", 4, "decreto_soberano", "Única do servidor. Seu decreto enfraquece a vantagem de tipo rival."),
-    Carta("primordial_tempestade", "Coração da Tempestade", "Relíquia", "Destreza", 8, "Primordial", 4, "olho_tempestade", "Única do servidor. Amplifica a vantagem de tipo."),
-    Carta("primordial_abismo", "Abismo que Sonha", "Relíquia", "Magia", 8, "Primordial", 4, "fome_abismo", "Única do servidor. Cresce quando está atrás no confronto."),
-    Carta("primordial_eternidade", "Eternidade Partida", "Relíquia", "Força", 8, "Primordial", 4, "paradoxo_eterno", "Única do servidor. Pode inverter a última rodada."),
+    Carta("primordial_origem", "Avatar da Origem Inominável", "Relíquia", "Magia", 8, "Primordial", 4, "lei_primeva", "Única do servidor. Sua habilidade é a Lei Primeva."),
+    Carta("primordial_trono", "Soberano do Primeiro Trono", "Relíquia", "Força", 8, "Primordial", 4, "decreto_soberano", "Única do servidor. Seu decreto enfraquece a vantagem de tipo rival."),
+    Carta("primordial_tempestade", "Arauto do Coração da Tempestade", "Relíquia", "Destreza", 8, "Primordial", 4, "olho_tempestade", "Única do servidor. Amplifica a vantagem de tipo."),
+    Carta("primordial_abismo", "Entidade do Abismo Onírico", "Relíquia", "Magia", 8, "Primordial", 4, "fome_abismo", "Única do servidor. Cresce quando está atrás no confronto."),
+    Carta("primordial_eternidade", "Guardião da Eternidade Partida", "Relíquia", "Força", 8, "Primordial", 4, "paradoxo_eterno", "Única do servidor. Pode inverter a última rodada."),
 ]
 CARTAS_POR_ID: dict[str, Carta] = {c.id: c for c in [*_CARTAS_BASE, *CARTAS_PRIMORDIAIS]}
 
@@ -214,7 +235,7 @@ def carta_jogo(nome_jogo: str, marco: str) -> Carta:
     titulo = str(nome_jogo or "Jogo")[:62]
     return Carta(
         id=f"jogo_{slug}_{marco}",
-        nome=f"{titulo} — {sufixo}"[:95],
+        nome=f"Campeão de {titulo} — {sufixo}"[:95],
         categoria="Jogo",
         tipo=tipo,
         poder=int(poder),
@@ -244,7 +265,7 @@ def carta_patente(indice: int, nivel_minimo: int, nome_patente: str) -> Carta:
     card_id = f"patente_{indice + 1}"
     return Carta(
         id=card_id,
-        nome=f"Patente: {nome_patente}"[:95],
+        nome=f"Veterano da Ordem — {nome_patente}"[:95],
         categoria="Patente",
         tipo=tipo,
         poder=int(poder),
