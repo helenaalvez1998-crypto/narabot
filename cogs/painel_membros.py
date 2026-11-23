@@ -769,12 +769,6 @@ async def _executar_acao_membro(
             view=_view_com_navegacao_nara(view_so_com_voltar(voltar), voltar, interaction.user.id, interaction.message),
         )
 
-    if action == "cartas_coliseu":
-        cog = bot.get_cog("ColiseuCartas")
-        if cog is None:
-            return await interaction.response.send_message("O Coliseu de cartas está indisponível no momento.", ephemeral=True)
-        return await cog.abrir_painel(interaction, editar=True, callback_voltar=voltar)
-
     if action == "memoria":
         cog = bot.get_cog("NaraIA")
         if cog is None:
@@ -940,7 +934,6 @@ class PainelMembrosView(discord.ui.View):
         ]
         for index, (key, label, emoji) in enumerate(categorias):
             self.add_item(MembrosCategoriaButton(self, key, label, emoji, row=index // 3))
-        self.add_item(MembrosAcessoDiretoButton(self, "cartas_coliseu", "Meu deck", "🃏", discord.ButtonStyle.success))
         self.add_item(MembrosAcessoDiretoButton(self, "perfil", "Meu perfil", "👤", discord.ButtonStyle.secondary))
         self.add_item(MembrosAcessoDiretoButton(self, "santuario", "Meu Santuário", "🏛️", discord.ButtonStyle.secondary))
         # Atalhos frequentes na tela inicial: reduzem navegação sem duplicar regras de negócio.
