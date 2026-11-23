@@ -340,6 +340,9 @@ loadAccount().then(() => { if (currentUser) { loadPlayers(); window.setInterval(
 // --- Arena Gwent: motor de três rodadas separado do duelo clássico. ---
 let gwentDeckIds = [];
 let gwentSavedIds = [];
+let gwentSavedFaction = 'Ordem de Ferro';
+let gwentSavedLeader = 'comandante_fornalha';
+let gwentLeaderOptions = [];
 let currentGwentMatch = null;
 let gwentPoll = null;
 let gwentListPoll = null;
@@ -348,6 +351,29 @@ const gwentRows = [
   ['melee', 'Corpo a corpo'], ['ranged', 'Longa distância'], ['siege', 'Cerco']
 ];
 
+const gwentFactionInfo = {
+  'Ordem de Ferro': { description: 'Formação e resistência na linha de frente.', leaders: [
+    ['comandante_fornalha', 'Comandante da Fornalha', '+2 às unidades de corpo a corpo.'],
+    ['bastiao_ancestral', 'Bastião Ancestral', '+1 às unidades de corpo a corpo e resistência climática +1.']
+  ]},
+  'Errantes do Véu': { description: 'Mobilidade e coordenação entre fileiras.', leaders: [
+    ['mestre_veu', 'Mestre do Véu', '+2 às unidades de longa distância.'],
+    ['sombra_caminhante', 'Sombra Caminhante', '+1 às unidades de longa distância; com 2 ou mais, concede +1 adicional.']
+  ]},
+  'Conclave Arcano': { description: 'Controle climático e amplificação arcana.', leaders: [
+    ['arquimaga_eclipse', 'Arquimaga do Eclipse', 'Dissipa o clima e concede +1 ao cerco.'],
+    ['oraculo_tempestade', 'Oráculo da Tempestade', 'Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.']
+  ]}
+};
+function renderGwentLeaderOptions(selected = '') {
+  const faction = $('#gwent-faction')?.value || 'Ordem de Ferro';
+  const info = gwentFactionInfo[faction] || gwentFactionInfo['Ordem de Ferro'];
+  const select = $('#gwent-leader');
+  if (!select) return;
+  select.innerHTML = info.leaders.map(([id, name]) => `<option value="${id}">${escapeHTML(name)}</option>`).join('');
+  select.value = info.leaders.some(([id]) => id === selected) ? selected : info.leaders[0][0];
+  $('#gwent-faction-description').textContent = info.description;
+}
 function renderGwentBuilder() {
   const selected = gwentDeckIds.map(id => collection.find(c => c.id === id)).filter(Boolean);
   const specialCount = selected.filter(card => card.categoria === 'Especial').length;
@@ -358,7 +384,10 @@ function renderGwentBuilder() {
   const selectedSet = new Set(gwentDeckIds);
   const pool = collection.filter(c => !selectedSet.has(c.id) && (`${c.nome} ${c.tipo} ${c.categoria} ${c.habilidade}`.toLocaleLowerCase('pt-BR').includes(q)));
   $('#gwent-card-pool').innerHTML = pool.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : card.tipo)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-add="${escapeHTML(card.id)}" ${gwentDeckIds.length >= 12 ? 'disabled' : ''}>Adicionar</button></article>`).join('') || '<div class="empty-state">Nenhuma unidade disponível.</div>';
-  $('#gwent-save-deck').disabled = selected.length !== 12 || unitCount < 8 || specialCount > 4 || JSON.stringify(gwentDeckIds) === JSON.stringify(gwentSavedIds);
+  const configChanged = ($('#gwent-faction')?.value || 'Ordem de Ferro') !== gwentSavedFaction
+    || ($('#gwent-leader')?.value || 'comandante_fornalha') !== gwentSavedLeader;
+  $('#gwent-save-deck').disabled = selected.length !== 12 || unitCount < 8 || specialCount > 4
+    || (JSON.stringify(gwentDeckIds) === JSON.stringify(gwentSavedIds) && !configChanged);
   $('#gwent-deck-status').textContent = selected.length === 12 && unitCount < 8
     ? 'Inclua pelo menos 8 unidades no deck.'
     : specialCount > 4 ? 'O limite é de 4 cartas especiais por deck.'
@@ -373,6 +402,10 @@ async function loadGwentDeck() {
     if (!r.ok) throw new Error(data.error || 'Não foi possível carregar o deck Gwent.');
     gwentSavedIds = (data.deck || []).map(c => c.id);
     gwentDeckIds = [...gwentSavedIds];
+    gwentSavedFaction = data.faction || 'Ordem de Ferro';
+    gwentSavedLeader = data.leader_id || 'comandante_fornalha';
+    $('#gwent-faction').value = gwentSavedFaction;
+    renderGwentLeaderOptions(gwentSavedLeader);
     $('#gwent-deck-status').textContent = gwentSavedIds.length === 12 ? 'Deck carregado.' : 'Monte um deck com 12 cartas únicas. O deck clássico de 5 cartas não foi alterado.';
     renderGwentBuilder();
   } catch (e) { $('#gwent-deck-status').textContent = e.message; }
@@ -381,9 +414,10 @@ async function loadGwentDeck() {
 async function saveGwentDeck() {
   const button = $('#gwent-save-deck'); button.disabled = true; button.textContent = 'Salvando...';
   try {
-    const r = await fetch('/api/gwent/deck', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_ids:gwentDeckIds})});
+    const r = await fetch('/api/gwent/deck', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({card_ids:gwentDeckIds, faction:$('#gwent-faction').value, leader_id:$('#gwent-leader').value})});
     const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Falha ao salvar deck.');
-    gwentSavedIds = [...gwentDeckIds]; $('#gwent-deck-status').textContent = 'Deck Gwent salvo. O deck clássico permanece independente.';
+    gwentSavedIds = [...gwentDeckIds]; gwentSavedFaction = $('#gwent-faction').value; gwentSavedLeader = $('#gwent-leader').value;
+    $('#gwent-deck-status').textContent = 'Deck, facção e líder salvos. O deck clássico permanece independente.';
     showNotice('Deck Gwent atualizado.', 'success');
   } catch(e) { $('#gwent-deck-status').textContent = e.message; }
   finally { button.textContent = 'Salvar deck Gwent'; renderGwentBuilder(); }
@@ -426,7 +460,7 @@ function renderGwentArena(data) {
   const prep = data.phase === 'mulligan';
   const mulliganControls = prep ? `<div class="gwent-prep"><b>Preparação inicial</b><p>Selecione até duas cartas para trocar. Você tem ${number(data.draw_count || 0)} carta(s) de reserva.</p><button class="secondary" data-gwent-keep ${data.mulligan_done || !data.is_your_turn ? 'disabled' : ''}>Manter minha mão</button><button class="primary" data-gwent-mulligan ${data.mulligan_done || !data.is_your_turn ? 'disabled' : ''}>Trocar selecionadas</button></div>` : '';
   arena.innerHTML = `<div class="gwent-arena-head"><div><small class="eyebrow">RODADA ${number(data.round)} / 3</small><h2>Arena Gwent</h2><p class="gwent-log">${escapeHTML(data.last_event || '')}</p></div><b>${data.status === 'finished' ? (data.winner_id ? `Vencedor: ${data.winner_id}` : 'Empate') : (prep ? (data.is_your_turn ? 'Sua preparação' : 'Preparação do adversário') : (data.is_your_turn ? 'Sua vez' : 'Vez do adversário'))}</b></div>
-    <div class="gwent-faction">Sua facção: <strong>${escapeHTML(data.faction || mine.faction || '—')}</strong> · ${escapeHTML(({ 'Ordem de Ferro': 'Líder: +2 às unidades de corpo a corpo.', 'Errantes do Véu': 'Líder: +2 às unidades de longa distância.', 'Conclave Arcano': 'Líder: dissipa o clima e concede +1 ao cerco.' })[data.faction || mine.faction] || 'Bônus de facção: +1 à primeira unidade da facção em cada rodada.')}</div>${mulliganControls}
+    <div class="gwent-faction">Facção: <strong>${escapeHTML(data.faction || mine.faction || '—')}</strong> · Líder: <strong>${escapeHTML(data.leader_name || 'Líder')}</strong> · ${escapeHTML(data.leader_description || (gwentFactionInfo[data.faction || mine.faction] || {}).description || 'Sinergias de facção ativas.')}</div>${mulliganControls}
     <div class="gwent-score"><article><small>VOCÊ</small><h3>${number(mine.score)} poder</h3><small>${number(mine.crowns)} coroas · ${number(mine.hand)} cartas na mão ${mine.passed ? '· passou' : ''}</small></article><article><small>ADVERSÁRIO</small><h3>${number(theirs.score)} poder</h3><small>${number(theirs.crowns)} coroas · ${number(theirs.hand)} cartas na mão ${theirs.passed ? '· passou' : ''}</small></article></div>
     <h3>Seu campo</h3>${board(mine)}<h3>Campo adversário</h3>${board(theirs)}
     <div class="gwent-actions"><button class="secondary" data-gwent-pass ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>Passar rodada</button><select id="gwent-leader-row"><option value="melee">Fileira: Corpo a corpo</option><option value="ranged">Fileira: Longa distância</option><option value="siege">Fileira: Cerco</option></select><button class="secondary" data-gwent-leader ${!data.is_your_turn || data.leader_used || data.status !== 'active' || prep ? 'disabled' : ''}>Usar líder</button><button class="secondary" data-gwent-weather ${!data.is_your_turn || data.weather_used || data.status !== 'active' || prep ? 'disabled' : ''}>Clima</button></div>
@@ -452,6 +486,8 @@ async function sendGwentAction(action, card_id = '', row = '', card_ids = []) {
   } catch(e) { showNotice(e.message, 'error'); }
 }
 
+$('#gwent-faction').addEventListener('change', () => { renderGwentLeaderOptions(); renderGwentBuilder(); });
+$('#gwent-leader').addEventListener('change', renderGwentBuilder);
 $('#gwent-card-search').addEventListener('input', renderGwentBuilder);
 $('#gwent-save-deck').addEventListener('click', saveGwentDeck);
 $('#gwent-create-match').addEventListener('click', createGwentMatch);

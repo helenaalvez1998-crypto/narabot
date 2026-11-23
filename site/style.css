@@ -32,3 +32,11 @@
 .gwent-unit label{display:flex;align-items:center;gap:7px;font-size:.82rem;color:var(--muted)}
 .gwent-unit input[type=checkbox]{accent-color:var(--gold,#c9a45c)}
 .gwent-unit:has(button:disabled){opacity:.82}
+
+/* Coliseu V4: configuração persistente de facção e líder do deck Gwent. */
+.gwent-config{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0;padding:14px;border:1px solid var(--line,rgba(255,255,255,.12));border-radius:12px;background:rgba(255,255,255,.025)}
+.gwent-config label{display:grid;gap:7px;font-size:.82rem;font-weight:700;color:var(--muted,#aaa)}
+.gwent-config select{width:100%;min-width:0;padding:10px 12px;border:1px solid var(--line,rgba(255,255,255,.15));border-radius:8px;background:var(--panel,#171717);color:inherit}
+.gwent-config p{grid-column:1/-1;margin:0;font-size:.82rem}
+.gwent-faction{margin:12px 0;padding:10px 13px;border-left:3px solid var(--gold,#c9a45c);background:rgba(201,164,92,.08);border-radius:6px;font-size:.9rem}
+@media(max-width:640px){.gwent-config{grid-template-columns:1fr}}
