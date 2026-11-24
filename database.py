@@ -2936,6 +2936,28 @@ class Database:
             (int(user_id),),
         )
 
+    async def coliseu_obter_dados_imagem(
+        self, user_id: int, card_id: str, exemplar_id: int | None = None,
+    ):
+        """Busca somente a carta/exemplar da imagem pedida; nunca varre a coleção toda."""
+        return await self._one(
+            """SELECT c.card_id,c.game_name,c.source,
+                      e.id AS exemplar_id,e.rarity,e.power AS exemplar_power
+               FROM cartas_colecao c
+               LEFT JOIN cartas_exemplares e ON e.id=(
+                   SELECT x.id FROM cartas_exemplares x
+                   WHERE x.user_id=c.user_id AND x.card_id=c.card_id
+                     AND (? IS NULL OR x.id=?)
+                   ORDER BY CASE x.rarity WHEN 'Singular' THEN 7 WHEN 'Primordial' THEN 6
+                     WHEN 'Mítica' THEN 5 WHEN 'Lendária' THEN 4 WHEN 'Épica' THEN 3
+                     WHEN 'Rara' THEN 2 ELSE 1 END DESC, x.power DESC, x.id ASC LIMIT 1
+               )
+               WHERE c.user_id=? AND c.card_id=? LIMIT 1""",
+            (int(exemplar_id) if exemplar_id is not None else None,
+             int(exemplar_id) if exemplar_id is not None else None,
+             int(user_id), str(card_id)),
+        )
+
     async def coliseu_aprimorar_exemplar(self, user_id: int, exemplar_id: int):
         """Lapida um exemplar em +1 poder usando Almas, sem ultrapassar a faixa da raridade/modelo."""
         from sistemas.cartas import CUSTO_APRIMORAMENTO_ALMAS, get_carta, carta_de_jogo_por_id, faixa_poder_exemplar
@@ -3144,6 +3166,16 @@ class Database:
                 (new_status, int(reviewer_id), str(motivo or "")[:500], int(submission_id)),
             )
             return {"status": "ok", "submission": dict(row), "new_status": new_status}
+
+    async def coliseu_atelie_obter_arte_oficial_metadata(self, card_id: str):
+        """Consulta metadados sem copiar o BLOB da arte em toda requisição de imagem."""
+        return await self._one(
+            """SELECT id,user_id,card_id,mime_type,artist_name,created_at,
+                      length(image_data) AS image_size
+               FROM cartas_atelie_submissoes WHERE card_id=? AND status='approved'
+               ORDER BY reviewed_at DESC,id DESC LIMIT 1""",
+            (str(card_id),),
+        )
 
     async def coliseu_atelie_obter_arte_oficial(self, card_id: str):
         return await self._one(
