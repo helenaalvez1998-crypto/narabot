@@ -17,11 +17,14 @@ HABILIDADES_UNIDADE_IMPLEMENTADAS = frozenset({
     "decreto_soberano", "olho_tempestade", "fome_abismo", "paradoxo_eterno",
     "guardiao_fileira", "cacador_solitario", "estandarte", "resistencia_climatica",
     "eco_arcano", "dupla_fornalha", "irmandade_veu", "circulo_arcano",
+    # Etapa 1: efeitos de ciclo de vida (escudo, queda, ressurreição, sobrevivência).
+    "vinganca", "escudo_ferro", "ressurgir", "devorar", "sobrevivente", "espolios",
 })
 HABILIDADES_ESPECIAIS_IMPLEMENTADAS = frozenset({
     "gwent_nevoa", "gwent_geada", "gwent_chuva", "gwent_chifre", "gwent_medico",
     "gwent_queima", "gwent_purificar", "gwent_execucao", "gwent_vinculo",
     "gwent_batedor", "gwent_muralha",
+    "gwent_egide", "gwent_requiem", "gwent_passo",
 })
 FACTION_ARCHETYPES = {
     "Ordem de Ferro": {"name": "Formação e Resistência", "description": "Proteção de fileira, fortalecimento de aliados e conversão de resistência em pressão."},
@@ -34,6 +37,9 @@ LEADERS = {
     "mestre_veu": {"name": "Mestre do Véu", "faction": "Errantes do Véu", "description": "+2 às suas unidades de longa distância.", "effect": "veil_master"},
     "sombra_caminhante": {"name": "Sombra Caminhante", "faction": "Errantes do Véu", "description": "+1 às unidades de longa distância; com 2 ou mais, concede +1 adicional.", "effect": "veil_shadow"},
     "arquimaga_eclipse": {"name": "Arquimaga do Eclipse", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +1 ao cerco.", "effect": "arcane_archmage"},
+    "juiz_cerco": {"name": "Juiz do Cerco", "faction": "Ordem de Ferro", "description": "Concede escudo às suas unidades da fileira escolhida (até 3).", "effect": "iron_warden"},
+    "voz_caidos": {"name": "Voz dos Caídos", "faction": "Errantes do Véu", "description": "Traz do descarte, direto ao campo, a unidade mais forte de poder 6 ou menos, com +2.", "effect": "veil_chorus"},
+    "mestre_eclipse": {"name": "Mestre do Eclipse", "faction": "Conclave Arcano", "description": "Compra uma carta, dissipa o clima e concede +1 (ou +2 se havia clima) às suas unidades da fileira escolhida.", "effect": "arcane_eclipse"},
     "oraculo_tempestade": {"name": "Oráculo da Tempestade", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.", "effect": "arcane_oracle"},
 }
 # Arquétipos e combos nomeados. Os bônus são aplicados uma vez por combo/rodada.
@@ -65,6 +71,24 @@ CARD_SYNERGY_TAGS = {
     "magia_orbe_eco": {"eco"},
     "magia_brasa_errante": {"chama"},
     "magia_chama_fria": {"chama"},
+    # Etapa 2 — Ordem de Ferro.
+    "gwent_unidade_sentinela_rubra": {"muralha"},
+    "gwent_unidade_veterano_cercos": {"muralha"},
+    "gwent_unidade_herdeiro_portao": {"muralha"},
+    "gwent_unidade_carniceiro_forja": {"banquete"},
+    "gwent_unidade_intendente": {"banquete"},
+    # Etapa 2 — Errantes do Véu.
+    "gwent_unidade_cacadora_fantasma": {"fantasmas"},
+    "gwent_unidade_cantora_lamentos": {"fantasmas"},
+    "gwent_unidade_senhor_cacada": {"fantasmas"},
+    "gwent_unidade_saqueadora_veu": {"caravana"},
+    "gwent_unidade_contrabandista": {"caravana"},
+    # Etapa 2 — Conclave Arcano.
+    "gwent_unidade_guardiao_runas": {"runico"},
+    "gwent_unidade_necromante": {"runico"},
+    "gwent_unidade_detonador": {"runico"},
+    "gwent_unidade_devorador_mana": {"eclipse_voraz"},
+    "gwent_unidade_bibliotecaria": {"eclipse_voraz"},
 }
 SYNERGY_COMBOS = {
     "cinzas_fornalha": {"name": "Pacto das Cinzas", "tags": {"cinzas", "fornalha"}, "bonus": 2, "description": "Guardião das Cinzas ou Lobos da Cinza e uma unidade da Fornalha coordenam a formação (+2)."},
@@ -75,6 +99,12 @@ SYNERGY_COMBOS = {
     "passos_duas_luas": {"name": "Passos das Duas Luas", "tags": {"duas_luas"}, "minimum": 2, "bonus": 2, "description": "Dançarina, Gêmea ou Cartógrafa sincronizam seus movimentos (+2)."},
     "eco_convergente": {"name": "Eco Convergente", "tags": {"eco", "astral"}, "bonus": 2, "description": "O Arauto do Eco e uma unidade Astral amplificam a mesma magia (+2)."},
     "chama_dupla": {"name": "Chama em Contraponto", "tags": {"chama"}, "minimum": 2, "bonus": 2, "description": "Piromante e Feiticeira da Chama Fria equilibram suas chamas (+2)."},
+    "muralha_inabalavel": {"name": "Muralha Inabalável", "tags": {"muralha"}, "minimum": 2, "bonus": 2, "team_bonus": 1, "description": "Duas unidades da Muralha Rubra erguem a linha (+2 para a carta que completa e +1 aos aliados na fileira)."},
+    "banquete_guerra": {"name": "Banquete de Guerra", "tags": {"banquete"}, "minimum": 2, "bonus": 3, "description": "Carniceiro da Forja e Intendente dividem o butim (+3)."},
+    "procissao_fantasma": {"name": "Procissão Fantasma", "tags": {"fantasmas"}, "minimum": 2, "bonus": 2, "team_bonus": 1, "description": "Duas unidades fantasmas marcham juntas (+2 para a carta que completa e +1 aos aliados na fileira)."},
+    "caravana_saqueadora": {"name": "Caravana Saqueadora", "tags": {"caravana"}, "minimum": 2, "bonus": 2, "description": "Saqueadora e Contrabandista fecham o negócio (+2)."},
+    "ritual_runico": {"name": "Ritual Rúnico", "tags": {"runico"}, "minimum": 2, "bonus": 2, "team_bonus": 1, "description": "Duas unidades rúnicas completam o círculo (+2 para a carta que completa e +1 aos aliados na fileira)."},
+    "eclipse_voraz": {"name": "Eclipse Voraz", "tags": {"eclipse_voraz"}, "minimum": 2, "bonus": 3, "description": "Devorador de Mana e Bibliotecária eclipsam a mesma fonte (+3)."},
     "rota_peregrina": {"name": "Rota do Peregrino", "tags": {"peregrino"}, "minimum": 2, "bonus": 1, "description": "Duelista e Batedor do Peregrino coordenam o avanço (+1)."},
 }
 
@@ -92,7 +122,7 @@ CARD_IDENTITY_ABILITIES = {
     "chefe_aparicao_veio": {"name": "Deslocamento Espectral", "text": "Recebe +2 se a sua última unidade foi jogada em outra fileira.", "effect": "veil_shift"},
     "arma_lamina_peregrino": {"name": "Duelo do Peregrino", "text": "Recebe +2 se o rival tiver jogado uma unidade na mesma fileira em seu último turno.", "effect": "pilgrim_duel"},
     "arma_martelo_fornalha": {"name": "Martelo de Cadência", "text": "Recebe +1 para cada aliado da Ordem de Ferro na fileira, até +2.", "effect": "forge_rhythm"},
-    "arma_cajado_marulho": {"name": "Ressonância das Marés", "text": "Recebe +2 se o rival controlar uma unidade do Conclave Arcano.", "effect": "tide_resonance"},
+    "arma_cajado_marulho": {"name": "Ressonância das Marés", "text": "Recebe +2 se o rival controlar uma unidade do Conclave Arcano; senão, +1 se o rival tiver mais unidades em campo.", "effect": "tide_resonance"},
     "arma_duas_luas": {"name": "Dança Espelhada", "text": "Recebe +1 se houver outra unidade aliada em fileira diferente.", "effect": "twin_dance"},
     "arma_grande_sino": {"name": "Sino do Último Bastião", "text": "Recebe +2 quando sua pontuação estiver abaixo da rival.", "effect": "last_bell"},
     "arma_agulha_astro": {"name": "Fio Astral", "text": "Marca a unidade inimiga mais forte: ela perde 1 de bônus; a próxima unidade Astral aliada recebe +1 nesta rodada.", "effect": "astral_thread"},
@@ -150,7 +180,10 @@ def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state:
     elif effect == "forge_rhythm":
         card["bonus"] += min(2, sum(1 for u in allies if u.get("tipo") == "Força" and u.get("row") == row))
     elif effect == "tide_resonance":
-        if any(u.get("tipo") == "Magia" for u in enemies): card["bonus"] += 2
+        if any(u.get("tipo") == "Magia" for u in enemies):
+            card["bonus"] += 2
+        elif len(enemies) > len(allies):  # Etapa 3: alternativa contra facções que não são o Conclave.
+            card["bonus"] += 1
     elif effect == "twin_dance":
         if any(u.get("row") != row for u in allies): card["bonus"] += 1
     elif effect == "last_bell":
@@ -200,7 +233,7 @@ def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state:
 DEFAULT_LEADERS = {
     "Ordem de Ferro": "comandante_fornalha",
     "Errantes do Véu": "mestre_veu",
-    "Conclave Arcano": "arquimaga_eclipse",
+    "Conclave Arcano": "mestre_eclipse",  # Etapa 3: padrão mais forte; quem já escolheu um líder não é afetado.
 }
 
 
@@ -269,7 +302,7 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
             "hand": deck[:10], "draw_pile": deck[10:], "discard": [], "board": [],
             "passed": False, "leader_used": False, "weather_used": False,
             "faction": faction, "leader_id": leader_id, "leader_name": LEADERS[leader_id]["name"], "faction_boost_used": False,
-            "mulligan_done": False, "last_row": None, "synergy_used": {},
+            "mulligan_done": False, "last_row": None, "synergy_used": {}, "baixas": 0,
         }
     return {
         "match_id": int(match_id), "status": "active", "phase": "mulligan", "round": 1,
@@ -325,11 +358,90 @@ def _aplicar_combo_de_cartas(player: dict, card: dict) -> str | None:
     return None
 
 
+def _poder_efetivo(unit: dict) -> int:
+    return int(unit.get("poder", 0)) + int(unit.get("bonus", 0))
+
+
+def _remover_unidade(side: dict, unit: dict, causa: str = "remocao") -> str:
+    """Remove uma unidade do campo respeitando escudo e disparando Vingança.
+
+    Ponto único de remoção: qualquer efeito que destrua, sacrifique ou execute
+    uma unidade deve passar por aqui para que escudo, contagem de baixas e
+    habilidades de queda funcionem de forma consistente.
+    Retorna um texto curto para o histórico da partida.
+    """
+    if unit not in side.get("board", []):
+        return ""
+    if causa != "sacrificio" and int(unit.get("escudo", 0)) > 0:
+        unit["escudo"] = int(unit["escudo"]) - 1
+        return f"{unit['nome']} resistiu graças ao escudo."
+    side["board"].remove(unit)
+    unit.pop("escudo", None)
+    side.setdefault("discard", []).append(unit)
+    side["baixas"] = int(side.get("baixas", 0)) + 1
+    texto = f"{unit['nome']} caiu."
+    if unit.get("habilidade") == "vinganca":
+        aliados = [u for u in side["board"] if u.get("row") == unit.get("row")]
+        for aliado in aliados:
+            aliado["bonus"] = int(aliado.get("bonus", 0)) + 1
+        if aliados:
+            texto += f" Vingança: +1 para {len(aliados)} aliado(s)."
+    return texto
+
+
 def pontuacao(player: dict, weather: dict | None = None) -> int:
     weather = weather or {}
     return sum(max(1, int(c["poder"]) + int(c.get("bonus", 0)) -
                    max(0, int(weather.get(c["row"], 0) or 0) - int(c.get("weather_resist", 0))))
                for c in player["board"])
+
+
+def _resumo_alvo(unit: dict) -> dict:
+    return {
+        "id": str(unit["id"]), "nome": unit.get("nome", ""), "poder": int(unit.get("poder", 0)),
+        "bonus": int(unit.get("bonus", 0)), "row": unit.get("row", ""), "escudo": int(unit.get("escudo", 0)),
+    }
+
+
+def opcoes_de_alvo(state: dict, user_id) -> dict:
+    """Alvos escolhíveis para cada carta especial da mão de `user_id`.
+
+    As regras de elegibilidade ficam aqui, ao lado de aplicar_jogada, para o site apenas
+    exibir as opções (mesmos limites de poder que o motor valida). `filtro_fileira` diz como
+    o site deve filtrar pela fileira escolhida: "mesma" (alvo na fileira) ou "diferente".
+    """
+    player = state.get("players", {}).get(str(user_id))
+    if not player or state.get("status") != "active" or state.get("phase", "battle") != "battle":
+        return {}
+    other = next((p for uid, p in state["players"].items() if uid != str(user_id)), {"board": []})
+    resultado: dict[str, dict] = {}
+    for card in player.get("hand", []):
+        if not (card.get("especial") or str(card.get("categoria", "")).casefold() == "especial"):
+            continue
+        skill = card.get("habilidade", "")
+        if skill == "gwent_execucao":
+            info = {"rotulo": "Escolha a unidade inimiga a eliminar (poder efetivo 6 ou menos)",
+                    "filtro_fileira": "mesma",
+                    "opcoes": [u for u in other.get("board", []) if _poder_efetivo(u) <= 6]}
+        elif skill == "gwent_medico":
+            info = {"rotulo": "Escolha a unidade (poder 4 ou menos) que volta para a sua mão",
+                    "filtro_fileira": None,
+                    "opcoes": [c for c in player.get("discard", []) if not c.get("especial") and int(c["poder"]) <= 4]}
+        elif skill == "gwent_requiem":
+            info = {"rotulo": "Escolha a unidade (poder 6 ou menos) que retorna ao campo",
+                    "filtro_fileira": None,
+                    "opcoes": [c for c in player.get("discard", []) if not c.get("especial") and int(c["poder"]) <= 6]}
+        elif skill == "gwent_egide":
+            info = {"rotulo": "Escolha a unidade que receberá o escudo", "filtro_fileira": None,
+                    "opcoes": [u for u in player.get("board", []) if int(u.get("escudo", 0)) <= 0]}
+        elif skill == "gwent_passo":
+            info = {"rotulo": "Escolha a unidade que será movida para a fileira de destino",
+                    "filtro_fileira": "diferente", "opcoes": list(player.get("board", []))}
+        else:
+            continue
+        info["opcoes"] = [_resumo_alvo(u) for u in info["opcoes"]]
+        resultado[str(card["id"])] = info
+    return resultado
 
 
 def placar(state: dict) -> dict:
@@ -338,6 +450,7 @@ def placar(state: dict) -> dict:
         "passed": player["passed"], "hand": len(player["hand"]),
         "crowns": state["crowns"][uid], "board": deepcopy(player["board"]),
         "faction": player.get("faction", ""),
+        "baixas": int(player.get("baixas", 0)),
     } for uid, player in state["players"].items()}
 
 
@@ -362,22 +475,38 @@ def _resolve_round(state: dict) -> None:
         return
     state["round"] += 1
     state["weather"] = {row: 0 for row in ROWS}
-    for player in state["players"].values():
+    extras = []
+    for pid, player in state["players"].items():
+        board = player.get("board", [])
+        # Espólios: quem vence a rodada com a unidade em campo compra uma carta.
+        if pid == winner and any(u.get("habilidade") == "espolios" for u in board) and player.get("draw_pile"):
+            player["hand"].append(player["draw_pile"].pop(0))
+            extras.append("Espólios de guerra: o vencedor comprou uma carta.")
+        # Sobrevivente: a mais forte permanece no campo para a próxima rodada.
+        keepers = [u for u in board if u.get("habilidade") == "sobrevivente"]
+        keeper = max(keepers, key=_poder_efetivo, default=None)
         # Unidades sobrevivem à rodada no descarte: isso habilita recuperação
         # por Médico de Campanha e mantém o histórico completo da partida.
-        player.setdefault("discard", []).extend(deepcopy(player.get("board", [])))
+        player.setdefault("discard", []).extend(deepcopy(u) for u in board if u is not keeper)
         player["board"] = []
+        if keeper is not None:
+            kept = deepcopy(keeper)
+            kept["bonus"] = 0
+            player["board"].append(kept)
+            extras.append(f"{kept['nome']} sobreviveu à rodada.")
         player["passed"] = False
         player["faction_boost_used"] = False
         player["last_row"] = None
         player["synergy_used"] = {}
     state["turn"] = winner or (b if state["turn"] == a else a)
+    state["last_event"] += " " + " ".join(extras) if extras else ""
     state["last_event"] += " Nova rodada: as cartas restantes continuam na mão."
 
 
 def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                     action: str = "play", row: str | None = None,
-                    card_ids: list[str] | None = None) -> dict:
+                    card_ids: list[str] | None = None,
+                    target_id: str | None = None) -> dict:
     state = deepcopy(state)
     # Compatibilidade com partidas iniciadas na versão anterior do motor.
     state.setdefault("phase", "battle")
@@ -393,6 +522,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         legacy_player.setdefault("weather_used", False)
         legacy_player.setdefault("last_row", None)
         legacy_player.setdefault("synergy_used", {})
+        legacy_player.setdefault("baixas", 0)
     uid = str(user_id)
     if state["status"] != "active":
         return {"error": "A partida já terminou."}
@@ -485,6 +615,32 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             for unit in player["board"]:
                 if unit["row"] == "siege":
                     unit["bonus"] = int(unit.get("bonus", 0)) + bonus
+        elif effect == "iron_warden":
+            alvos = sorted((u for u in player["board"] if u["row"] == row and int(u.get("escudo", 0)) <= 0),
+                           key=_poder_efetivo, reverse=True)[:3]
+            if not alvos:
+                return {"error": "Não há unidade sem escudo nessa fileira."}
+            for unit in alvos:
+                unit["escudo"] = 1
+        elif effect == "veil_chorus":
+            pool = [c for c in player["discard"] if not c.get("especial") and int(c["poder"]) <= 6]
+            if not pool:
+                return {"error": "Não há unidade elegível (poder 6 ou menos) no descarte."}
+            revivida = deepcopy(max(pool, key=lambda c: int(c["poder"])))
+            player["discard"] = [c for c in player["discard"] if c["id"] != revivida["id"]]
+            revivida["bonus"] = 2
+            revivida.pop("escudo", None)
+            if revivida.get("row") not in ROWS:
+                revivida["row"] = row
+            player["board"].append(revivida)
+        elif effect == "arcane_eclipse":
+            had_weather = any(int(v or 0) > 0 for v in state["weather"].values())
+            state["weather"] = {r: 0 for r in ROWS}
+            if player.get("draw_pile"):
+                player["hand"].append(player["draw_pile"].pop(0))
+            for unit in player["board"]:
+                if unit["row"] == row:
+                    unit["bonus"] = int(unit.get("bonus", 0)) + (2 if had_weather else 1)
         state["last_event"] = f"Líder {leader['name']} ativado."
     elif action == "weather":
         if player["weather_used"]:
@@ -500,6 +656,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             return {"error": "Essa carta não está na sua mão."}
         card = deepcopy(found)
         skill = card.get("habilidade", "")
+        eventos_especial: list[str] = []
         if card.get("especial") or str(card.get("categoria", "")).casefold() == "especial":
             if skill == "gwent_nevoa":
                 if row not in ROWS:
@@ -520,15 +677,19 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                 candidates = [c for c in player["discard"] if not c.get("especial") and int(c["poder"]) <= 4]
                 if not candidates:
                     return {"error": "Não há unidade elegível no descarte."}
-                revived = candidates[-1]
+                if target_id:
+                    revived = next((c for c in candidates if c["id"] == str(target_id)), None)
+                    if revived is None:
+                        return {"error": "Essa unidade não pode ser recuperada (poder 4 ou menos, no seu descarte)."}
+                else:
+                    revived = candidates[-1]
                 player["discard"].remove(revived)
                 player["hand"].append(revived)
             elif skill == "gwent_queima":
                 for side in (player, other):
                     if side["board"]:
-                        strongest = max(side["board"], key=lambda c: int(c["poder"]) + int(c.get("bonus", 0)))
-                        side["board"].remove(strongest)
-                        side["discard"].append(strongest)
+                        strongest = max(side["board"], key=_poder_efetivo)
+                        eventos_especial.append(_remover_unidade(side, strongest))
             elif skill == "gwent_purificar":
                 state["weather"] = {r: 0 for r in ROWS}
             elif skill == "gwent_execucao":
@@ -537,9 +698,15 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                 targets = [c for c in other["board"] if c["row"] == row]
                 if not targets:
                     return {"error": "Não há unidade inimiga nessa fileira."}
-                victim = min(targets, key=lambda c: int(c["poder"]) + int(c.get("bonus", 0)))
-                other["board"].remove(victim)
-                other["discard"].append(victim)
+                if target_id:
+                    victim = next((c for c in targets if c["id"] == str(target_id)), None)
+                    if victim is None:
+                        return {"error": "O alvo escolhido não está nessa fileira."}
+                    if _poder_efetivo(victim) > 6:
+                        return {"error": "A Sentença só alcança unidades com poder efetivo 6 ou menos."}
+                else:
+                    victim = min(targets, key=_poder_efetivo)
+                eventos_especial.append(_remover_unidade(other, victim, "execucao"))
             elif skill == "gwent_vinculo":
                 if row not in ROWS:
                     return {"error": "Escolha uma fileira válida."}
@@ -558,11 +725,59 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                 for unit in player["board"]:
                     if unit["row"] == row:
                         unit["bonus"] = int(unit.get("bonus", 0)) + 1
+            elif skill == "gwent_egide":
+                protegiveis = [u for u in player["board"] if int(u.get("escudo", 0)) <= 0]
+                if not protegiveis:
+                    return {"error": "Você não tem unidade sem escudo em campo."}
+                if target_id:
+                    alvo = next((u for u in protegiveis if u["id"] == str(target_id)), None)
+                    if alvo is None:
+                        return {"error": "Escolha uma unidade sua que ainda não tenha escudo."}
+                else:
+                    alvo = max(protegiveis, key=_poder_efetivo)
+                alvo["escudo"] = 1
+                eventos_especial.append(f"{alvo['nome']} recebeu um escudo.")
+            elif skill == "gwent_requiem":
+                elegiveis = [c for c in player["discard"] if not c.get("especial") and int(c["poder"]) <= 6]
+                if not elegiveis:
+                    return {"error": "Não há unidade elegível (poder 6 ou menos) no descarte."}
+                if target_id:
+                    revivida = next((c for c in elegiveis if c["id"] == str(target_id)), None)
+                    if revivida is None:
+                        return {"error": "Essa unidade não pode ser trazida de volta pelo Réquiem."}
+                else:
+                    revivida = max(elegiveis, key=lambda c: int(c["poder"]))
+                player["discard"].remove(revivida)
+                revivida = deepcopy(revivida)
+                revivida["bonus"] = 0
+                revivida.pop("escudo", None)
+                if revivida.get("row") not in ROWS:
+                    revivida["row"] = row if row in ROWS else "melee"
+                player["board"].append(revivida)
+                eventos_especial.append(f"{revivida['nome']} retornou ao campo.")
+            elif skill == "gwent_passo":
+                if row not in ROWS:
+                    return {"error": "Escolha a fileira de destino."}
+                moviveis = [u for u in player["board"] if u["row"] != row]
+                if not moviveis:
+                    return {"error": "Você não tem unidade fora dessa fileira para mover."}
+                if target_id:
+                    alvo = next((u for u in moviveis if u["id"] == str(target_id)), None)
+                    if alvo is None:
+                        return {"error": "Escolha uma unidade sua que não esteja na fileira de destino."}
+                else:
+                    alvo = min(moviveis, key=_poder_efetivo)
+                origem = alvo["row"]
+                alvo["row"] = row
+                eventos_especial.append(f"{alvo['nome']} saiu de {ROW_LABELS[origem]} para {ROW_LABELS[row]}.")
             else:
                 return {"error": "Efeito especial desconhecido."}
             player["hand"].remove(found)
             player["discard"].append(card)
             state["last_event"] = f"Carta especial {card['nome']} utilizada."
+            detalhes = [d for d in eventos_especial if d]
+            if detalhes:
+                state["last_event"] += " " + " ".join(detalhes)
         else:
             if row not in ROWS:
                 row = card["row"]
@@ -572,6 +787,8 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             enemy_score = pontuacao(other, state.get("weather"))
             last_row = player.get("last_row")
             enemy_last_row = other.get("last_row")
+            extras_entrada: list[str] = []
+            unidade_revivida = None
             if skill == "primeira_luz" and state["round"] == 1: card["bonus"] += 1
             elif skill == "lei_primeva" and state["round"] == 1: card["bonus"] += 2
             elif skill == "ultimo_folego" and state["round"] == 3: card["bonus"] += 1
@@ -583,7 +800,10 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             elif skill == "sangue_frio" and own_score == enemy_score: card["bonus"] += 2
             elif skill == "encadeamento" and last_row == row: card["bonus"] += 2
             elif skill == "adaptacao" and last_row is not None and last_row != row: card["bonus"] += 1
-            elif skill == "cacador_arcano" and any(c.get("tipo") == "Magia" for c in other["board"]): card["bonus"] += 1
+            elif skill == "cacador_arcano":
+                # Etapa 3: também caça unidades fortalecidas, para funcionar contra qualquer facção.
+                if any(c.get("tipo") == "Magia" for c in other["board"]) or any(int(c.get("bonus", 0)) > 0 for c in other["board"]):
+                    card["bonus"] += 1
             elif skill == "quebra_ritmo" and enemy_last_row == row: card["bonus"] += 1
             elif skill == "olho_tempestade" and state.get("weather", {}).get(row): card["bonus"] += 2
             elif skill == "drenagem":
@@ -603,9 +823,32 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                         ally["bonus"] = int(ally.get("bonus", 0)) + 1
             elif skill == "resistencia_climatica":
                 card["weather_resist"] = 2
+                if not any(int(v or 0) > 0 for v in state["weather"].values()):
+                    card["bonus"] += 1  # Etapa 3: sem clima ativo a resistência vira vigor.
             elif skill == "eco_arcano":
                 if any(c.get("especial") for c in player["discard"]):
                     card["bonus"] += 2
+            elif skill == "escudo_ferro":
+                card["escudo"] = 1
+            elif skill == "devorar":
+                presas = [a for a in player["board"] if a["row"] == row]
+                if presas:
+                    presa = min(presas, key=_poder_efetivo)
+                    ganho = min(4, max(1, _poder_efetivo(presa)))
+                    _remover_unidade(player, presa, "sacrificio")
+                    card["bonus"] += ganho
+                    extras_entrada.append(f"Devorou {presa['nome']} (+{ganho}).")
+            elif skill == "ressurgir":
+                pool = [c for c in player["discard"] if not c.get("especial") and int(c["poder"]) <= 5]
+                if pool:
+                    revivida = max(pool, key=lambda c: int(c["poder"]))
+                    player["discard"].remove(revivida)
+                    revivida = deepcopy(revivida)
+                    revivida["bonus"] = 0
+                    revivida.pop("escudo", None)
+                    revivida["row"] = revivida.get("row") if revivida.get("row") in ROWS else row
+                    unidade_revivida = revivida
+                    extras_entrada.append(f"Ressurgiu {revivida['nome']} do descarte.")
             # Sinergias de cartas: recompensam composições e posicionamento coordenado.
             if skill == "dupla_fornalha" and any(c.get("tipo") == "Força" and c.get("row") == row for c in player["board"]):
                 card["bonus"] += 2
@@ -629,8 +872,12 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                 player["faction_boost_used"] = True
             player["hand"].remove(found)
             player["board"].append(card)
+            if unidade_revivida is not None:
+                player["board"].append(unidade_revivida)
             player["last_row"] = row
             state["last_event"] = f"{card['nome']} entrou na fileira {ROW_LABELS[row]}."
+            for texto_extra in extras_entrada:
+                state["last_event"] += f" {texto_extra}"
             if identidade_ativada:
                 state["last_event"] += f" Habilidade ativada: {identidade_ativada}."
             if combo_ativado:
