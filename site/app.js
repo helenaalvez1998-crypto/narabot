@@ -707,7 +707,12 @@ async function loadPlayers() {
       const status = player.web_online ? ' · online no site' : ` · Discord: ${player.discord_presence}`;
       return `<option value="${escapeHTML(player.id)}">${escapeHTML(player.name)}${escapeHTML(status)}</option>`;
     }).join('');
-  } catch (error) { showNotice(error.message, 'error'); }
+  } catch (error) {
+    const select = $('#gwent-opponent');
+    if (select) select.innerHTML = `<option value="">${escapeHTML(error.message || 'Não foi possível carregar jogadores.')}</option>`;
+    console.error('Falha ao carregar jogadores do Gwent:', error);
+    showNotice(error.message, 'error');
+  }
 }
 
 loadAccount().then(async () => {
