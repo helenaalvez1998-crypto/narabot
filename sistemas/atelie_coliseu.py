@@ -18,88 +18,92 @@ TAMANHO_MAXIMO_UPLOAD = 8 * 1024 * 1024
 PIXELS_MAXIMOS = 18_000_000
 
 DIRECAO_ARTE = """
-NARABOT COLISEUM — HYBRID MYTHIC DARK FANTASY / EPIC ANIME ART DIRECTION
+NARABOT COLISEUM — GROUNDED, NARRATIVE DARK-FANTASY CARD ILLUSTRATION
 
-CORE IDENTITY
-Create premium collectible-card key art that combines the monumental, tragic,
-ancient dark-fantasy atmosphere of modern mythic action RPG worlds with the
-expressive energy and visual clarity of high-end epic anime illustration.
-The result must feel like one coherent NARABOT art universe: painterly and
-material-rich environments, mythic scale, solemn atmosphere, but characters
-with elegant readable silhouettes, expressive poses, decisive gesture lines,
-and spectacular controlled supernatural effects. This is an original visual
-identity, not a replica of any specific game's artwork, artist, anime, or IP.
+ART-DIRECTION REFERENCE
+Use the broad visual principles associated with premium European dark-fantasy
+collectible-card illustration: mature, grounded fantasy; painterly realism;
+rich environmental storytelling; expressive character acting; historically
+plausible materials and equipment; and a single-frame scene that feels like a
+small, complete story. This is an original NARABOT visual identity informed by
+those principles. Do not reproduce any existing GWENT card, Witcher character,
+recognizable costume, composition, creature design, location, heraldry, or
+individual artist's signature mannerisms.
 
-PAINTING AND CHARACTER RENDERING
-Use a deliberate 50/50 visual fusion of premium cinematic realism and mature
-high-end anime illustration. Characters must have expressive anime-inspired
-design language, striking readable eyes and faces, elegant shape design and
-dynamic poses, while anatomy, proportions, skin, hair, armor, cloth, weapons,
-stone, metal, glass and other materials receive realistic physically coherent
-rendering. The environment should feel like a photorealistic dark-fantasy
-film still, while the subject retains the visual impact and controlled
-stylization of top-tier seinen / action-fantasy anime key art. Use finely
-resolved micro-textures, crisp focal detail, nuanced gradients, natural
-surface imperfections and believable material response. Target 4K-level
-perceived detail and professional ultra-high-definition finish: clean edges,
-well-defined forms, intricate but readable details, no pixelation, no blur,
-no compression artifacts. Avoid flat cel shading, plastic CGI, chibi
-proportions, generic mobile-game art, over-smoothed faces, waxy skin,
-excessive outlines, muddy over-texturing and noisy detail. Stylized anatomy
-must remain convincing and physically plausible.
+PAINTING LANGUAGE
+Create a hand-painted, high-end fantasy illustration with confident painterly
+brushwork and controlled realism. Render faces, hands, anatomy, fabric, leather,
+wood, iron, steel, bronze, stone, mud, water and weather with convincing weight
+and tactile surface character. Keep focal forms sharply readable while allowing
+secondary forms and distant scenery to resolve more softly. Use nuanced edges:
+crisp accents on the focal subject, lost edges in smoke, fog and shadow, and
+visible painterly transitions in atmosphere. Avoid the polished plastic finish
+of generic 3D renders, anime facial proportions, cel shading, comic outlines,
+chibi forms, glossy mobile-game aesthetics and excessive digital airbrushing.
 
-WORLD, SCALE AND STORY
-Build a layered mythic world: colossal ruined citadels, eroded temples,
-cathedral arches, ancient bridges, petrified forests, vast battlefields,
-forgotten thrones, shattered moons, underground sanctuaries, storm-wracked
-cliffs or other environments chosen to fit the actual card concept. Add small
-scale cues (distant towers, banners, birds, tiny figures, broken architecture)
-when they reinforce scale. The image must communicate a specific event,
-conflict, discovery or emotional beat—not merely a character standing in fog.
-Use foreground, subject plane and distant background for cinematic depth.
+NARRATIVE FIRST — ONE FRAME, ONE STORY
+The illustration must communicate a specific instant with a before-and-after
+implied by gesture, expression, environment and consequence. Do not merely show
+a character posing for a catalogue portrait. Depict an action underway, a tense
+pause, a discovery, a sacrifice, a betrayal, a ritual, a battlefield aftermath,
+or a consequential interaction that is directly supported by the card brief.
+Use body language, gaze direction, hand placement, worn objects, damaged gear,
+weather and background activity to let the viewer infer what happened. Add
+symbolism only when it reinforces the card's documented identity. The image
+should reward a closer look without becoming visually confusing.
 
-CINEMATIC COMPOSITION
-Landscape 5:4 illustration. One dominant focal subject or one clearly legible
-story event. Use a deliberate camera angle (low-angle for imposing entities,
-three-quarter action angle for combatants, intimate close framing for relics,
-wide environmental composition for locations). Dynamic diagonals and flowing
-cloth, hair, weapons, debris or energy may guide the eye toward the focal
-point. Preserve clean negative space and safe margins around the main subject;
-keep all important anatomy, weapon tips and magical forms inside the crop.
-Readable at small card size. Avoid clutter, multiple competing focal points,
-random floating objects and symmetrical poster poses unless the concept truly
-calls for a ceremonial portrait.
+CHARACTER AND WORLD DESIGN
+Favor believable, lived-in medieval and early-renaissance fantasy construction:
+layered garments, practical armor, hand-forged weapons, stitched repairs,
+weathered heraldic cloth, imperfect metalwork, functional straps, real weight
+and plausible construction. Faces should feel individual, emotionally legible
+and shaped by circumstance. Creatures and supernatural entities must have
+coherent anatomy, distinctive silhouettes and a clear relationship to the
+scene. Build environments from specific, tangible places—fortified courtyards,
+woodland roads, muddy encampments, ruined keeps, cramped interiors, riverbanks,
+mountain passes, shrines, workshops or siege lines—chosen for the actual card.
+Avoid interchangeable fantasy castles, random skulls, gratuitous dragons and
+unmotivated decorative clutter.
+
+COMPOSITION AND CAMERA
+Landscape 5:4 illustration, composed as a cropped view into a larger world.
+Choose a deliberate camera position that serves the story: intimate eye-level
+for human drama, three-quarter view for a readable action, low angle for a
+threatening large subject, or a wider environmental view when place and scale
+are essential. Establish foreground, middle-ground and background. Use natural
+leading lines from weapons, limbs, banners, architecture, terrain or light to
+guide attention. Keep one dominant focal event and a clear silhouette at small
+card size. Avoid poster symmetry, floating character cutouts, collage layouts,
+multiple unrelated vignettes and action that exits the crop.
 
 LIGHT, COLOR AND ATMOSPHERE
-Use dramatic motivated lighting: a clear key light, controlled rim light,
-volumetric shafts, atmospheric perspective, selective bloom and deep but
-readable shadows. Use a restrained base of charcoal, slate, weathered stone,
-aged iron, muted bronze and antique gold. Introduce a deliberate accent palette
-that supports the subject and card type; do not cover the entire image in one
-monochrome filter. Magic and energy should illuminate nearby surfaces and
-interact with smoke, rain, dust, snow, ash, water or debris. Particles must
-support motion and scale, not become visual noise.
+Use motivated, cinematic naturalistic lighting: overcast daylight, cold dawn,
+firelight, torchlight, moonlight, storm breaks, reflected snow light or a
+specific magical source. Prefer restrained, earthy colors—weathered umber,
+slate, iron grey, muted olive, old ivory, tarnished brass and smoke-darkened
+neutrals—then give each card a deliberate faction or ability accent. Rich color
+is welcome when justified by the subject, but avoid a uniform neon glow or a
+single heavy color filter. Fog, rain, snow, ash, dust and smoke may simplify the
+background and create a grim epic mood; they must never hide the central action.
+Magic should illuminate nearby surfaces and affect the physical environment,
+not appear as arbitrary glowing UI symbols.
 
-VISUAL QUALITY BAR
-Ultra-premium 4K-quality game cinematic key art fused with mature anime
-illustration and photorealistic dark-fantasy rendering. Film-grade composition,
-exceptional character design, realistic anatomy and materials, intricate
-micro-detail, sharp focal plane, controlled depth of field, nuanced HDR-like
-lighting, rich but disciplined color grading, physically believable shadows,
-volumetric atmosphere and polished professional finish. The image must look
-like a high-budget anime feature film rendered with the material fidelity of
-a realistic AAA game cinematic. Preserve clean readability at small card
-size. Every card must have a distinct visual hook that can be described in
-one sentence. Quality target describes detail and finish; do not add borders
-or UI to simulate resolution.
+DETAIL AND FINISH
+Professional collectible-card concept illustration with layered visual
+information, convincing perspective, strong value grouping, expressive faces
+and hands, nuanced material rendering, atmospheric depth and a carefully
+controlled focal hierarchy. Every detail must support character, place, action
+or mood. Preserve clarity when reduced to card size; do not mistake visual noise
+for detail. The image should feel authored by an experienced fantasy
+illustrator, not assembled from generic fantasy motifs.
 
 CARD ART ONLY — STRICT OUTPUT RULES
-Create only the illustration, not a finished card. Do NOT draw any border,
-frame, card edge, title, lettering, numbers, stats, icons, rarity gem, UI,
-logo, watermark, signature or text of any kind. Do not reserve a fake frame
-inside the image. The NARABOT renderer adds the official fixed rarity frame,
-name, stats and ability separately. Keep important content away from the outer
-edges so the official frame never covers it.
+Create only the standalone illustration, not a finished card. Do NOT draw a
+border, frame, card edge, title, lettering, numbers, stats, icons, rarity gem,
+UI, logo, watermark, signature or text of any kind. Do not imitate GWENT's card
+frame or interface. The NARABOT renderer adds its own fixed frame, name, stats
+and ability separately. Keep faces, hands, weapons and essential story clues
+inside safe margins so the NARABOT frame never covers them.
 """.strip()
 
 DIRETRIZES_CATEGORIA = {
