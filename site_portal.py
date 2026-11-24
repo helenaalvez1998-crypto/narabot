@@ -446,22 +446,106 @@ def registrar_rotas(bot, app: web.Application) -> None:
         conn=sqlite3.connect(os.path.join(path,"jogos.db")); conn.row_factory=sqlite3.Row
         conn.execute("""CREATE TABLE IF NOT EXISTS jogos (id INTEGER PRIMARY KEY AUTOINCREMENT,nome TEXT NOT NULL,plataforma TEXT NOT NULL,descricao TEXT,link TEXT NOT NULL,tutorial TEXT,capa TEXT,iso TEXT,status TEXT NOT NULL DEFAULT 'aprovado',autor_id INTEGER,outros_links TEXT)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS mods (id INTEGER PRIMARY KEY AUTOINCREMENT,jogo_nome TEXT NOT NULL,mod_nome TEXT NOT NULL,descricao TEXT,imagem TEXT,link TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'aprovado',autor_id INTEGER,criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+        # Compatibilidade com bancos antigos que ainda não possuem links extras.
+        columns = {r[1] for r in conn.execute("PRAGMA table_info(jogos)")}
+        if "outros_links" not in columns:
+            conn.execute("ALTER TABLE jogos ADD COLUMN outros_links TEXT")
         conn.commit()
         return conn
 
+    async def catalog_image(request):
+        """Entrega capas locais do catálogo sem expor caminhos internos do servidor."""
+        import config
+        kind = request.match_info["kind"]
+        try:
+            item_id = int(request.match_info["item_id"])
+        except (TypeError, ValueError):
+            raise web.HTTPNotFound()
+        if kind not in {"ports", "mods"}:
+            raise web.HTTPNotFound()
+
+        conn = catalog_db()
+        try:
+            table, column = ("jogos", "capa") if kind == "ports" else ("mods", "imagem")
+            row = conn.execute(
+                f"SELECT {column} AS image FROM {table} WHERE id=? AND status='aprovado'",
+                (item_id,)
+            ).fetchone()
+            if not row or not row["image"]:
+                raise web.HTTPNotFound()
+            raw = str(row["image"]).strip()
+        finally:
+            conn.close()
+
+        if raw.startswith(("https://", "http://")):
+            raise web.HTTPFound(raw)
+
+        data_root = Path(os.path.abspath(os.getenv("CATALOGO_DATA_DIR") or str(config.DATA_DIR))).resolve()
+        allowed_dirs = [(data_root / "capas").resolve(), (data_root / "capas_mods").resolve()]
+        candidates = [Path(raw)] if os.path.isabs(raw) else [
+            data_root / raw,
+            data_root / ("capas" if kind == "ports" else "capas_mods") / raw
+        ]
+        for candidate in candidates:
+            try:
+                resolved = candidate.resolve(strict=True)
+                if not resolved.is_file() or not any(
+                    resolved == folder or folder in resolved.parents for folder in allowed_dirs
+                ):
+                    continue
+                return web.FileResponse(
+                    resolved,
+                    headers={"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"}
+                )
+            except (OSError, RuntimeError):
+                continue
+        raise web.HTTPNotFound()
+
     async def catalog_list(request):
-        # Consulta pública do catálogo aprovado; autenticação só é exigida para sugerir itens.
+        # Lista todos os registros aprovados; sem LIMIT fixo que esconda parte do catálogo.
         kind=request.query.get("kind","ports")
         q=request.query.get("q","").strip()[:100]
         if kind not in {"ports","mods"}: return web.json_response({"error":"Categoria inválida."},status=400)
         conn=catalog_db()
         try:
             if kind=="ports":
-                rows=conn.execute("SELECT id,nome AS name,plataforma AS platform,descricao AS description,link,tutorial,capa AS image,iso,status FROM jogos WHERE status='aprovado' AND (nome LIKE ? OR plataforma LIKE ? OR descricao LIKE ?) ORDER BY nome LIMIT 100",(f"%{q}%",f"%{q}%",f"%{q}%")).fetchall()
+                rows=conn.execute(
+                    """SELECT id,nome AS name,plataforma AS platform,descricao AS description,
+                       link,tutorial,iso,outros_links,capa AS image,status
+                       FROM jogos WHERE status='aprovado'
+                       AND (nome LIKE ? OR plataforma LIKE ? OR descricao LIKE ?) ORDER BY nome""",
+                    (f"%{q}%",f"%{q}%",f"%{q}%")
+                ).fetchall()
             else:
-                rows=conn.execute("SELECT id,jogo_nome AS game,mod_nome AS name,descricao AS description,link,imagem AS image,status FROM mods WHERE status='aprovado' AND (jogo_nome LIKE ? OR mod_nome LIKE ? OR descricao LIKE ?) ORDER BY jogo_nome,mod_nome LIMIT 100",(f"%{q}%",f"%{q}%",f"%{q}%")).fetchall()
-            return web.json_response({"items":[dict(r) for r in rows]})
-        finally: conn.close()
+                rows=conn.execute(
+                    """SELECT id,jogo_nome AS game,mod_nome AS name,descricao AS description,
+                       link,imagem AS image,status FROM mods WHERE status='aprovado'
+                       AND (jogo_nome LIKE ? OR mod_nome LIKE ? OR descricao LIKE ?)
+                       ORDER BY jogo_nome,mod_nome""",
+                    (f"%{q}%",f"%{q}%",f"%{q}%")
+                ).fetchall()
+
+            items=[]
+            for row in rows:
+                item=dict(row)
+                item["image_url"] = f"/api/portal/catalog/image/{kind}/{item['id']}" if item.get("image") else ""
+                if kind=="ports":
+                    try:
+                        extras=json.loads(item.pop("outros_links", None) or "[]")
+                        item["other_links"]=[
+                            {
+                                "name": str(x.get("nome") or x.get("name") or "Link adicional")[:80],
+                                "url": str(x.get("url") or x.get("link") or "")[:1000]
+                            }
+                            for x in extras
+                            if isinstance(x,dict) and str(x.get("url") or x.get("link") or "").startswith(("http://","https://"))
+                        ]
+                    except (TypeError, ValueError):
+                        item["other_links"]=[]
+                items.append(item)
+            return web.json_response({"items":items}, headers={"Cache-Control":"no-store"})
+        finally:
+            conn.close()
 
     async def catalog_submit(request):
         uid=await require_user(request)
@@ -816,6 +900,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
     app.router.add_post("/api/portal/store/action", store_action)
     app.router.add_post("/api/portal/catalog/{kind}/{item_id}", catalog_admin_decide)
     app.router.add_get("/api/portal/catalog", catalog_list)
+    app.router.add_get("/api/portal/catalog/image/{kind}/{item_id}", catalog_image)
     app.router.add_post("/api/portal/catalog/{kind}", catalog_submit)
     app.router.add_get("/api/portal/runs/options", run_options)
     app.router.add_post("/api/portal/runs", run_submit)
