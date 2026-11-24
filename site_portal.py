@@ -555,12 +555,9 @@ def registrar_rotas(bot, app: web.Application) -> None:
         game=str(data.get("game","")).strip()[:100]
         name=str(data.get("name","")).strip()[:120]
         link=str(data.get("link","")).strip()[:500]
-        tutorial=str(data.get("tutorial","")).strip()[:500]
         desc=str(data.get("description","")).strip()[:1000]
         if not game or not name or not link.startswith(("https://","http://")):
             return web.json_response({"error":"Preencha jogo, nome e um link HTTP/HTTPS válido."},status=400)
-        if kind=="ports" and tutorial and not tutorial.startswith(("https://","http://")):
-            return web.json_response({"error":"O link do tutorial precisa começar com http:// ou https://."},status=400)
         conn=catalog_db()
         try:
             table="jogos" if kind=="ports" else "mods"
@@ -570,7 +567,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
             if duplicate:return web.json_response({"error":"Você já enviou uma sugestão semelhante."},status=409)
             if kind=="ports":
                 conn.execute("INSERT INTO jogos(nome,plataforma,descricao,link,tutorial,status,autor_id) VALUES(?,?,?,?,?,'pendente',?)",
-                    (game,str(data.get("platform","Outra"))[:40],desc,link,tutorial,uid))
+                    (game,str(data.get("platform","Outra"))[:40],desc,link,str(data.get("tutorial",""))[:500],uid))
             else:
                 conn.execute("INSERT INTO mods(jogo_nome,mod_nome,descricao,link,status,autor_id) VALUES(?,?,?,?,'pendente',?)",
                     (game,name,desc,link,uid))
@@ -773,93 +770,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
         honors=await bot.db.contar_honras(guild_id(),target)
         followers=await bot.db.contar_seguidores(guild_id(),target)
         messages=await bot.db.listar_mensagens_santuario(guild_id(),target,20)
-
-        # Histórico público do jogador: mesmos registros aprovados usados nos painéis do Discord.
-        zeros=await bot.db._all(
-            """SELECT id,game,platform,finished_at AS date,comment,rating,difficulty,proof_msg_id
-               FROM zerados WHERE user_id=? AND status='approved'
-               ORDER BY finished_at DESC,id DESC LIMIT 60""",(target,))
-        plats=await bot.db._all(
-            """SELECT id,game,platform,earned_at AS date,comment,rating,difficulty,proof_url,proof_msg_id
-               FROM platinas WHERE user_id=? AND status='approved'
-               ORDER BY earned_at DESC,id DESC LIMIT 60""",(target,))
-        runs=await bot.db._all(
-            """SELECT r.id,g.name AS game,c.name AS challenge,r.build,r.seconds,r.rating,
-                      r.difficulty,r.comment,r.created_at AS date,r.proof_url,r.proof_msg_id
-               FROM sl_runs r JOIN sl_games g ON g.id=r.game_id
-               JOIN sl_challenges c ON c.id=r.challenge_id
-               WHERE r.user_id=? AND r.status='approved'
-               ORDER BY r.created_at DESC,r.id DESC LIMIT 60""",(target,))
-
-        games={
-            "zerados":[dict(x) for x in zeros],
-            "platinas":[dict(x) for x in plats],
-            "runs":[dict(x) for x in runs],
-        }
-        gallery=[]
-        seen=set()
-        def add_proof(url, media_type="", game="", category=""):
-            url=str(url or "").strip()
-            if not url.startswith(("https://","http://")) or url in seen:
-                return
-            seen.add(url)
-            gallery.append({"url":url,"media_type":str(media_type or ""),"game":str(game or ""),
-                            "category":str(category or "")})
-
-        await ensure_table()
-        for row in plats:
-            proof_rows=await bot.db._all(
-                "SELECT proof_url,media_type FROM platina_proofs WHERE platina_id=? ORDER BY id",(row["id"],))
-            for proof in proof_rows:
-                add_proof(proof["proof_url"],proof["media_type"],row["game"],"Platina")
-            add_proof(row["proof_url"],"image",row["game"],"Platina")
-        for kind, rows in (("zerado",zeros),("run",runs),("platina",plats)):
-            for row in rows:
-                proofs=await bot.db._all(
-                    """SELECT url,media_type FROM site_submission_proofs
-                       WHERE kind=? AND submission_id=? AND user_id=? ORDER BY id""",
-                    (kind,row["id"],target))
-                for proof in proofs:
-                    add_proof(proof["url"],proof["media_type"],row["game"],
-                              {"zerado":"Jogo zerado","run":"Run Soulslike","platina":"Platina"}[kind])
-                if kind=="run":
-                    add_proof(row["proof_url"],"image",row["game"],"Run Soulslike")
-
-        # Nos registros feitos pelo Discord, os comprovantes dos zerados ficam anexados
-        # à mensagem enviada à Central de Aprovação. Recupera todos os anexos disponíveis.
-        try:
-            from admin_config import GuildConfig
-            from utils import get_text_channel
-            mod_channel_id=await GuildConfig.get(bot.db,guild_id(),"mod_channel") if guild_id() else None
-            mod_channel=await get_text_channel(bot,mod_channel_id) if mod_channel_id else None
-            if mod_channel:
-                for row in zeros:
-                    if not row["proof_msg_id"]:
-                        continue
-                    try:
-                        msg=await mod_channel.fetch_message(int(row["proof_msg_id"]))
-                        for attachment in msg.attachments:
-                            add_proof(attachment.url,attachment.content_type,row["game"],"Jogo zerado")
-                    except Exception:
-                        continue
-                for row in plats:
-                    if not row["proof_msg_id"]:
-                        continue
-                    try:
-                        msg=await mod_channel.fetch_message(int(row["proof_msg_id"]))
-                        for attachment in msg.attachments:
-                            add_proof(attachment.url,attachment.content_type,row["game"],"Platina")
-                    except Exception:
-                        continue
-        except Exception:
-            # A galeria continua exibindo URLs já salvas se a Central de Aprovação estiver indisponível.
-            pass
-
-        return web.json_response({
-            "profile":dict(profile),"summary":dict(summary),"honors":honors,
-            "followers":followers,"messages":[dict(m) for m in messages],
-            "games":games,"gallery":gallery[:100],"is_owner":viewer==target
-        })
+        return web.json_response({"profile":dict(profile),"summary":dict(summary),"honors":honors,"followers":followers,"messages":[dict(m) for m in messages],"is_owner":viewer==target})
 
     async def honor(request):
         uid=await require_user(request); data=await request.json()
