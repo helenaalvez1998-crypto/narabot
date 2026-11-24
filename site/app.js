@@ -695,10 +695,10 @@ function renderGwentArena(data) {
       1,
       Number(card.poder || 0) + Number(card.bonus || 0) - Number((data.weather && data.weather[key]) || 0)
     ), 0);
-    const emptySlots = Array.from({length: Math.max(0, 3 - cards.length)}, () =>
+    const emptySlots = Array.from({length: Math.max(0, 4 - cards.length)}, () =>
       '<span class="gwent-empty-slot" aria-hidden="true"><i>✦</i></span>'
     ).join('');
-    return `<div class="gwent-row" data-row="${escapeHTML(key)}">
+    return `<div class="gwent-row" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" data-card-density="${cards.length > 4 ? 'dense' : 'normal'}">
       <h4><span>${escapeHTML(label)}</span><b>${number(rowPower)}</b></h4>
       <div class="gwent-board-cards">${cards.map(card => gwentCardView(card, !cardsAlreadyOnBoard.has(String(card.id)))).join('')}${emptySlots}</div>
     </div>`;

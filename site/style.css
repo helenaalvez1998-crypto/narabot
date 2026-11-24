@@ -3849,3 +3849,178 @@ body.gwent-match-active .gwent-hand-zone { backdrop-filter: blur(8px); }
 @media (prefers-reduced-motion: reduce) {
   body.gwent-match-active .gwent-board-side.is-active { animation: none !important; }
 }
+
+
+/* ================================================================
+   ARENA V2 — fileiras de 4 cartas, mão centralizada e ações evidentes
+   Ajustes visuais e de capacidade de slots; regras de jogo intactas.
+   ================================================================ */
+@media (min-width: 901px) {
+  body.gwent-match-active .gwent-board-side {
+    grid-template-rows: 20px repeat(3,minmax(104px,1fr)) !important;
+    gap: 4px !important;
+  }
+  body.gwent-match-active .gwent-board-side .gwent-row {
+    min-height: 104px;
+    grid-template-columns: clamp(76px,6.2vw,100px) minmax(0,1fr) !important;
+    align-items: stretch;
+  }
+  body.gwent-match-active .gwent-board-cards {
+    align-items: center;
+    justify-content: flex-start;
+    gap: clamp(5px,.55vw,9px) !important;
+    min-width: 0;
+    padding: 4px 7px !important;
+  }
+  body.gwent-match-active .gwent-board-card {
+    flex: 0 0 clamp(48px,4.2vw,72px);
+    width: clamp(48px,4.2vw,72px) !important;
+    max-height: 112px;
+  }
+  body.gwent-match-active .gwent-empty-slot {
+    flex: 0 0 clamp(46px,4vw,68px) !important;
+    width: clamp(46px,4vw,68px);
+    height: min(100%,104px);
+    max-height: 104px;
+  }
+
+  /* A quinta carta e as seguintes acionam um encaixe mais denso na fileira. */
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-board-card,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-board-card,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-board-card,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-board-card,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-board-card,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-board-card {
+    flex-basis: clamp(35px,3.1vw,54px);
+    width: clamp(35px,3.1vw,54px) !important;
+    max-height: 88px;
+  }
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-empty-slot,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-empty-slot,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-empty-slot,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-empty-slot,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-empty-slot,
+  body.gwent-match-active .gwent-row[data-card-density="dense"] .gwent-empty-slot {
+    display: none;
+  }
+
+  /* Mão centralizada, sem deixar as cartas acumuladas no canto esquerdo. */
+  body.gwent-match-active .gwent-hand-zone {
+    display: grid;
+    justify-items: center;
+    align-content: start;
+  }
+  body.gwent-match-active .gwent-hand-head {
+    width: 100%;
+  }
+  body.gwent-match-active .gwent-hand {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-end;
+    flex-wrap: nowrap;
+    width: 100% !important;
+    max-width: 100% !important;
+    gap: clamp(6px,.65vw,11px) !important;
+    margin-inline: auto;
+    padding: 5px 12px 7px !important;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+  body.gwent-match-active .gwent-hand > .gwent-hand-card {
+    flex: 0 1 108px;
+    width: 108px;
+    min-width: 76px;
+    max-width: 124px;
+  }
+
+  /* Alvos de seleção maiores: fileira e Jogar ficam fáceis de acertar. */
+  body.gwent-match-active .gwent-hand-controls {
+    gap: 5px !important;
+  }
+  body.gwent-match-active .gwent-hand-controls select {
+    min-height: 34px !important;
+    padding: 6px 22px 6px 9px !important;
+    border: 1px solid rgba(232,194,124,.8) !important;
+    border-radius: 6px !important;
+    background: linear-gradient(180deg,#17243a,#09111e) !important;
+    color: #fff0ce !important;
+    font-size: 9px !important;
+    cursor: pointer;
+    box-shadow: inset 0 1px rgba(255,255,255,.08),0 0 0 1px rgba(0,0,0,.25);
+  }
+  body.gwent-match-active .gwent-hand-controls button {
+    min-height: 38px !important;
+    border: 1px solid #ffe0a0 !important;
+    border-radius: 6px !important;
+    background: linear-gradient(135deg,#ffe0a0 0%,#d6a34f 55%,#8e5429 100%) !important;
+    color: #211626 !important;
+    font-size: 9px !important;
+    font-weight: 900 !important;
+    letter-spacing: .09em !important;
+    box-shadow: 0 3px 0 #633d25,0 5px 14px rgba(224,171,83,.28) !important;
+    cursor: pointer;
+  }
+  body.gwent-match-active .gwent-hand-controls button:hover:not(:disabled) {
+    filter: brightness(1.13);
+    transform: translateY(-1px);
+  }
+
+  /* Barra de ações fixa visualmente no fluxo e com hierarquia mais forte. */
+  body.gwent-match-active .gwent-actions {
+    min-height: 58px;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 10px;
+    border: 1px solid rgba(218,180,111,.55);
+    border-radius: 9px;
+    background: linear-gradient(100deg,rgba(23,31,49,.98),rgba(7,12,22,.98));
+    box-shadow: inset 0 1px rgba(255,255,255,.06),0 5px 18px rgba(0,0,0,.28);
+  }
+  body.gwent-match-active .gwent-pass-button {
+    min-height: 44px;
+    min-width: 150px;
+    padding: 10px 18px;
+    border: 1px solid #ffe0a0;
+    border-radius: 7px;
+    background: linear-gradient(135deg,#ffe2a1,#d49a42 58%,#8d5428);
+    color: #211626;
+    font: 900 11px Cinzel,serif;
+    letter-spacing: .09em;
+    box-shadow: 0 3px 0 #633d25,0 0 20px rgba(222,168,78,.2);
+    cursor: pointer;
+  }
+  body.gwent-match-active .gwent-action-tools {
+    align-items: end;
+    gap: 8px;
+  }
+  body.gwent-match-active .gwent-leader-picker select,
+  body.gwent-match-active .gwent-action-tools > button {
+    min-height: 38px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  body.gwent-match-active .gwent-action-tools > button:not(:disabled) {
+    border: 1px solid rgba(220,185,121,.7);
+    background: linear-gradient(145deg,#283957,#111c30);
+    color: #f2d7a4;
+    font-weight: 800;
+    box-shadow: 0 3px 10px #0006;
+  }
+  body.gwent-match-active .gwent-action-tools > .gwent-surrender-button:not(:disabled) {
+    border-color: #d77d7d;
+    background: linear-gradient(145deg,#6f3038,#351a25);
+    color: #ffe5e5;
+  }
+}
+@media (max-width: 900px) {
+  body.gwent-match-active .gwent-board-side .gwent-row { min-height: 78px; }
+  body.gwent-match-active .gwent-board-cards { align-items: center; }
+  body.gwent-match-active .gwent-hand { justify-content: center !important; }
+  body.gwent-match-active .gwent-hand-controls select { min-height: 38px !important; font-size: 10px !important; }
+  body.gwent-match-active .gwent-hand-controls button { min-height: 42px !important; font-size: 10px !important; }
+  body.gwent-match-active .gwent-pass-button { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.gwent-match-active .gwent-hand-card,
+  body.gwent-match-active .gwent-board-card { transition: none !important; }
+}
