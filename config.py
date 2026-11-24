@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import logging
+import shutil
 import re as _re
 from datetime import timedelta, timezone
 from urllib.parse import quote
@@ -82,6 +83,56 @@ GUIDES_CHANNEL_ID = _env_int("GUIDES_CHANNEL_ID", 0)
 COMMUNITY_CHANNEL_ID = _env_int("COMMUNITY_CHANNEL_ID", 0)
 DATA_DIR = get_data_dir()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _migrar_dados_legados_para_volume_persistente() -> None:
+    """Migra cache/templates do diretório do deploy para o volume /data.
+
+    Na FadeHost, /data/app é recriado a cada deploy, enquanto /data persiste.
+    Versões anteriores podiam deixar arquivos em /data/app/data; copiar apenas
+    arquivos ausentes preserva o conteúdo já existente no volume persistente.
+    """
+    origem = Path(__file__).resolve().parent / "data"
+    try:
+        if not origem.is_dir() or origem.resolve() == DATA_DIR.resolve():
+            return
+    except OSError:
+        return
+
+    copiados = 0
+    falhas = 0
+    # Somente dados de cartas: não copiar bancos ou outros estados por acidente.
+    for nome in ("cartas_cache", "cartas_templates"):
+        pasta_origem = origem / nome
+        if not pasta_origem.is_dir():
+            continue
+        for arquivo in pasta_origem.rglob("*"):
+            if not arquivo.is_file():
+                continue
+            try:
+                relativo = arquivo.relative_to(origem)
+                destino = DATA_DIR / relativo
+                if destino.exists():
+                    continue
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                # Escrita temporária + replace evita deixar cópia parcial.
+                temporario = destino.with_name(destino.name + ".migrating")
+                shutil.copy2(arquivo, temporario)
+                temporario.replace(destino)
+                copiados += 1
+            except OSError:
+                falhas += 1
+
+    if copiados or falhas:
+        _log.info(
+            "Migração de dados de cartas concluída: %s arquivo(s) copiado(s), %s falha(s); destino=%s",
+            copiados, falhas, DATA_DIR,
+        )
+    else:
+        _log.info("Volume persistente de cartas verificado: destino=%s; nenhum arquivo legado pendente", DATA_DIR)
+
+
+_migrar_dados_legados_para_volume_persistente()
 DB_PATH = os.getenv("DB_PATH", str(DATA_DIR / "colizeu.db")).strip() or str(DATA_DIR / "colizeu.db")
 
 XP_PLATINA = _env_int("XP_PLATINA", 200, minimo=0)
