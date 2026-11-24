@@ -1538,8 +1538,9 @@ def carta_jogo(carta_id: str):
     return CARTAS_POR_ID.get(carta_id)
 
 
-def faixa_poder_exemplar(raridade: str):
-    """Retorna faixa de poder para uma raridade."""
+def faixa_poder_exemplar(carta, raridade_forcada: str | None = None):
+    """Retorna faixa de poder para uma raridade ou para a raridade da carta."""
+    raridade = raridade_forcada or getattr(carta, "raridade", None) or (carta.get("raridade") if isinstance(carta, dict) else None)
     return FAIXA_PODER.get(raridade, (1, 5))
 
 
