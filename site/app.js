@@ -555,10 +555,11 @@ async function createGwentSoloMatch() {
 function gwentCardView(card, isEntering = false) {
   const power = number(Number(card.poder) + Number(card.bonus || 0));
   const title = `${card.nome || 'Carta'} · ${power} poder · ${card.row_label || ''}${Number(card.escudo || 0) > 0 ? ' · Escudo' : ''}`;
-  return `<article class="gwent-board-card ${isEntering ? 'is-entering' : ''}" data-card-id="${escapeHTML(card.id)}" title="${escapeHTML(title)}">${cardImageMarkup(card)}<span class="gwent-board-power">${power}</span>${Number(card.escudo || 0) > 0 ? '<i class="gwent-shield" title="Escudo">◆</i>' : ''}</article>`;
+  return `<article class="gwent-board-card ${isEntering ? 'is-entering' : ''}" data-card-id="${escapeHTML(card.id)}" data-row="${escapeHTML(card.row || '')}" role="button" tabindex="0" aria-label="Inspecionar ${escapeHTML(card.nome || 'carta')}, ${power} de poder" title="${escapeHTML(title)}">${cardImageMarkup(card, card.nome || 'Carta')}<span class="gwent-board-power">${power}</span>${Number(card.escudo || 0) > 0 ? '<i class="gwent-shield" title="Escudo">◆</i>' : ''}</article>`;
 }
 
 let gwentAlvos = {};
+let gwentBoardCardsById = new Map();
 const gwentRowLabel = (key) => (gwentRows.find(([k]) => k === key) || [key, key])[1];
 function gwentOpcoesDoAlvo(cardId, row) {
   const info = gwentAlvos[cardId];
@@ -678,6 +679,7 @@ function renderGwentArena(data) {
   const enemy = ids.find(id => String(id) !== my);
   const mine = score[my] || {board:[], score:0, crowns:0, hand:0, passed:false};
   const theirs = score[enemy] || {board:[], score:0, crowns:0, hand:0, passed:false};
+  gwentBoardCardsById = new Map([...(mine.board || []), ...(theirs.board || [])].map(card => [String(card.id), card]));
   const opponentName = data.opponent?.name || `Jogador ${String(enemy || '').slice(-4)}`;
   const winnerLabel = data.winner_id
     ? (String(data.winner_id) === my ? 'Você venceu' : `${opponentName} venceu`)
@@ -704,7 +706,8 @@ function renderGwentArena(data) {
       1,
       Number(card.poder || 0) + Number(card.bonus || 0) - Number((data.weather && data.weather[key]) || 0)
     ), 0);
-    return `<div class="gwent-row" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.max(112, 238 - Math.max(0, cards.length - 1) * 18)}px">
+    const hasEnteringCard = cards.some(card => !cardsAlreadyOnBoard.has(String(card.id)));
+    return `<div class="gwent-row ${hasEnteringCard ? 'has-entering' : ''}" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.max(112, 238 - Math.max(0, cards.length - 1) * 18)}px">
       <h4><span>${escapeHTML(label)}</span><b>${number(rowPower)}</b></h4>
       <div class="gwent-board-cards">${cards.map(card => gwentCardView(card, !cardsAlreadyOnBoard.has(String(card.id)))).join('')}</div>
     </div>`;
@@ -1061,6 +1064,76 @@ function showGwentHandHoverPreview(cardId) {
   if (!card) return closeGwentHandHoverPreview();
   showGwentImageHoverPreview(imageUrl(card), card.nome || 'Carta');
 }
+
+function closeGwentBoardCardModal() {
+  document.getElementById('gwent-board-card-modal')?.remove();
+}
+
+function openGwentBoardCardModal(cardId) {
+  const card = gwentBoardCardsById.get(String(cardId || ''));
+  if (!card) return;
+  closeGwentHandHoverPreview();
+  closeGwentBoardCardModal();
+  closeGwentPlayCardModal();
+
+  const modal = document.createElement('div');
+  modal.id = 'gwent-board-card-modal';
+  modal.className = 'gwent-board-card-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-label', `Inspeção de combate: ${card.nome || 'carta'}`);
+
+  const basePower = Number(card.poder || 0);
+  const bonus = Number(card.bonus || 0);
+  const currentPower = Math.max(1, basePower + bonus);
+  const shield = Number(card.escudo || 0);
+  const rowLabel = card.row_label || gwentRowLabel(card.row || '');
+  const isSpecial = !!card.especial || card.categoria === 'Especial';
+  const modalCard = {...card};
+  const src = imageUrl(card);
+  if (src.includes('/api/gwent/cards/')) {
+    const hi = new URL(src, window.location.origin);
+    hi.searchParams.delete('thumb');
+    hi.searchParams.set('detail', '1');
+    modalCard.image_url = `${hi.pathname}${hi.search}`;
+  }
+
+  modal.innerHTML = `
+    <section class="gwent-board-card-dialog">
+      <button type="button" class="gwent-board-card-close" data-gwent-board-close aria-label="Fechar">×</button>
+      <div class="gwent-board-card-art">${cardImageMarkup(modalCard, card.nome || 'Carta')}</div>
+      <div class="gwent-board-card-info">
+        <small class="gwent-board-card-eyebrow">GWENT DO COLISEU · INSPEÇÃO DE COMBATE</small>
+        <h2>${escapeHTML(card.nome || 'Carta')}</h2>
+        <div class="gwent-board-card-tags">
+          <span>${escapeHTML(card.raridade || 'Carta')}</span>
+          <span>${escapeHTML(isSpecial ? 'Carta especial' : rowLabel)}</span>
+          <span>EM CAMPO</span>
+        </div>
+        <div class="gwent-board-card-stats">
+          <article><small>PODER ATUAL</small><strong>${number(currentPower)}</strong></article>
+          <article><small>BÔNUS</small><strong>${bonus > 0 ? '+' : ''}${number(bonus)}</strong></article>
+          <article><small>ESCUDO</small><strong>${number(shield)}</strong></article>
+        </div>
+        <section class="gwent-board-card-ability">
+          <small>HABILIDADE</small>
+          <strong>${escapeHTML(card.habilidade_nome || 'Sem habilidade')}</strong>
+          <p>${escapeHTML(card.habilidade_texto || 'Esta carta não possui efeito adicional.')}</p>
+        </section>
+        <p class="gwent-board-card-note">Esta carta já está em jogo. Os valores exibidos refletem os atributos recebidos pela partida.</p>
+        <button type="button" class="gwent-board-card-dismiss" data-gwent-board-close>FECHAR INSPEÇÃO</button>
+      </div>
+    </section>`;
+  document.body.appendChild(modal);
+  observeCardImages(modal);
+  modal.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-gwent-board-close]')) {
+      closeGwentBoardCardModal();
+    }
+  });
+  modal.querySelector('[data-gwent-board-close]')?.focus();
+}
+
 function closeGwentPlayCardModal() {
   document.getElementById('gwent-play-card-modal')?.remove();
 }
@@ -1153,7 +1226,14 @@ document.addEventListener('mouseout', event => {
   if (boardCard && !boardCard.contains(event.relatedTarget)) closeGwentHandHoverPreview();
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { closeGwentPlayCardModal(); closeGwentHandHoverPreview(); }
+  if (event.key === 'Escape') { closeGwentPlayCardModal(); closeGwentBoardCardModal(); closeGwentHandHoverPreview(); }
+});
+
+document.addEventListener('keydown', event => {
+  const boardCard = event.target.closest('.gwent-board-card[data-card-id]');
+  if (!boardCard || (event.key !== 'Enter' && event.key !== ' ')) return;
+  event.preventDefault();
+  openGwentBoardCardModal(boardCard.dataset.cardId);
 });
 
 document.addEventListener('keydown', event => {
@@ -1164,6 +1244,11 @@ document.addEventListener('keydown', event => {
 });
 
 document.addEventListener('click', async event => {
+  const boardCard = event.target.closest('.gwent-board-card[data-card-id]');
+  if (boardCard) {
+    openGwentBoardCardModal(boardCard.dataset.cardId);
+    return;
+  }
   const handCard = event.target.closest('[data-gwent-hand-card]');
   if (handCard) {
     const cardId = String(handCard.dataset.gwentHandCard || '');
