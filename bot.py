@@ -587,11 +587,13 @@ class NaraBot(commands.Bot):
         # Os PNGs são persistidos em disco e enviados por FileResponse; manter cópias
         # completas em bytes na RAM só duplicava memória sem acelerar cache frio.
         self._gwent_image_locks: dict[str, asyncio.Lock] = {}
+        # FadeHost Free: 0,25 vCPU / 256 MB. Renderização Pillow é CPU/RAM-bound;
+        # uma tarefa pesada por vez evita picos que atrasam também o Gateway Discord.
         try:
-            render_workers = int(os.getenv("GWENT_RENDER_CONCURRENCY", "4"))
+            render_workers = int(os.getenv("GWENT_RENDER_CONCURRENCY", "1"))
         except (TypeError, ValueError):
-            render_workers = 4
-        self._gwent_render_semaphore = asyncio.Semaphore(max(2, min(6, render_workers)))
+            render_workers = 1
+        self._gwent_render_semaphore = asyncio.Semaphore(max(1, min(2, render_workers)))
 
     def _handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
         exception = context.get("exception")
@@ -1977,11 +1979,27 @@ class NaraBot(commands.Bot):
             if cache_lookup is not None:
                 cached_path = await asyncio.to_thread(cache_lookup)
                 if cached_path is not None:
+                    log.debug("Gwent image cache hit key=%s", key[:16])
                     return cached_path
 
             semaphore = self._gwent_render_semaphore
-            await semaphore.acquire()
+            # Limita a fila de espera: em CPU muito pequena, aceitar dezenas de
+            # renderizações pendentes só acumula memória e piora a latência do bot.
+            waiting = int(getattr(self, "_gwent_render_waiters", 0))
+            if waiting >= 6:
+                raise web.HTTPServiceUnavailable(
+                    text="Renderizador ocupado. Tente novamente em alguns segundos.",
+                    headers={"Retry-After": "3"},
+                )
+            self._gwent_render_waiters = waiting + 1
+            try:
+                await semaphore.acquire()
+            finally:
+                self._gwent_render_waiters = max(
+                    0, int(getattr(self, "_gwent_render_waiters", 1)) - 1
+                )
             loop = asyncio.get_running_loop()
+            render_started = time.monotonic()
             future = loop.run_in_executor(None, renderer)
             release_in_callback = False
 
@@ -1997,6 +2015,16 @@ class NaraBot(commands.Bot):
                 path = await asyncio.shield(future)
                 if not isinstance(path, Path) or not path.is_file():
                     raise ValueError("O renderizador não produziu um arquivo de cache válido.")
+                elapsed_ms = (time.monotonic() - render_started) * 1000
+                try:
+                    size_bytes = path.stat().st_size
+                except OSError:
+                    size_bytes = -1
+                log.info(
+                    "Gwent image rendered key=%s elapsed_ms=%.1f size_bytes=%s waiters=%s",
+                    key[:16], elapsed_ms, size_bytes,
+                    int(getattr(self, "_gwent_render_waiters", 0)),
+                )
                 return path
             except asyncio.CancelledError:
                 future.add_done_callback(_release_after_cancel)
@@ -2015,7 +2043,7 @@ class NaraBot(commands.Bot):
         if not card_id or len(card_id) > 120:
             raise web.HTTPNotFound(text="Carta não encontrada.")
 
-        cache_control = "private, max-age=300, stale-while-revalidate=3600"
+        cache_control = "private, max-age=86400, stale-while-revalidate=604800"
 
         def _etag_corresponde(etag: str) -> bool:
             etag_header = f'"{etag}"'
@@ -2158,14 +2186,12 @@ class NaraBot(commands.Bot):
                 "habilidade_texto": gwent["habilidade_texto"],
             })
 
-            # Miniaturas de 210x310 para a grade. A imagem original continua disponível
-            # sem ?thumb=1 para visualização ampliada/compatibilidade antiga.
+            # Três perfis independentes: grade leve, preview e modal HD.
             is_thumbnail = request.query.get("thumb") == "1"
             is_detail = request.query.get("detail") == "1"
-            # Miniatura econômica para grade; modal em HD (2x) com WebP de alta qualidade.
             image_size = (210, 310) if is_thumbnail else ((840, 1240) if is_detail else (420, 620))
             image_quality = 82 if is_thumbnail else (90 if is_detail else 86)
-            use_webp = (is_thumbnail or is_detail) and webp_disponivel()
+            use_webp = webp_disponivel()
             image_format = "webp" if use_webp else "png"
             image_mime = "image/webp" if use_webp else "image/png"
             source_json = json.dumps(source, ensure_ascii=False, sort_keys=True, default=str)
