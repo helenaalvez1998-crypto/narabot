@@ -708,7 +708,7 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
     i.src = (i.classList.contains('hub-av') || i.closest('.avatar,.player-chip,.rank-row,.pod')) ? AV : CB;
   }, true);
   // Subtítulo explicativo sob o título de cada aba
-  const SUB = {'Início':'Resumo do servidor, seu perfil e a Nara','Comunidade':'Ranking e membros do servidor','Arena':'Desafie um rival e dispute o melhor de três','Deck e Coleção':'Monte seu exército e gerencie suas cartas','Catálogo':'Mods e jogos compartilhados pela comunidade','Mercado e Drops':'Ganhe, abra pacotes e acompanhe recompensas','Ateliê':'Crie a arte oficial das cartas','Guia':'Facções, regras e recompensas'};
+  const SUB = {'Início':'Resumo do servidor, seu perfil e a Nara','Comunidade':'Ranking e membros do servidor','Arena':'Desafie um rival e dispute o melhor de três','Deck e Coleção':'Monte seu exército e gerencie suas cartas','Mercado e Drops':'Ganhe, abra pacotes e acompanhe recompensas','Ateliê':'Crie a arte oficial das cartas','Guia':'Facções, regras e recompensas'};
   const h = document.getElementById('page-title');
   if (h) {
     const p = document.createElement('p'); p.className = 'page-sub'; h.after(p);
@@ -717,52 +717,4 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
   }
   // Descrições de rótulo (acessibilidade) nas abas
   document.querySelectorAll('.nav[data-tab]').forEach(b => b.setAttribute('aria-label', (b.querySelector('span') || b).textContent.trim()));
-})();
-
-/* ===== NARABOT PRO · Catálogo de jogos e mods ===== */
-(() => {
-  let kind = 'ports', timer = 0, seq = 0;
-  const grid = $('#cat-grid'), cnt = $('#cat-count');
-  const safeUrl = (u) => /^https?:\/\//i.test(u || '') ? u : '';
-  const card = (it) => {
-    const img = safeUrl(it.image) || (String(it.image || '').startsWith('/') ? it.image : '');
-    const tag = kind === 'ports' ? (it.platform || 'Port') : 'Mod';
-    const sub = kind === 'ports' ? '' : `<small class="cat-game">${escapeHTML(it.game || '')}</small>`;
-    const link = safeUrl(it.link), tut = safeUrl(it.tutorial);
-    return `<article class="cat-card"><div class="cat-img"${img ? ` style="background-image:url('${escapeHTML(img)}')"` : ''}>${img ? '' : `<span>${escapeHTML((it.name || '?')[0].toUpperCase())}</span>`}<em class="cat-tag">${escapeHTML(tag)}</em></div><div class="cat-body">${sub}<h4>${escapeHTML(it.name || 'Sem nome')}</h4><p>${escapeHTML(it.description || 'Sem descrição.')}</p><div class="cat-actions">${link ? `<a class="primary linkbtn" href="${escapeHTML(link)}" target="_blank" rel="noopener noreferrer">${kind === 'ports' ? 'Baixar' : 'Ver mod'}</a>` : ''}${tut ? `<a class="secondary linkbtn" href="${escapeHTML(tut)}" target="_blank" rel="noopener noreferrer">Tutorial</a>` : ''}</div></div></article>`;
-  };
-  async function loadCatalog() {
-    const my = ++seq, q = ($('#cat-search').value || '').trim();
-    grid.innerHTML = '<p class="muted">Carregando catálogo...</p>';
-    try {
-      const r = await fetch(`/api/portal/catalog?kind=${kind}&q=${encodeURIComponent(q)}`, {credentials: 'same-origin', cache: 'no-store'});
-      const d = await r.json(); if (my !== seq) return;
-      if (!r.ok) throw new Error(d.error || 'Falha ao carregar.');
-      const items = d.items || [];
-      cnt.textContent = `${number(items.length)} ${items.length === 1 ? 'item' : 'itens'}`;
-      grid.innerHTML = items.length ? items.map(card).join('') : `<div class="cat-empty"><b>Nada encontrado</b><p class="muted">${q ? 'Tente outra busca.' : 'O catálogo ainda está vazio. Seja o primeiro a sugerir um item!'}</p></div>`;
-    } catch (e) { if (my === seq) { cnt.textContent = ''; grid.innerHTML = `<div class="cat-empty"><b>Não foi possível carregar</b><p class="muted">${escapeHTML(e.message)}</p></div>`; } }
-  }
-  const setKind = (k) => {
-    kind = k; document.querySelectorAll('#cat-seg button').forEach(b => b.classList.toggle('on', b.dataset.kind === k));
-    $('#cs-plat-l').hidden = k !== 'ports'; $('#cs-name').placeholder = k === 'ports' ? 'Nome do port' : 'Nome do mod'; loadCatalog();
-  };
-  document.querySelectorAll('#cat-seg button').forEach(b => b.addEventListener('click', () => setKind(b.dataset.kind)));
-  $('#cat-search').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(loadCatalog, 300); });
-  document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="catalog"],[data-goto="catalog"]')) loadCatalog(); });
-  $('#cs-send').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget, v = (id) => $(id).value.trim();
-    const body = {game: v('#cs-game'), name: v('#cs-name'), link: v('#cs-link'), description: v('#cs-desc'), platform: v('#cs-plat') || 'Outra'};
-    if (!body.game || !body.name || !/^https?:\/\//i.test(body.link)) return showNotice('Preencha jogo, nome e um link http/https válido.', 'error');
-    btn.disabled = true;
-    try {
-      const r = await fetch(`/api/portal/catalog/${kind}`, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
-      const d = await r.json().catch(() => ({}));
-      if (r.status === 401) return showNotice('Entre com sua conta Discord para sugerir itens.', 'error');
-      if (!r.ok) return showNotice(d.error || 'Não foi possível enviar.', 'error');
-      showNotice('Sugestão enviada! Ela aparece no catálogo após a aprovação da moderação.', 'success');
-      ['#cs-game', '#cs-name', '#cs-link', '#cs-desc', '#cs-plat'].forEach(i => $(i).value = '');
-      $('#cat-suggest').open = false;
-    } catch (e) { showNotice('Erro de conexão. Tente novamente.', 'error'); } finally { btn.disabled = false; }
-  });
 })();
