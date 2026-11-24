@@ -1033,6 +1033,10 @@ class NaraBot(commands.Bot):
         return web.json_response({
             "deck": cards, "faction": faction, "leader_id": leader_id,
             "leaders": leaders,
+            "leaders_by_faction": {
+                name: [{"id": key, "name": value["name"], "description": value["description"]}
+                       for key, value in LEADERS.items() if value["faction"] == name]
+                for name in DEFAULT_LEADERS},
             "factions": [{"name": name, "preferred_type": kind,
                           "description": {"Ordem de Ferro": "Formação e resistência na linha de frente.",
                                           "Errantes do Véu": "Mobilidade e coordenação entre fileiras.",
