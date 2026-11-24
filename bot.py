@@ -2015,7 +2015,7 @@ class NaraBot(commands.Bot):
         if not card_id or len(card_id) > 120:
             raise web.HTTPNotFound(text="Carta não encontrada.")
 
-        cache_control = "private, no-cache, must-revalidate"
+        cache_control = "private, max-age=300, stale-while-revalidate=3600"
 
         def _etag_corresponde(etag: str) -> bool:
             etag_header = f'"{etag}"'
@@ -2161,13 +2161,16 @@ class NaraBot(commands.Bot):
             # Miniaturas de 210x310 para a grade. A imagem original continua disponível
             # sem ?thumb=1 para visualização ampliada/compatibilidade antiga.
             is_thumbnail = request.query.get("thumb") == "1"
-            image_size = (210, 310) if is_thumbnail else (420, 620)
-            use_webp = is_thumbnail and webp_disponivel()
+            is_detail = request.query.get("detail") == "1"
+            # Miniatura econômica para grade; modal em HD (2x) com WebP de alta qualidade.
+            image_size = (210, 310) if is_thumbnail else ((840, 1240) if is_detail else (420, 620))
+            image_quality = 82 if is_thumbnail else (90 if is_detail else 86)
+            use_webp = (is_thumbnail or is_detail) and webp_disponivel()
             image_format = "webp" if use_webp else "png"
             image_mime = "image/webp" if use_webp else "image/png"
             source_json = json.dumps(source, ensure_ascii=False, sort_keys=True, default=str)
             template_fingerprint = _fingerprint_templates({"card": source})
-            size_token = f"{image_size[0]}x{image_size[1]}:{image_format}"
+            size_token = f"{image_size[0]}x{image_size[1]}:{image_format}:q{image_quality}"
 
             if official_meta:
                 official_id = int(official_meta["id"])
@@ -2179,10 +2182,10 @@ class NaraBot(commands.Bot):
 
                 if use_webp:
                     official_lookup = lambda: cache_arte_oficial_webp_existente(
-                        source, official_id, image_size
+                        source, official_id, image_size, quality=image_quality
                     )
                     official_renderer = lambda raw: render_arte_oficial_webp_cacheada_por_id(
-                        source, raw, official_id, image_size
+                        source, raw, official_id, image_size, quality=image_quality
                     )
                 else:
                     official_lookup = lambda: cache_arte_oficial_por_id_existente(
@@ -2219,8 +2222,12 @@ class NaraBot(commands.Bot):
                 return web.Response(status=304, headers=_headers(etag))
 
             if use_webp:
-                base_lookup = lambda: cache_carta_webp_existente(source, tamanho=image_size)
-                base_renderer = lambda: render_carta_webp(source, tamanho=image_size)
+                base_lookup = lambda: cache_carta_webp_existente(
+                    source, tamanho=image_size, quality=image_quality
+                )
+                base_renderer = lambda: render_carta_webp(
+                    source, tamanho=image_size, quality=image_quality
+                )
             else:
                 base_lookup = lambda: cache_carta_existente(source, tamanho=image_size)
                 base_renderer = lambda: render_carta(source, tamanho=image_size)
