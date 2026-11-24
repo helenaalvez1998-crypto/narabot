@@ -4516,3 +4516,128 @@ body.gwent-match-active .gwent-hand-zone { backdrop-filter: blur(8px); }
   body.gwent-match-active .gwent-pass-button,
   body.gwent-match-active .gwent-action-tools > button { transition: none !important; }
 }
+
+
+/* ================================================================
+   ARENA V6 — preparação centralizada e área de jogo adaptativa
+   ================================================================ */
+@media (min-width: 901px) {
+  /* Sincroniza a altura da arena com o botão de ocultar/mostrar a mão. */
+  body.gwent-match-active #gwent-arena:not([hidden]) {
+    transition: grid-template-rows .28s cubic-bezier(.2,.7,.2,1);
+  }
+  body.gwent-match-active #gwent-arena:not([hidden]).hand-open {
+    grid-template-rows: auto auto minmax(0,1fr) auto minmax(132px,17dvh) !important;
+  }
+  body.gwent-match-active #gwent-arena:not([hidden]):not(.hand-open) {
+    grid-template-rows: auto auto minmax(0,1fr) auto 56px !important;
+  }
+
+  /* Na preparação, mensagem acima e dois botões agrupados no centro real. */
+  body.gwent-match-active .gwent-actions.is-prep {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-height: 88px !important;
+    padding: 7px 14px !important;
+    overflow: visible !important;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep {
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) auto auto minmax(0,1fr) !important;
+    grid-template-rows: auto auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px 12px !important;
+    flex: 0 1 780px !important;
+    width: min(780px,100%) !important;
+    min-height: 70px !important;
+    margin: 0 auto !important;
+    padding: 2px 8px !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep span {
+    grid-column: 1 / -1 !important;
+    grid-row: 1 !important;
+    justify-self: center !important;
+    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+    color: #ecd6ad !important;
+    font: 700 10px/1.25 Inter,sans-serif !important;
+    letter-spacing: .015em;
+    text-align: center !important;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep [data-gwent-keep] {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    justify-self: end !important;
+    min-width: 142px !important;
+    min-height: 40px !important;
+    padding: 9px 18px !important;
+    border: 1px solid #83e7d2 !important;
+    border-radius: 7px !important;
+    background: linear-gradient(135deg,#208d83,#14565e 68%,#123849) !important;
+    color: #e7fffa !important;
+    box-shadow: 0 3px 0 #0b333d,0 7px 16px rgba(27,155,147,.2),inset 0 1px rgba(255,255,255,.18) !important;
+    font: 900 10px Cinzel,serif !important;
+    letter-spacing: .07em;
+    cursor: pointer;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep [data-gwent-mulligan] {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+    justify-self: start !important;
+    min-width: 174px !important;
+    min-height: 40px !important;
+    padding: 9px 18px !important;
+    border: 1px solid #ffe1a0 !important;
+    border-radius: 7px !important;
+    background: linear-gradient(135deg,#ffe1a0 0%,#d69b47 56%,#985b2a 100%) !important;
+    color: #241728 !important;
+    box-shadow: 0 3px 0 #684027,0 7px 18px rgba(224,171,83,.24),inset 0 1px rgba(255,255,255,.42) !important;
+    font: 900 10px Cinzel,serif !important;
+    letter-spacing: .07em;
+    cursor: pointer;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    filter: brightness(1.12);
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep button:disabled {
+    opacity: .4 !important;
+    filter: grayscale(.65);
+    cursor: not-allowed;
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Em telas menores, mantém texto e botões alinhados sem corte. */
+  body.gwent-match-active .gwent-actions.is-prep {
+    justify-content: center !important;
+    min-height: 112px !important;
+    padding: 8px !important;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep {
+    display: grid !important;
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    grid-template-rows: auto auto !important;
+    width: 100% !important;
+    gap: 8px !important;
+    margin: 0 auto !important;
+    padding: 2px !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep span {
+    grid-column: 1 / -1 !important;
+    text-align: center !important;
+    max-width: none !important;
+  }
+  body.gwent-match-active .gwent-actions.is-prep .gwent-prep button {
+    min-height: 42px !important;
+    width: 100%;
+  }
+}

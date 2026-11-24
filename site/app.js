@@ -1206,6 +1206,9 @@ document.addEventListener('click', async event => {
     const zone = handToggle.closest('.gwent-hand-zone');
     const nextOpen = !zone?.classList.contains('is-open');
     gwentHandOpen = nextOpen;
+    // O estado da mão também controla a distribuição vertical da arena:
+    // recolhida libera altura para o campo; aberta restaura a área da mão.
+    document.getElementById('gwent-arena')?.classList.toggle('hand-open', nextOpen);
     zone?.classList.toggle('is-open', nextOpen);
     zone?.querySelector('.gwent-hand')?.toggleAttribute('hidden', !nextOpen);
     handToggle.classList.toggle('is-open', nextOpen);
