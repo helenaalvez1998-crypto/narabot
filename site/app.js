@@ -708,7 +708,7 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
     i.src = (i.classList.contains('hub-av') || i.closest('.avatar,.player-chip,.rank-row,.pod')) ? AV : CB;
   }, true);
   // Subtítulo explicativo sob o título de cada aba
-  const SUB = {'Início':'Resumo do servidor, seu perfil e a Nara','Comunidade':'Ranking e membros do servidor','Arena':'Desafie um rival e dispute o melhor de três','Deck e Coleção':'Monte seu exército e gerencie suas cartas','Mercado e Drops':'Ganhe, abra pacotes e acompanhe recompensas','Ateliê':'Crie a arte oficial das cartas','Guia':'Facções, regras e recompensas'};
+  const SUB = {'Início':'Resumo do servidor, seu perfil e a Nara','Comunidade':'Ranking e membros do servidor','Arena':'Desafie um rival e dispute o melhor de três','Deck e Coleção':'Monte seu exército e gerencie suas cartas','Catálogo':'Mods e jogos compartilhados pela comunidade','Mercado e Drops':'Ganhe, abra pacotes e acompanhe recompensas','Ateliê':'Crie a arte oficial das cartas','Meu Portal':'Perfil, santuário, loja, envios e contribuições','Moderação':'Fila de aprovação e notícias','Guia':'Facções, regras e recompensas'};
   const h = document.getElementById('page-title');
   if (h) {
     const p = document.createElement('p'); p.className = 'page-sub'; h.after(p);
@@ -717,4 +717,252 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
   }
   // Descrições de rótulo (acessibilidade) nas abas
   document.querySelectorAll('.nav[data-tab]').forEach(b => b.setAttribute('aria-label', (b.querySelector('span') || b).textContent.trim()));
+})();
+
+/* ===== NARABOT PRO · Catálogo de jogos e mods ===== */
+(() => {
+  let kind = 'ports', timer = 0, seq = 0;
+  const grid = $('#cat-grid'), cnt = $('#cat-count');
+  const safeUrl = (u) => /^https?:\/\//i.test(u || '') ? u : '';
+  const card = (it) => {
+    const img = safeUrl(it.image) || (String(it.image || '').startsWith('/') ? it.image : '');
+    const tag = kind === 'ports' ? (it.platform || 'Port') : 'Mod';
+    const sub = kind === 'ports' ? '' : `<small class="cat-game">${escapeHTML(it.game || '')}</small>`;
+    const link = safeUrl(it.link), tut = safeUrl(it.tutorial);
+    return `<article class="cat-card"><div class="cat-img"${img ? ` style="background-image:url('${escapeHTML(img)}')"` : ''}>${img ? '' : `<span>${escapeHTML((it.name || '?')[0].toUpperCase())}</span>`}<em class="cat-tag">${escapeHTML(tag)}</em></div><div class="cat-body">${sub}<h4>${escapeHTML(it.name || 'Sem nome')}</h4><p>${escapeHTML(it.description || 'Sem descrição.')}</p><div class="cat-actions">${link ? `<a class="primary linkbtn" href="${escapeHTML(link)}" target="_blank" rel="noopener noreferrer">${kind === 'ports' ? 'Baixar' : 'Ver mod'}</a>` : ''}${tut ? `<a class="secondary linkbtn" href="${escapeHTML(tut)}" target="_blank" rel="noopener noreferrer">Tutorial</a>` : ''}</div></div></article>`;
+  };
+  async function loadCatalog() {
+    const my = ++seq, q = ($('#cat-search').value || '').trim();
+    grid.innerHTML = '<p class="muted">Carregando catálogo...</p>';
+    try {
+      const r = await fetch(`/api/portal/catalog?kind=${kind}&q=${encodeURIComponent(q)}`, {credentials: 'same-origin', cache: 'no-store'});
+      const d = await r.json(); if (my !== seq) return;
+      if (!r.ok) throw new Error(d.error || 'Falha ao carregar.');
+      const items = d.items || [];
+      cnt.textContent = `${number(items.length)} ${items.length === 1 ? 'item' : 'itens'}`;
+      grid.innerHTML = items.length ? items.map(card).join('') : `<div class="cat-empty"><b>Nada encontrado</b><p class="muted">${q ? 'Tente outra busca.' : 'O catálogo ainda está vazio. Seja o primeiro a sugerir um item!'}</p></div>`;
+    } catch (e) { if (my === seq) { cnt.textContent = ''; grid.innerHTML = `<div class="cat-empty"><b>Não foi possível carregar</b><p class="muted">${escapeHTML(e.message)}</p></div>`; } }
+  }
+  const setKind = (k) => {
+    kind = k; document.querySelectorAll('#cat-seg button').forEach(b => b.classList.toggle('on', b.dataset.kind === k));
+    $('#cs-plat-l').hidden = k !== 'ports'; $('#cs-name').placeholder = k === 'ports' ? 'Nome do port' : 'Nome do mod'; loadCatalog();
+  };
+  document.querySelectorAll('#cat-seg button').forEach(b => b.addEventListener('click', () => setKind(b.dataset.kind)));
+  $('#cat-search').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(loadCatalog, 300); });
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="catalog"],[data-goto="catalog"]')) loadCatalog(); });
+  $('#cs-send').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget, v = (id) => $(id).value.trim();
+    const body = {game: v('#cs-game'), name: v('#cs-name'), link: v('#cs-link'), description: v('#cs-desc'), platform: v('#cs-plat') || 'Outra'};
+    if (!body.game || !body.name || !/^https?:\/\//i.test(body.link)) return showNotice('Preencha jogo, nome e um link http/https válido.', 'error');
+    btn.disabled = true;
+    try {
+      const r = await fetch(`/api/portal/catalog/${kind}`, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 401) return showNotice('Entre com sua conta Discord para sugerir itens.', 'error');
+      if (!r.ok) return showNotice(d.error || 'Não foi possível enviar.', 'error');
+      showNotice('Sugestão enviada! Ela aparece no catálogo após a aprovação da moderação.', 'success');
+      ['#cs-game', '#cs-name', '#cs-link', '#cs-desc', '#cs-plat'].forEach(i => $(i).value = '');
+      $('#cat-suggest').open = false;
+    } catch (e) { showNotice('Erro de conexão. Tente novamente.', 'error'); } finally { btn.disabled = false; }
+  });
+})();
+
+/* ===== NARABOT PRO · Portal (perfil, santuário, loja, envios, contribuições, notificações, moderação) ===== */
+(() => {
+  const E = escapeHTML, $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const ST = {pending: ['Pendente', 'warn'], approved: ['Aprovado', 'ok'], rejected: ['Rejeitado', 'bad'], changes_requested: ['Ajustes pedidos', 'warn']};
+  const KIND = {platina: 'Platina', zerado: 'Zerado', run: 'Run Soulslike', ports: 'Port', mods: 'Mod', lore: 'Lore', guide: 'Guia', correction: 'Correção', idea: 'Ideia', faq: 'FAQ', challenge: 'Desafio', game_suggestion: 'Sugestão de jogo'};
+  const THEMES = ['Ouro', 'Prata', 'Safira', 'Esmeralda', 'Rubi', 'Ametista'];
+  const fdate = (s) => { const d = new Date(String(s || '').replace(' ', 'T')); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR'); };
+  const login = '<div class="pt-empty"><b>Entre para continuar</b><p class="muted">Conecte sua conta Discord para usar esta página.</p><a class="primary linkbtn" href="/auth/discord/login">Entrar com Discord</a></div>';
+  const empty = (t, s = '') => `<div class="pt-empty"><b>${E(t)}</b>${s ? `<p class="muted">${E(s)}</p>` : ''}</div>`;
+  const chip = (st) => { const [t, c] = ST[st] || [st || '—', 'warn']; return `<span class="pt-chip ${c}">${E(t)}</span>`; };
+  async function api(path, opt = {}) {
+    try {
+      const o = {credentials: 'same-origin', cache: 'no-store', ...opt};
+      if (opt.json !== undefined) { o.method = o.method || 'POST'; o.headers = {'Content-Type': 'application/json'}; o.body = JSON.stringify(opt.json); delete o.json; }
+      const r = await fetch(path, o); let d = null; const t = await r.text();
+      try { d = JSON.parse(t); } catch (e) { d = {error: t.slice(0, 160)}; }
+      return {ok: r.ok, status: r.status, data: d || {}};
+    } catch (e) { return {ok: false, status: 0, data: {error: 'Erro de conexão.'}}; }
+  }
+  const fail = (r) => showNotice(r.status === 401 ? 'Entre com sua conta Discord.' : (r.data.error || 'Não foi possível concluir.'), 'error');
+  const uid = () => currentUser && currentUser.id;
+  const field = (l, id, ph = '', ml = 200, cls = '') => `<label class="${cls}">${l}<input id="${id}" maxlength="${ml}" placeholder="${E(ph)}"></label>`;
+  const area = (l, id, ph = '', ml = 1000, rows = 4) => `<label class="wide">${l}<textarea id="${id}" rows="${rows}" maxlength="${ml}" placeholder="${E(ph)}"></textarea></label>`;
+  const V = (id) => ($('#' + id) || {value: ''}).value.trim();
+  let players = null;
+  const loadPl = async () => { if (!players) { const r = await api('/api/players'); players = r.ok ? (r.data.players || []) : []; } return players; };
+  const nameOf = (id) => ((players || []).find(p => String(p.id) === String(id)) || {}).name || `Membro ${id}`;
+
+  /* ---------- navegação interna ---------- */
+  const loaders = {};
+  function sub(root, name) {
+    $$(`#${root} .pt-pill`).forEach(b => b.classList.toggle('on', b.dataset.p === name));
+    $$(`#${root} .pt-pane`).forEach(p => p.hidden = p.dataset.p !== name);
+    loaders[name] && loaders[name]();
+  }
+  $$('.pt-nav').forEach(nav => nav.addEventListener('click', (e) => { const b = e.target.closest('.pt-pill'); if (b) sub(nav.closest('.tab').id, b.dataset.p); }));
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-tab="portal"],[data-goto="portal"],[data-tab="admin"]'); if (!t) return;
+    const root = (t.dataset.tab || t.dataset.goto) === 'admin' ? 'tab-admin' : 'tab-portal';
+    const cur = $$(`#${root} .pt-pill.on`)[0]; sub(root, cur ? cur.dataset.p : $(`#${root} .pt-pill`).dataset.p);
+  });
+
+  /* ---------- PERFIL ---------- */
+  loaders.profile = async () => {
+    const box = $('#pt-profile'); if (!uid()) return box.innerHTML = login;
+    const r = await api('/api/portal/profile'); if (!r.ok) return box.innerHTML = empty('Não foi possível carregar o perfil', r.data.error);
+    const p = r.data.profile || {}; let links = {}; try { links = typeof p.links === 'string' ? JSON.parse(p.links || '{}') : (p.links || {}); } catch (e) {}
+    box.innerHTML = `<div class="pt-grid2"><div class="pt-card"><h4>Sobre você</h4><div class="pt-form">${field('Frase de destaque', 'pf-tag', 'Uma frase que te define', 100, 'wide')}${field('Jogo favorito', 'pf-fav', 'Ex.: Elden Ring', 100)}<label>Tema do santuário<select id="pf-theme">${THEMES.map(t => `<option>${t}</option>`).join('')}</select></label>${area('Biografia', 'pf-bio', 'Conte um pouco sobre você e seus jogos...', 1000, 5)}</div></div>
+    <div class="pt-card"><h4>Seus links</h4><div class="pt-form">${field('Steam / PSN / Xbox', 'pf-l-perfil', 'https://...', 250, 'wide')}${field('YouTube', 'pf-l-youtube', 'https://...', 250, 'wide')}${field('Twitch', 'pf-l-twitch', 'https://...', 250, 'wide')}${field('Site / Portfólio', 'pf-l-site', 'https://...', 250, 'wide')}</div></div></div>
+    <div class="pt-actions"><button class="primary" id="pf-save" type="button">Salvar perfil</button><button class="secondary" type="button" data-pt-go="sanctuary">Ver meu santuário</button></div>`;
+    $('#pf-tag').value = p.tagline || ''; $('#pf-fav').value = p.fav_game || ''; $('#pf-bio').value = p.bio || ''; if (THEMES.includes(p.theme)) $('#pf-theme').value = p.theme;
+    ['perfil', 'youtube', 'twitch', 'site'].forEach(k => $('#pf-l-' + k).value = links[k] || '');
+    $('#pf-save').onclick = async () => {
+      const l = {}; ['perfil', 'youtube', 'twitch', 'site'].forEach(k => { const v = V('pf-l-' + k); if (v) l[k] = v; });
+      const s = await api('/api/portal/profile', {json: {tagline: V('pf-tag'), fav_game: V('pf-fav'), bio: V('pf-bio'), theme: $('#pf-theme').value, links: l}});
+      s.ok ? showNotice('Perfil salvo com sucesso.', 'success') : fail(s);
+    };
+  };
+  document.addEventListener('click', (e) => { const g = e.target.closest('[data-pt-go]'); if (g) sub('tab-portal', g.dataset.ptGo); });
+
+  /* ---------- SANTUÁRIO ---------- */
+  let viewing = null;
+  const HON = {respect: ['🛡', 'Respeito'], determination: ['🔥', 'Determinação'], greatness: ['👑', 'Grandeza']};
+  loaders.sanctuary = async (target) => {
+    const box = $('#pt-sanctuary'); if (!uid()) return box.innerHTML = login;
+    await loadPl(); viewing = String(target || viewing || uid());
+    const r = await api(`/api/portal/sanctuaries/${viewing}`);
+    const sel = `<div class="pt-pick"><input id="sc-search" class="deck-search" type="search" placeholder="Visitar o santuário de outro membro..." list="sc-list" autocomplete="off"><datalist id="sc-list">${players.slice(0, 200).map(p => `<option value="${E(p.name)}"></option>`).join('')}</datalist><button class="secondary" id="sc-go" type="button">Visitar</button>${viewing !== String(uid()) ? '<button class="secondary" id="sc-me" type="button">Meu santuário</button>' : ''}</div>`;
+    if (!r.ok) { box.innerHTML = sel + empty('Santuário indisponível', r.data.error); }
+    else {
+      const d = r.data, p = d.profile || {}, s = d.summary || {}, own = d.is_owner; let links = {}; try { links = typeof p.links === 'string' ? JSON.parse(p.links || '{}') : (p.links || {}); } catch (e) {}
+      const nm = own ? ($('#profile-name').textContent || 'Seu santuário') : nameOf(viewing);
+      const stats = [['Platinas', s.platinas], ['Zerados', s.zerados], ['Runs', s.runs], ['Nota média', s.media_nota != null ? Number(s.media_nota).toFixed(1) : '—'], ['Seguidores', d.followers]].map(([k, v]) => `<div><b>${E(v == null ? 0 : v)}</b><small>${k}</small></div>`).join('');
+      const hon = Object.entries(HON).map(([k, [i, l]]) => `<button class="pt-honor" data-k="${k}" ${own ? 'disabled' : ''} type="button"><span>${i}</span><b>${(d.honors || {})[k] || 0}</b><small>${l}</small></button>`).join('');
+      const lk = Object.entries(links).filter(([, v]) => /^https?:\/\//.test(v)).map(([k, v]) => `<a class="secondary linkbtn" href="${E(v)}" target="_blank" rel="noopener noreferrer">${E(k)}</a>`).join('');
+      const msgs = (d.messages || []).map(m => `<div class="pt-msg"><b>${E(nameOf(m.author_id))}</b><small>${fdate(m.created_at)}</small><p>${E(m.message)}</p>${own ? `<button class="text-btn" data-del="${m.id}" type="button">apagar</button>` : ''}</div>`).join('') || '<p class="muted">Nenhum recado ainda.</p>';
+      box.innerHTML = sel + `<section class="pt-sc-hero pt-th-${E((p.theme || 'Ouro'))}"><div class="pt-sc-av">${E(nm[0] || '?').toUpperCase()}</div><div><small class="eyebrow">SANTUÁRIO</small><h3>${E(nm)}</h3><p>${E(p.tagline || 'Este jogador ainda não escreveu uma frase.')}</p>${p.fav_game ? `<span class="pt-chip ok">🎮 ${E(p.fav_game)}</span>` : ''}</div>${own ? '' : '<button class="primary" id="sc-follow" type="button">Seguir</button>'}</section>
+      <div class="pt-stats">${stats}</div><div class="pt-grid2"><div class="pt-card"><h4>Honrarias</h4><div class="pt-honors">${hon}</div>${own ? '' : '<small class="muted">Você pode honrar este jogador uma vez por semana.</small>'}</div><div class="pt-card"><h4>Sobre</h4><p>${E(p.bio || 'Sem biografia.')}</p><div class="pt-actions">${lk}</div></div></div>
+      <div class="pt-card"><h4>Mural de recados</h4><div class="pt-msgs">${msgs}</div>${own ? '' : `<div class="pt-form"><label class="wide">Deixe um recado<textarea id="gb-text" rows="2" maxlength="300" placeholder="Até 300 caracteres. Um recado por dia."></textarea></label><button class="primary" id="gb-send" type="button">Enviar recado</button></div>`}</div>`;
+      $$('.pt-honor', box).forEach(b => b.onclick = async () => { const x = await api('/api/portal/sanctuaries/honor', {json: {user_id: Number(viewing), honor_key: b.dataset.k}}); x.ok ? (showNotice('Honraria enviada!', 'success'), loaders.sanctuary()) : fail(x); });
+      const fo = $('#sc-follow'); if (fo) fo.onclick = async () => { const x = await api('/api/portal/community/follow', {json: {user_id: Number(viewing)}}); x.ok ? (showNotice(x.data.following ? 'Agora você segue este jogador.' : 'Você deixou de seguir.', 'success'), loaders.sanctuary()) : fail(x); };
+      const gs = $('#gb-send'); if (gs) gs.onclick = async () => { const x = await api(`/api/portal/sanctuaries/${viewing}/guestbook`, {json: {message: V('gb-text')}}); x.ok ? (showNotice('Recado enviado.', 'success'), loaders.sanctuary()) : fail(x); };
+      $$('[data-del]', box).forEach(b => b.onclick = async () => { const x = await api(`/api/portal/sanctuaries/${viewing}/guestbook?id=${b.dataset.del}`, {method: 'DELETE'}); x.ok ? loaders.sanctuary() : fail(x); });
+    }
+    const go = $('#sc-go'); if (go) go.onclick = () => { const q = V('sc-search').toLowerCase(), p = players.find(x => x.name.toLowerCase() === q) || players.find(x => x.name.toLowerCase().includes(q)); p ? loaders.sanctuary(p.id) : showNotice('Membro não encontrado.', 'error'); };
+    const me = $('#sc-me'); if (me) me.onclick = () => loaders.sanctuary(uid());
+  };
+
+  /* ---------- LOJA ---------- */
+  const TYPES = {};
+  loaders.store = async () => {
+    const box = $('#pt-store'); if (!uid()) return box.innerHTML = login;
+    const r = await api('/api/portal/store'); if (!r.ok) return box.innerHTML = empty('Loja indisponível', r.data.error);
+    const items = r.data.items || [], groups = {}; items.forEach(i => (groups[i.type] = groups[i.type] || []).push(i));
+    const card = (i) => `<article class="pt-item ${i.equipped ? 'eq' : ''}"><div class="pt-emoji">${E(i.emoji || '🎁')}</div><h4>${E(i.name)}</h4><p>${E(i.description || '')}</p><div class="pt-meta"><span class="pt-chip">◈ ${number(i.price)}</span>${i.min_level > 1 ? `<span class="pt-chip warn">Nível ${i.min_level}+</span>` : ''}${i.owned ? '<span class="pt-chip ok">Seu</span>' : ''}</div>
+      ${i.owned ? `<button class="secondary" data-a="${i.equipped ? 'unequip' : 'equip'}" data-i="${E(i.id)}" type="button">${i.equipped ? 'Desequipar' : 'Equipar'}</button>` : `<button class="primary" data-a="buy" data-i="${E(i.id)}" type="button">Comprar</button>`}</article>`;
+    box.innerHTML = `<div class="pt-balance"><span>Seu saldo</span><b>◈ ${number(r.data.balance)}</b><small class="muted">Denários</small></div>` + (Object.entries(groups).map(([t, l]) => `<h4 class="pt-gt">${E(t)}</h4><div class="pt-store">${l.map(card).join('')}</div>`).join('') || empty('A loja está vazia'));
+    $$('[data-a]', box).forEach(b => b.onclick = async () => { b.disabled = true; const x = await api('/api/portal/store/action', {json: {item: b.dataset.i, action: b.dataset.a}}); x.ok ? (showNotice(b.dataset.a === 'buy' ? 'Compra realizada!' : 'Atualizado.', 'success'), loaders.store(), loadAccount && 0) : (fail(x), b.disabled = false); });
+  };
+
+  /* ---------- ENVIOS (platina, zerado, run) ---------- */
+  let sKind = 'platina', runOpts = null;
+  const num = (id, l, mn, mx) => `<label>${l}<input id="${id}" type="number" min="${mn}" max="${mx}" placeholder="${mn}–${mx}"></label>`;
+  function sForm() {
+    const box = $('#pt-form'), run = sKind === 'run';
+    const g = run ? `<label>Jogo<select id="sf-gid"><option value="">Selecione...</option>${(runOpts.games || []).map(x => `<option value="${x.id}">${E(x.name)}</option>`).join('')}</select></label><label>Desafio<select id="sf-cid"><option value="">Selecione...</option></select></label><label>Tempo (min)<input id="sf-min" type="number" min="1" placeholder="Ex.: 90"></label>${field('Build / estilo', 'sf-build', 'Opcional', 300)}`
+      : `${field('Jogo', 'sf-game', 'Nome do jogo', 100)}${field('Plataforma', 'sf-plat', 'PC, PS5, Switch...', 40)}<label>${sKind === 'platina' ? 'Data da platina' : 'Data de conclusão'}<input id="sf-date" type="date"></label>`;
+    box.innerHTML = `<div class="pt-form">${g}${num('sf-rate', 'Nota (opcional)', 1, 10)}${num('sf-diff', 'Dificuldade (opcional)', 1, 5)}${area('Comentário', 'sf-com', 'Algo para a moderação ou para a comunidade...', 500, 3)}<label class="wide">Comprovantes (até 5 imagens/vídeos)<input id="sf-files" type="file" multiple accept="image/*,video/*"></label><button class="primary" id="sf-send" type="button">Enviar para aprovação</button></div>`;
+    if (run) $('#sf-gid').onchange = () => { const gid = Number($('#sf-gid').value); $('#sf-cid').innerHTML = '<option value="">Selecione...</option>' + (runOpts.challenges || []).filter(c => !c.game_id || c.game_id === gid).map(c => `<option value="${c.id}">${E(c.name)}</option>`).join(''); };
+    $('#sf-send').onclick = async (ev) => {
+      const fd = new FormData(), files = [...$('#sf-files').files].slice(0, 5);
+      if (!files.length) return showNotice('Anexe ao menos um comprovante.', 'error');
+      if (run) { const m = Number(V('sf-min')); fd.append('game_id', V('sf-gid')); fd.append('challenge_id', V('sf-cid')); fd.append('seconds', Math.round(m * 60)); fd.append('build', V('sf-build')); }
+      else { fd.append('game', V('sf-game')); fd.append('platform', V('sf-plat')); fd.append('date', V('sf-date')); }
+      fd.append('rating', V('sf-rate')); fd.append('difficulty', V('sf-diff')); fd.append('comment', V('sf-com')); files.forEach(f => fd.append('proofs', f));
+      ev.currentTarget.disabled = true;
+      const x = await api(run ? '/api/portal/runs' : `/api/portal/submit/${sKind}`, {method: 'POST', body: fd});
+      $('#sf-send') && ($('#sf-send').disabled = false);
+      if (x.ok) { showNotice('Envio registrado! Aguarde a aprovação da moderação.', 'success'); sForm(); loadMine(); } else fail(x);
+    };
+  }
+  async function loadMine() {
+    const box = $('#pt-mine'), r = await api('/api/portal/mine'); if (!r.ok) return box.innerHTML = '';
+    const rows = (r.data.items || []).map(i => `<div class="pt-row"><span class="pt-chip">${E(KIND[i.kind] || i.kind)}</span><div><b>${E(i.game)}</b><small>${E(i.platform || '')} ${i.date ? '· ' + E(i.date) : ''}</small>${i.comment && i.status !== 'pending' ? `<small class="muted">${E(i.comment)}</small>` : ''}</div>${chip(i.status)}${i.status === 'pending' ? `<button class="text-btn" data-c="${i.kind}/${i.id}" type="button">cancelar</button>` : ''}</div>`).join('');
+    box.innerHTML = `<h4 class="pt-gt">Meus envios</h4>${rows || empty('Você ainda não enviou nada', 'Seus envios e o status da aprovação aparecem aqui.')}`;
+    $$('[data-c]', box).forEach(b => b.onclick = async () => { if (!confirm('Cancelar este envio?')) return; const x = await api(`/api/portal/mine/${b.dataset.c}`, {method: 'DELETE'}); x.ok ? loadMine() : fail(x); });
+  }
+  loaders.submit = async () => {
+    const box = $('#pt-submit-body'); if (!uid()) { box.hidden = true; $('#pt-submit-login').innerHTML = login; return; }
+    box.hidden = false; $('#pt-submit-login').innerHTML = '';
+    if (!runOpts) { const r = await api('/api/portal/runs/options'); runOpts = r.ok ? r.data : {games: [], challenges: []}; }
+    sForm(); loadMine();
+  };
+  $('#pt-kind').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; sKind = b.dataset.k; $$('#pt-kind button').forEach(x => x.classList.toggle('on', x === b)); sForm(); });
+
+  /* ---------- CONTRIBUIÇÕES ---------- */
+  let cFilter = 'approved';
+  const CK = ['guide', 'lore', 'idea', 'faq', 'correction', 'challenge', 'game_suggestion', 'run'];
+  loaders.contrib = async () => {
+    const box = $('#pt-contrib-list'); $$('#pt-cfilter button').forEach(b => b.classList.toggle('on', b.dataset.f === cFilter));
+    await loadPl();
+    let r; if (cFilter === 'fav') r = uid() ? await api('/api/portal/community/favorites') : {ok: false, status: 401, data: {}}; else r = await api(`/api/portal/contributions?${cFilter === 'mine' ? 'mine=1' : 'status=approved'}`);
+    if (r.status === 401) return box.innerHTML = login; if (!r.ok) return box.innerHTML = empty('Não foi possível carregar', r.data.error);
+    const items = r.data.items || [];
+    box.innerHTML = items.map(c => c.title === undefined ? `<div class="pt-card"><small class="muted">Item salvo #${E(c.target_id)}</small></div>` : `<article class="pt-card pt-post"><div class="pt-meta"><span class="pt-chip">${E(KIND[c.kind] || c.kind)}</span>${c.game_name ? `<span class="pt-chip ok">${E(c.game_name)}</span>` : ''}${cFilter === 'mine' ? chip(c.status) : ''}<small class="muted">${E(nameOf(c.user_id))} · ${fdate(c.created_at)}</small></div><h4>${E(c.title)}</h4><p>${E(c.summary || String(c.content || '').slice(0, 220))}</p><div class="pt-actions">${[['like', '👍', 'Curtir'], ['useful', '💡', 'Útil'], ['respect', '🤝', 'Respeito']].map(([k, i, l]) => `<button class="secondary" data-r="${k}" data-id="${c.id}" title="${l}" type="button">${i} ${l}</button>`).join('')}<button class="secondary" data-bm="${c.id}" type="button">🔖 Salvar</button>${c.kind === 'challenge' && c.status === 'approved' ? `<button class="primary" data-j="${c.id}" type="button">⚔ Participar</button>` : ''}</div></article>`).join('') || empty('Nada por aqui ainda', cFilter === 'mine' ? 'Você ainda não enviou contribuições.' : 'Seja o primeiro a contribuir!');
+    $$('[data-r]', box).forEach(b => b.onclick = async () => { const x = await api('/api/portal/community/interact', {json: {target_type: 'contribution', target_id: Number(b.dataset.id), reaction: b.dataset.r}}); x.ok ? showNotice(x.data.added ? 'Reação registrada.' : 'Reação removida.', 'success') : fail(x); });
+    $$('[data-bm]', box).forEach(b => b.onclick = async () => { const x = await api('/api/portal/community/bookmark', {json: {target_type: 'contribution', target_id: Number(b.dataset.bm)}}); x.ok ? showNotice(x.data.saved ? 'Salvo nos favoritos.' : 'Removido dos favoritos.', 'success') : fail(x); });
+    $$('[data-j]', box).forEach(b => b.onclick = async () => { const x = await api('/api/portal/community/challenge', {json: {contribution_id: Number(b.dataset.j), action: 'join'}}); x.ok ? showNotice('Participação atualizada.', 'success') : fail(x); });
+  };
+  $('#pt-cfilter').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { cFilter = b.dataset.f; loaders.contrib(); } });
+  $('#pt-cform').innerHTML = `<div class="pt-form"><label>Tipo<select id="cf-kind">${CK.map(k => `<option value="${k}">${KIND[k]}</option>`).join('')}</select></label>${field('Jogo (opcional)', 'cf-game', 'Nome do jogo', 100)}${field('Título', 'cf-title', 'Título da contribuição', 120, 'wide')}${field('Resumo', 'cf-sum', 'Em uma frase', 500, 'wide')}${area('Conteúdo (mín. 20 caracteres)', 'cf-content', 'Escreva seu guia, lore, ideia...', 12000, 7)}${field('Fontes (opcional)', 'cf-src', 'Links ou referências', 1500, 'wide')}<button class="primary" id="cf-send" type="button">Enviar contribuição</button><small class="muted">Passa pela moderação antes de aparecer para todos.</small></div>`;
+  $('#cf-send').onclick = async () => {
+    const x = await api('/api/portal/contributions', {json: {kind: $('#cf-kind').value, game_name: V('cf-game'), title: V('cf-title'), summary: V('cf-sum'), content: V('cf-content'), sources: V('cf-src')}});
+    if (x.ok) { showNotice('Contribuição enviada para aprovação!', 'success'); ['cf-game', 'cf-title', 'cf-sum', 'cf-content', 'cf-src'].forEach(i => $('#' + i).value = ''); cFilter = 'mine'; loaders.contrib(); } else fail(x);
+  };
+
+  /* ---------- NOTIFICAÇÕES ---------- */
+  const NP = {approvals: 'Aprovações', rejections: 'Rejeições', levels: 'Subidas de nível', replies: 'Respostas', challenges: 'Desafios'};
+  loaders.notif = async () => {
+    const box = $('#pt-notif'); if (!uid()) return box.innerHTML = login;
+    const r = await api('/api/portal/notifications'); if (!r.ok) return box.innerHTML = empty('Não foi possível carregar', r.data.error);
+    const items = r.data.items || [], pr = r.data.preferences || {};
+    box.innerHTML = `<div class="pt-grid2"><div class="pt-card"><div class="pt-head"><h4>Não lidas</h4>${items.length ? '<button class="text-btn" id="nt-all" type="button">Marcar todas como lidas</button>' : ''}</div>${items.map(n => `<div class="pt-row"><span class="pt-chip">${E(NP[n.category] || n.category || 'Aviso')}</span><div><b>${E(n.message)}</b><small>${fdate(n.created_at)}</small></div></div>`).join('') || empty('Tudo em dia', 'Você não tem notificações novas.')}</div>
+    <div class="pt-card"><h4>O que você quer receber</h4>${Object.entries(NP).map(([k, l]) => `<label class="pt-switch"><span>${l}</span><input type="checkbox" data-k="${k}" ${pr[k] !== false ? 'checked' : ''}><i></i></label>`).join('')}</div></div>`;
+    const all = $('#nt-all'); if (all) all.onclick = async () => { const x = await api('/api/portal/notifications', {json: {action: 'read_all'}}); x.ok ? loaders.notif() : fail(x); };
+    $$('[data-k]', box).forEach(c => c.onchange = async () => { const x = await api('/api/portal/notifications', {json: {key: c.dataset.k, enabled: c.checked}}); x.ok ? showNotice('Preferência salva.', 'success') : (fail(x), c.checked = !c.checked); });
+  };
+
+  /* ---------- MODERAÇÃO ---------- */
+  const isCatalog = (i) => i.kind === 'ports' || i.kind === 'mods';
+  const isContrib = (i) => 'guild_id' in i || ('content' in i && 'title' in i);
+  loaders.queue = async () => {
+    const box = $('#ad-queue'); await loadPl();
+    const r = await api('/api/portal/admin/queue'); if (!r.ok) return box.innerHTML = empty('Acesso restrito à moderação', r.data.error);
+    const items = r.data.items || [];
+    box.innerHTML = `<div class="pt-balance"><span>Na fila</span><b>${items.length}</b><small class="muted">itens aguardando revisão</small></div>` + (items.map(i => {
+      const k = isContrib(i) ? 'contribution' : i.kind, title = i.title || i.game || i.name || '—', extra = i.challenge ? ` · ${i.challenge}` : i.platform ? ` · ${i.platform}` : '';
+      const proofs = (i.proofs || []).concat(i.proof_url ? [{url: i.proof_url, filename: 'Comprovante'}] : []).filter(p => /^https?:\/\/|^\//.test(p.url || '')).map(p => `<a href="${E(p.url)}" target="_blank" rel="noopener noreferrer">${E(p.filename || 'Comprovante')}</a>`).join('');
+      return `<div class="pt-card pt-q" data-k="${k}" data-id="${i.id}"><div class="pt-meta"><span class="pt-chip">${E(KIND[isContrib(i) ? 'guide' : i.kind] && !isContrib(i) ? KIND[i.kind] : (isContrib(i) ? 'Contribuição · ' + (KIND[i.kind] || i.kind) : i.kind))}</span><small class="muted">${E(nameOf(i.user_id || i.autor_id))} · ${fdate(i.created_at)}</small></div><h4>${E(title)}<small>${E(extra)}</small></h4>${i.summary || i.comment || i.build ? `<p class="muted">${E(i.summary || i.comment || i.build)}</p>` : ''}${proofs ? `<div class="pt-proofs">${proofs}</div>` : ''}<div class="pt-actions"><button class="primary" data-d="approved" type="button">Aprovar</button><button class="secondary" data-d="rejected" type="button">Rejeitar</button>${isCatalog(i) ? '' : '<button class="secondary" data-d="changes_requested" type="button">Pedir ajustes</button>'}</div></div>`;
+    }).join('') || empty('Fila vazia', 'Nenhum item aguardando aprovação.'));
+    $$('.pt-q [data-d]', box).forEach(b => b.onclick = async () => {
+      const q = b.closest('.pt-q'), k = q.dataset.k, a = b.dataset.d; let note = '';
+      if (a !== 'approved' && !isCatalog({kind: k})) { note = prompt('Observação para o membro (opcional):') || ''; }
+      b.disabled = true;
+      const x = isCatalog({kind: k}) ? await api(`/api/portal/catalog/${k}/${q.dataset.id}`, {json: {action: a}}) : await api(`/api/portal/admin/${k}/${q.dataset.id}`, {json: {action: a, note}});
+      x.ok ? (showNotice('Decisão registrada.', 'success'), loaders.queue()) : (fail(x), b.disabled = false);
+    });
+  };
+  loaders.news = async () => {
+    const box = $('#ad-news'), r = await api('/api/portal/admin/news'); if (!r.ok) return box.innerHTML = empty('Acesso restrito à moderação', r.data.error);
+    box.innerHTML = `<div class="pt-grid2"><div class="pt-card"><h4>Feeds monitorados</h4>${(r.data.feeds || []).map(f => `<div class="pt-row"><span class="pt-chip ${f.ativo ? 'ok' : 'warn'}">${f.ativo ? 'Ativo' : 'Pausado'}</span><div><b>${E(f.nome)}</b><small>${E(f.url)}</small></div><button class="text-btn" data-rm="${f.id}" type="button">remover</button></div>`).join('') || empty('Nenhum feed cadastrado')}</div><div class="pt-card"><h4>Adicionar feed RSS</h4><div class="pt-form">${field('Nome', 'nw-name', 'Ex.: IGN Brasil', 80, 'wide')}${field('URL do RSS (https)', 'nw-url', 'https://...', 500, 'wide')}<button class="primary" id="nw-add" type="button">Validar e adicionar</button><small class="muted">As notícias novas são publicadas pelo bot no canal configurado.</small></div></div></div>`;
+    $('#nw-add').onclick = async (ev) => { ev.currentTarget.disabled = true; const x = await api('/api/portal/admin/news', {json: {action: 'add', name: V('nw-name'), url: V('nw-url')}}); x.ok ? (showNotice('Feed adicionado.', 'success'), loaders.news()) : (fail(x), $('#nw-add').disabled = false); };
+    $$('[data-rm]', box).forEach(b => b.onclick = async () => { if (!confirm('Remover este feed?')) return; const x = await api('/api/portal/admin/news', {json: {action: 'remove', id: Number(b.dataset.rm)}}); x.ok ? loaders.news() : fail(x); });
+  };
+
+  /* ---------- Descobrir moderador (mostra a aba Moderação) ---------- */
+  (async () => { await new Promise(r => setTimeout(r, 1200)); if (!uid()) return; const r = await api('/api/portal/admin/queue'); if (r.ok) { const n = $('#nav-admin'); if (n) n.hidden = false; } })();
+  window.portalVisit = (id) => { document.querySelector('.nav[data-tab="portal"]').click(); setTimeout(() => sub('tab-portal', 'sanctuary') || loaders.sanctuary(id), 50); };
 })();
