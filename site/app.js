@@ -4,14 +4,15 @@ let currentUser = null;
 const text = (value, fallback = '—') => value === null || value === undefined || value === '' ? fallback : String(value);
 const number = (value) => new Intl.NumberFormat('pt-BR').format(Number(value || 0));
 // Manter sincronizado com VERSAO_ARTES em sistemas/cartas.py.
-const CARD_IMAGE_VERSION = 20;
-const imageUrl = (card) => {
+const CARD_IMAGE_VERSION = 21;
+const imageUrl = (card, {detail = false} = {}) => {
   const raw = card.image_url || `/api/gwent/cards/${encodeURIComponent(card.card_id || String(card.id || '').split('::')[0])}/image`;
   if (!raw.includes('/api/gwent/cards/')) return raw;
   const url = new URL(raw, window.location.origin);
-  if (!url.searchParams.has('v')) url.searchParams.set('v', String(CARD_IMAGE_VERSION));
-  // Grade e deck usam miniaturas menores; remover thumb=1 permite pedir a original.
-  if (!url.searchParams.has('thumb')) url.searchParams.set('thumb', '1');
+  url.searchParams.set('v', String(CARD_IMAGE_VERSION));
+  // Grade usa miniatura; modal pede composição HD independente e cacheável.
+  if (detail) { url.searchParams.delete('thumb'); url.searchParams.set('detail', '1'); }
+  else if (!url.searchParams.has('detail')) url.searchParams.set('thumb', '1');
   return `${url.pathname}${url.search}`;
 };
 const cardImageMarkup = (card, alt = '') =>
