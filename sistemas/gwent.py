@@ -544,7 +544,9 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         state["last_event"] = f"Jogador {uid} se rendeu. Vitória de {opponent_id}."
         return _registrar_evento(state)
 
-    if state["turn"] != uid:
+    # A preparação inicial é simultânea: cada jogador deve poder escolher
+    # suas trocas independentemente de quem inicia a batalha.
+    if state.get("phase") != "mulligan" and state["turn"] != uid:
         return {"error": "Aguarde a jogada do adversário."}
 
     if state.get("phase") == "mulligan":
