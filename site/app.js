@@ -830,6 +830,108 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
   /* ---------- SANTUÁRIO ---------- */
   let viewing = null;
   const HON = {respect: ['🛡', 'Respeito'], determination: ['🔥', 'Determinação'], greatness: ['👑', 'Grandeza']};
+  /* ---------- SANTUÁRIO · templo, efeitos e render ---------- */
+  const RANKS = [[0, 'Peregrino', '🕯'], [8, 'Iniciado', '🗝'], [25, 'Guardião', '🛡'], [60, 'Campeão', '⚔'], [120, 'Lenda', '👑']];
+  const rankOf = (s) => {
+    const pts = (+s.platinas || 0) * 3 + (+s.zerados || 0) * 2 + (+s.runs || 0); let i = 0;
+    RANKS.forEach((r, k) => { if (pts >= r[0]) i = k; });
+    const nx = RANKS[i + 1];
+    return {pts, i, cur: RANKS[i], nx, pct: nx ? Math.round((pts - RANKS[i][0]) / (nx[0] - RANKS[i][0]) * 100) : 100};
+  };
+  const templeSVG = () => {
+    const cols = [170, 300, 430, 770, 900, 1030].map(x => `<g class="sx-col"><rect x="${x - 34}" y="172" width="68" height="14" rx="2"/><rect x="${x - 26}" y="186" width="52" height="254"/><rect x="${x - 36}" y="440" width="72" height="12" rx="2"/><path class="fl" d="M${x - 13} 190V438M${x} 190V438M${x + 13} 190V438"/></g>`).join('');
+    const tri = [...Array(12)].map((_, i) => `<path d="M${130 + i * 82} 138v14"/>`).join('');
+    return `<svg class="sx-temple" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs>
+      <linearGradient id="sxStone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="color-mix(in srgb,var(--tc) 35%,#2a3050)"/><stop offset="1" stop-color="#0a0d1c"/></linearGradient>
+      <radialGradient id="sxDoor" cx=".5" cy="1" r=".95"><stop offset="0" stop-color="var(--tc2)" stop-opacity=".95"/><stop offset=".45" stop-color="var(--tc)" stop-opacity=".35"/><stop offset="1" stop-color="#05060d" stop-opacity=".95"/></radialGradient></defs>
+      <g fill="url(#sxStone)" stroke="var(--tc)" stroke-opacity=".55" stroke-width="1.5">
+      <polygon points="100,122 600,16 1100,122"/><polygon points="170,118 600,30 1030,118" fill="#05060d" fill-opacity=".55"/>
+      <rect x="100" y="122" width="1000" height="12"/><rect x="110" y="134" width="980" height="22"/><rect x="110" y="156" width="980" height="16"/>
+      ${cols}
+      <rect x="120" y="452" width="960" height="18"/><rect x="80" y="470" width="1040" height="20"/><rect x="40" y="490" width="1120" height="30"/></g>
+      <g stroke="var(--tc)" stroke-opacity=".5" stroke-width="3" fill="none">${tri}</g>
+      <circle class="sx-oculus" cx="600" cy="82" r="18" fill="var(--tc2)"/>
+      <path d="M440 452V268Q440 188 600 188Q760 188 760 268V452Z" fill="url(#sxDoor)" stroke="var(--tc2)" stroke-width="2"/>
+      <path d="M462 452V272Q462 208 600 208Q738 208 738 272V452" fill="none" stroke="var(--tc2)" stroke-opacity=".5" stroke-width="1.5"/></svg>`;
+  };
+  const flameHTML = (c) => {
+    const f = Math.min(1, .28 + Math.log2(1 + c) / 5).toFixed(2);
+    return `<span class="sx-brazier" style="--f:${f}"><i class="sx-fl a"></i><i class="sx-fl b"></i><i class="sx-fl c"></i><i class="sx-bowl"></i><i class="sx-leg"></i></span>`;
+  };
+  function sxFx(root) {
+    const sc = root.querySelector('.sx'); if (!sc) return;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fmt = (el, v) => { el.textContent = (+v).toFixed(+el.dataset.dec || 0); };
+    const countUp = (el) => {
+      const n = parseFloat(el.dataset.n); if (isNaN(n)) return;
+      if (reduce) return fmt(el, n);
+      const t0 = performance.now(), D = 1200;
+      const f = (t) => { const k = Math.min(1, (t - t0) / D); fmt(el, n * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(f); };
+      requestAnimationFrame(f);
+    };
+    const reveal = (el) => { el.classList.add('in'); el.querySelectorAll('[data-n]').forEach(countUp); };
+    sc.classList.add('sx-js');
+    const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { reveal(e.target); io.unobserve(e.target); } }), {threshold: .12}) : null;
+    sc.querySelectorAll('.sx-rv').forEach(el => io ? io.observe(el) : reveal(el));
+    const hero = sc.querySelector('.sx-hero');
+    if (hero && !reduce) hero.addEventListener('pointermove', (e) => {
+      const r = hero.getBoundingClientRect();
+      hero.style.setProperty('--mx', ((e.clientX - r.left) / r.width - .5).toFixed(3));
+      hero.style.setProperty('--my', ((e.clientY - r.top) / r.height - .5).toFixed(3));
+    });
+    const cv = sc.querySelector('.sx-embers'); if (!cv || reduce) return;
+    const ctx = cv.getContext('2d'), col = getComputedStyle(sc).getPropertyValue('--tc2').trim() || '#f3d69b';
+    let W = 0, H = 0, dpr = 1; const ps = [];
+    const mk = (init) => ({x: Math.random(), y: init ? Math.random() : 1.05, r: .6 + Math.random() * 2.2, v: .0006 + Math.random() * .0016, s: Math.random() * 6.28, a: .35 + Math.random() * .65});
+    for (let i = 0; i < 55; i++) ps.push(mk(true));
+    const loop = () => {
+      if (!cv.isConnected) return;
+      if (!document.hidden && cv.clientWidth) {
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        if (W !== Math.round(cv.clientWidth * dpr)) { W = cv.width = Math.round(cv.clientWidth * dpr); H = cv.height = Math.round(cv.clientHeight * dpr); }
+        ctx.clearRect(0, 0, W, H); ctx.fillStyle = col;
+        ps.forEach((p, i) => {
+          p.y -= p.v; p.s += .02; if (p.y < -.05) ps[i] = mk(false);
+          const x = (p.x + Math.sin(p.s) * .012) * W, y = p.y * H, fade = Math.max(0, Math.min(1, p.y * 1.6));
+          ctx.globalAlpha = p.a * fade * (.6 + .4 * Math.sin(p.s * 3));
+          ctx.beginPath(); ctx.arc(x, y, p.r * dpr, 0, 6.283); ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+  const sxTitle = (t) => `<h4 class="sx-title"><i></i><span>${t}</span><i></i></h4>`;
+  const renderSanctuary = (d, p, s, own, nm, links, sel) => {
+    const rk = rankOf(s);
+    const runes = [['🏆', 'Platinas', s.platinas], ['🎯', 'Zerados', s.zerados], ['⚔', 'Runs', s.runs], ['⭐', 'Nota média', s.media_nota != null ? Number(s.media_nota) : null], ['👥', 'Seguidores', d.followers]]
+      .map(([ic, k, v]) => `<div class="sx-rune"><em>${ic}</em><b ${v == null && k === 'Nota média' ? '' : `data-n="${+v || 0}" data-dec="${k === 'Nota média' ? 1 : 0}"`}>${v == null && k === 'Nota média' ? '—' : 0}</b><small>${k}</small></div>`).join('');
+    const hon = Object.entries(HON).map(([k, [i, l]]) => { const c = (d.honors || {})[k] || 0; return `<button class="pt-honor sx-altar" data-k="${k}" ${own ? 'disabled' : ''} type="button">${flameHTML(c)}<span class="sx-ic">${i}</span><b>${c}</b><small>${l}</small></button>`; }).join('');
+    const lk = Object.entries(links).filter(([, v]) => /^https?:\/\//.test(v)).map(([k, v]) => `<a class="sx-portal" href="${E(v)}" target="_blank" rel="noopener noreferrer">${E(k)} <span>↗</span></a>`).join('');
+    const msgs = (d.messages || []).map(m => `<div class="pt-msg sx-offer"><i class="sx-candle"></i><div class="sx-oh"><b>${E(nameOf(m.author_id))}</b><small>${fdate(m.created_at)}</small></div><p>${E(m.message)}</p>${own ? `<button class="text-btn" data-del="${m.id}" type="button">apagar</button>` : ''}</div>`).join('') || '<p class="muted sx-none">Nenhuma oferenda ainda. As velas aguardam o primeiro visitante.</p>';
+    return sel + `<div class="sx pt-th-${E(p.theme || 'Ouro')}">
+    <section class="sx-hero">
+      <div class="sx-sky"></div><div class="sx-rays"></div><div class="sx-stars"></div>
+      ${templeSVG()}<canvas class="sx-embers"></canvas>
+      <div class="sx-core">
+        <small class="sx-eyebrow">${own ? '✦ SEU SANTUÁRIO ✦' : '✦ SANTUÁRIO ✦'}</small>
+        <div class="sx-av"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="r1" cx="100" cy="100" r="96"/><circle class="r2" cx="100" cy="100" r="86"/></svg><div class="sx-av-in">${E(nm[0] || '?').toUpperCase()}</div><span class="sx-badge">${rk.cur[2]}</span></div>
+        <div class="sx-rank">${E(rk.cur[1])}</div>
+        <h3 class="sx-name">${E(nm)}</h3>
+        <p class="sx-tag">“${E(p.tagline || 'Este jogador ainda não escreveu uma frase.')}”</p>
+        <div class="sx-chips">${p.fav_game ? `<span class="sx-chip">🎮 ${E(p.fav_game)}</span>` : ''}<span class="sx-chip">${rk.pts} pontos de glória</span></div>
+        <div class="sx-lvl" title="${rk.nx ? `Faltam ${rk.nx[0] - rk.pts} pontos para ${E(rk.nx[1])}` : 'Nível máximo'}"><div><i style="width:${rk.pct}%"></i></div><small>${rk.nx ? `Próximo título: ${E(rk.nx[1])}` : 'Título máximo alcançado'}</small></div>
+        ${own ? '' : '<button class="primary sx-follow" id="sc-follow" type="button">Seguir</button>'}
+      </div>
+    </section>
+    <div class="sx-rv">${sxTitle('Runas de Conquista')}<div class="sx-runes">${runes}</div></div>
+    <div class="sx-rv">${sxTitle('Altares de Honra')}<div class="sx-altars pt-honors">${hon}</div>${own ? '' : '<small class="muted sx-hint">Acenda uma chama: você pode honrar este jogador uma vez por semana.</small>'}</div>
+    <div class="sx-rv">${sxTitle('Inscrições')}<div class="sx-tablet"><p class="sx-bio">${E(p.bio || 'Nenhuma inscrição foi gravada nesta pedra.')}</p>${lk ? `<div class="sx-portals">${lk}</div>` : ''}</div></div>
+    <div class="sx-rv">${sxTitle('Mural de Oferendas')}<div class="sx-offers pt-msgs">${msgs}</div>${own ? '' : `<div class="pt-form sx-leave"><label class="wide">Deixe uma oferenda<textarea id="gb-text" rows="2" maxlength="300" placeholder="Até 300 caracteres. Um recado por dia."></textarea></label><button class="primary" id="gb-send" type="button">Acender uma vela</button></div>`}</div>
+    </div>`;
+  };
+
   loaders.sanctuary = async (target) => {
     const box = $('#pt-sanctuary'); if (!uid()) return box.innerHTML = login;
     await loadPl(); viewing = String(target || viewing || uid());
@@ -839,13 +941,7 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
     else {
       const d = r.data, p = d.profile || {}, s = d.summary || {}, own = d.is_owner; let links = {}; try { links = typeof p.links === 'string' ? JSON.parse(p.links || '{}') : (p.links || {}); } catch (e) {}
       const nm = own ? ($('#profile-name').textContent || 'Seu santuário') : nameOf(viewing);
-      const stats = [['Platinas', s.platinas], ['Zerados', s.zerados], ['Runs', s.runs], ['Nota média', s.media_nota != null ? Number(s.media_nota).toFixed(1) : '—'], ['Seguidores', d.followers]].map(([k, v]) => `<div><b>${E(v == null ? 0 : v)}</b><small>${k}</small></div>`).join('');
-      const hon = Object.entries(HON).map(([k, [i, l]]) => `<button class="pt-honor" data-k="${k}" ${own ? 'disabled' : ''} type="button"><span>${i}</span><b>${(d.honors || {})[k] || 0}</b><small>${l}</small></button>`).join('');
-      const lk = Object.entries(links).filter(([, v]) => /^https?:\/\//.test(v)).map(([k, v]) => `<a class="secondary linkbtn" href="${E(v)}" target="_blank" rel="noopener noreferrer">${E(k)}</a>`).join('');
-      const msgs = (d.messages || []).map(m => `<div class="pt-msg"><b>${E(nameOf(m.author_id))}</b><small>${fdate(m.created_at)}</small><p>${E(m.message)}</p>${own ? `<button class="text-btn" data-del="${m.id}" type="button">apagar</button>` : ''}</div>`).join('') || '<p class="muted">Nenhum recado ainda.</p>';
-      box.innerHTML = sel + `<section class="pt-sc-hero pt-th-${E((p.theme || 'Ouro'))}"><div class="pt-sc-av">${E(nm[0] || '?').toUpperCase()}</div><div><small class="eyebrow">SANTUÁRIO</small><h3>${E(nm)}</h3><p>${E(p.tagline || 'Este jogador ainda não escreveu uma frase.')}</p>${p.fav_game ? `<span class="pt-chip ok">🎮 ${E(p.fav_game)}</span>` : ''}</div>${own ? '' : '<button class="primary" id="sc-follow" type="button">Seguir</button>'}</section>
-      <div class="pt-stats">${stats}</div><div class="pt-grid2"><div class="pt-card"><h4>Honrarias</h4><div class="pt-honors">${hon}</div>${own ? '' : '<small class="muted">Você pode honrar este jogador uma vez por semana.</small>'}</div><div class="pt-card"><h4>Sobre</h4><p>${E(p.bio || 'Sem biografia.')}</p><div class="pt-actions">${lk}</div></div></div>
-      <div class="pt-card"><h4>Mural de recados</h4><div class="pt-msgs">${msgs}</div>${own ? '' : `<div class="pt-form"><label class="wide">Deixe um recado<textarea id="gb-text" rows="2" maxlength="300" placeholder="Até 300 caracteres. Um recado por dia."></textarea></label><button class="primary" id="gb-send" type="button">Enviar recado</button></div>`}</div>`;
+      box.innerHTML = renderSanctuary(d, p, s, own, nm, links, sel); sxFx(box);
       $$('.pt-honor', box).forEach(b => b.onclick = async () => { const x = await api('/api/portal/sanctuaries/honor', {json: {user_id: Number(viewing), honor_key: b.dataset.k}}); x.ok ? (showNotice('Honraria enviada!', 'success'), loaders.sanctuary()) : fail(x); });
       const fo = $('#sc-follow'); if (fo) fo.onclick = async () => { const x = await api('/api/portal/community/follow', {json: {user_id: Number(viewing)}}); x.ok ? (showNotice(x.data.following ? 'Agora você segue este jogador.' : 'Você deixou de seguir.', 'success'), loaders.sanctuary()) : fail(x); };
       const gs = $('#gb-send'); if (gs) gs.onclick = async () => { const x = await api(`/api/portal/sanctuaries/${viewing}/guestbook`, {json: {message: V('gb-text')}}); x.ok ? (showNotice('Recado enviado.', 'success'), loaders.sanctuary()) : fail(x); };
