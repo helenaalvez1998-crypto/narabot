@@ -258,12 +258,12 @@ CENAS_POR_CARTA = {
     "chefe_cacador_sem_rosto": "A lean faceless hunter in layered travel leathers and a weather-stained hood tracks an unseen target through a narrow mist pass. The smooth mask has no features; a narrow curved blade and taut hunting line form a precise ambush composition. Teal edge light catches the weapon while the body remains partly concealed by terrain.",
     "chefe_vigia_cinzento": "A massive watchman in battered grey iron stands on a rain-dark fortress wall, holding a broad shield scarred by repeated impacts. Dark hostile energy drains from the shield into the wet stone beneath his boots, leaving the metal dim but intact. Emphasize endurance, weight and a grounded defensive stance.",
     "chefe_aparicao_veio": "A translucent wanderer slips between two ruined standing stones in a fogbound mountain pass. Its silhouette alternates between a cloaked human outline and drifting veil-like strands; one foot is already fading while the other changes direction. Use restrained spectral teal and layered mist, with no generic skull or ghost-sheet design.",
-    "arma_lamina_peregrino": "A single travel-worn dueling sword lies diagonally across a pilgrim's stone marker, its narrow blade nicked from use and its simple grip wrapped in faded cloth. The first dawn ray touches only the sharpened edge; a distant empty road gives the weapon a history of long journeys. The sword itself is the unmistakable protagonist.",
-    "arma_martelo_fornalha": "A heavy blacksmith's war hammer rests in the hands of an armored forge veteran inside a working mountain foundry. Its broad head is layered from dark iron and copper bands, with ember seams and visible hammer marks; sparks trace a repeated, linked rhythm around the anvil. Show the tool's weight and craftsmanship, not a generic glowing fantasy hammer.",
-    "arma_cajado_marulho": "An aged tide-oracle staff rises from a shallow stone pool in a submerged archive. Its shaft is carved from dark driftwood, bound with tarnished silver and a suspended sea-glass focus; concentric ripples bend reflected starlight toward the tip. The magic should feel tidal and measured, not like a fireball.",
+    "arma_lamina_peregrino": "A road-worn duelist known as the Duelist of the Pilgrim advances along an old pilgrimage road at first dawn. The fighter holds a narrow, nicked dueling sword in a low, disciplined guard while a second traveler retreats toward a weathered stone marker. Dust lifts around their boots and the first ray of sunlight catches the duelist's blade. Make the duelist—not the sword—the unmistakable protagonist; the weapon is evidence of a long journey and practiced skill.",
+    "arma_martelo_fornalha": "The Forge War-Smith works at a blazing mountain foundry, raising a heavy war hammer to finish a weapon while another armored ally holds the heated metal steady. The smith is the unmistakable protagonist: show the face, powerful working posture, soot-marked hands and practiced control. The hammer's dark iron and copper head, ember seams and hammer marks identify the craft, while linked sparks trace the repeated rhythm of the forging.",
+    "arma_cajado_marulho": "The Oracle of the Marulho stands ankle-deep in a submerged archive, guiding a measured tide through the flooded stone hall. The oracle's face, hands and deliberate gesture are the focal point; an aged driftwood staff bound with tarnished silver channels the current as a supporting instrument. Concentric ripples bend reflected starlight around the oracle while old records lift gently in the water. Show the oracle using the staff, not an unattended staff portrait.",
     "arma_duas_luas": "A poised dancer-warrior turns between two crescent blades whose polished edges form a precise intersecting arc. Her layered dark fabric follows the rotation; two pale moon reflections mark the exact points of the blades. Frame the instant before a clean, controlled strike, with full weapon silhouettes visible.",
-    "arma_grande_sino": "A colossal iron bell hangs from a ruined fortress belfry, guarded by a broad sentinel. Its surface is pitted, riveted and dark with age; a single shockwave ripples dust and loose chains outward as the bell begins to sound. Make the bell and its physical vibration the focal subject, not a decorative church scene.",
-    "arma_agulha_astro": "A slender astral needle, part precision instrument and part arcane weapon, floats above a dark observatory worktable. Its fine silver point aligns with a tiny star-like aperture while violet filaments stitch a measured constellation through the air. Emphasize delicate engineering, exact alignment and fragile luminous detail.",
+    "arma_grande_sino": "The Guardian of the Iron Bell braces beneath a colossal, ancient iron bell in a ruined fortress belfry. The guardian is the primary character, gripping the bell's heavy pull-chain as the first toll erupts; the shockwave ripples dust, rainwater and loose chains outward across the stone tower. The bell must remain clearly visible as the defining object of the guardian's identity, but do not replace the named guardian with an object-only composition.",
+    "arma_agulha_astro": "The Weaver of the Astral Needle works at a high observatory loom, guiding a fine silver needle through a suspended pattern of starlight. The weaver's face, hands and focused craft are central; the needle is a delicate tool held between the fingers, stitching violet filaments into a precise constellation above the worktable. Show the act of weaving and the emerging celestial pattern, not a floating needle product shot.",
     "arma_lanca_fornalha": "A disciplined iron lancer advances through furnace smoke with a long, practical spear held low and forward. The spearhead is forged from dark steel with a narrow ember seam; the soldier's layered armor bears heat discoloration and field repairs. Use a strong forward diagonal and readable spear length.",
     "arma_arco_peregrino": "A solitary road scout draws a compact recurved bow from a high ridge above a winding pass. The arrow is aligned with a distant signal lantern; wind pulls the scout's weathered cloak backward and the bowstring is visibly taut. Keep the shot precise and quiet, with a clear line from archer to target.",
     "magia_brasa_errante": "A young itinerant pyromancer shelters one small living ember between gloved hands in a dark roadside shrine. The ember bends sideways in a cold draft but does not go out, casting warm light across soot, copper charms and a focused expression. Keep the flame compact and controlled, not an explosion.",
@@ -599,10 +599,14 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "Ensure the main silhouette, face and defining object remain immediately readable at small collectible-card size."
     )
 
+    poder = _valor_prompt(str(carta.get("poder") if carta.get("poder") is not None else "not specified"), 30)
+    custo = _valor_prompt(str(carta.get("custo") if carta.get("custo") is not None else "not specified"), 30)
+    jogo_origem = _valor_prompt(carta.get("jogo_origem") or "", 100)
     contexto = (
-        f'CARD ID: {card_id or "not supplied"}.\nCARD NAME: "{nome}".\nCATEGORY: {categoria_raw}.\n'
-        f'FACTION: {faccao or "not specified"}.\nTACTICAL ROW: {fileira or "not specified"}.\nGWENT ROLE: {papel_gwent or "not specified"}.\nTYPE: {tipo or "unassigned"}.\nRARITY: {raridade or "not specified"}.\n'
-        f'ABILITY: {habilidade_nome}.\nCANONICAL ABILITY RULE: {habilidade_regra or "No ability rule supplied."}'
+        f'CARD ID: {card_id or "not supplied"}.\\nCARD NAME: "{nome}".\\nCATEGORY: {categoria_raw}.\\n'
+        f'FACTION: {faccao or "not specified"}.\\nTACTICAL ROW: {fileira or "not specified"}.\\nGWENT ROLE: {papel_gwent or "not specified"}.\\nTYPE: {tipo or "unassigned"}.\\nRARITY: {raridade or "not specified"}.\\n'
+        f'POWER: {poder}.\\nCOST: {custo}.\\nGAME ORIGIN: {jogo_origem or "not specified"}.\\n'
+        f'ABILITY: {habilidade_nome}.\\nCANONICAL ABILITY RULE: {habilidade_regra or "No ability rule supplied."}'
     )
     if descricao:
         contexto += f'\nCANONICAL CARD DESCRIPTION: "{descricao}".'
@@ -612,25 +616,39 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         origem,
         "CANONICAL CARD BRIEFING\n" + contexto,
         (
-            "NAME-LED CREATIVE IDENTITY — HIGHEST CREATIVE PRIORITY: the CARD NAME is the primary "
-            "creative anchor for this illustration, not a decorative label. Interpret its literal meaning, "
-            "imagery, implied subject, role, emotional tone and distinctive concept before designing the scene. "
-            "Determine whether the name denotes a person, creature, group, place, event, weapon, relic or "
-            "abstract force; make that named subject unmistakably recognizable and visually dominant. "
-            "Translate the name into a specific silhouette, facial expression (if applicable), gesture, "
-            "materials, props, environment and story beat. Do not reduce the name to a generic faction member "
-            "or generic fantasy archetype. If the name is metaphorical, express its strongest supported visual "
-            "metaphor without inventing biography or lore. The description and ability refine and constrain "
-            "the interpretation; faction, category, type, rarity and row are secondary art-direction layers. "
-            "When a prewritten scene conflicts with the named identity, adapt that scene to preserve the name's "
-            "literal subject and defining imagery. Never let a generic category or faction template replace "
-            "the identity expressed by the card name."
+            "CARD STORY — CANONICAL STORYBOARD, NOT GENERIC PROMPT DECORATION: Before composing the image, "
+            "resolve the card as a specific story. The CARD NAME defines the primary subject or concept. "
+            "The complete description and ability name/rule define what this subject is doing, why this moment "
+            "matters, and what visible consequence should appear. The image must show one readable instant with "
+            "a before-and-after implied by action, expression, gesture, environment and consequence. "
+            "If the name identifies a person (for example Duelist, Guardian, Oracle, Weaver, Smith, Scout, "
+            "Knight, Heir or Sovereign), that named person must be the dominant subject; a named weapon, relic, "
+            "banner or tool is supporting evidence unless the card name itself identifies the object as subject. "
+            "If the name identifies an object, creature, group, place or supernatural force, make that exact "
+            "entity the dominant subject. Do not swap a named person for a still-life object, or an object for "
+            "an unrelated generic warrior. Use the actual card ability as a visual action only when it can be "
+            "shown without changing the named identity. Faction, category, type, rarity, power and cost are "
+            "contextual constraints, not permission to invent lore. The prewritten scene is subordinate: retain "
+            "only details compatible with the card name and all canonical fields; rewrite or discard any "
+            "conflicting detail. Never invent biography, relationships, equipment, gender, species, rank, "
+            "injuries or powers that the card data does not establish. If a field is blank, leave it open rather "
+            "than filling it with unsupported lore. The result must tell THIS card's story, not depict a generic "
+            "fantasy character that happens to carry its name."
         ),
         "CARD-SPECIFIC VISUAL SCENE\n" + (cena or (
             "No fixed scene exists for this generated card ID. Build one original, specific scene strictly from the canonical card name, description, ability rule, faction and type. "
             "Start from the literal subject and distinctive imagery of the card name; then show one concrete action or event that expresses the description and ability. "
             "Do not substitute a generic warrior portrait. If the description is too sparse, depict the named subject in a plausible setting and keep unknown details visually neutral."
         )),
+        (
+            "CARD FACTS TO IMAGE DECISIONS: Use CARD NAME to decide the exact protagonist or central entity; "
+            "use CANONICAL CARD DESCRIPTION and CANONICAL ABILITY RULE to decide the depicted event and consequence; "
+            "use FACTION to decide only supported cultural/material motifs; use TYPE for restrained color and motion; "
+            "use RARITY only for visual scale/intensity, never for new powers; use POWER and COST only as game metadata "
+            "and do not render numbers or UI. TACTICAL ROW is placement metadata, not a weapon or profession. "
+            "The scene's protagonist, action and setting must be explainable from these facts. If no description exists, "
+            "the card name plus ability rule still define the scene; do not pad missing lore with random backstory."
+        ),
         _perfil_facial_carta(card_id, nome),
         (
             "CANONICAL IDENTITY AND STORY OVERRIDE — ABSOLUTE PRIORITY: the card name, full "
