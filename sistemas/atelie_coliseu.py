@@ -1,8 +1,7 @@
 """Regras do Ateliê de Cartas do Coliseu.
 
-Gera prompts com direção artística híbrida: dark fantasy monumental e pictórico
-com energia, silhuetas e efeitos de anime épico. A moldura oficial é aplicada
-separadamente pelo renderizador do NARABOT.
+Gera prompts individuais a partir do catálogo canônico do Coliseu.
+A moldura oficial é aplicada separadamente pelo renderizador do NARABOT.
 """
 from __future__ import annotations
 
@@ -314,8 +313,9 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
     habilidade_id = _valor_prompt(carta.get("habilidade") or "", 60).casefold()
     raridade = _valor_prompt(carta.get("raridade") or "Rara", 30)
     tipo = _valor_prompt(carta.get("tipo") or "", 30)
-    faccao = _valor_prompt(carta.get("faccao") or "Ordem de Ferro", 60)
-    fileira = _valor_prompt(carta.get("fileira") or "melee", 30)
+    faccao = _valor_prompt(carta.get("faccao") or "", 60)
+    fileira = _valor_prompt(carta.get("fileira") or "", 30)
+    papel_gwent = _valor_prompt(carta.get("papel_gwent") or "", 80)
     descricao = _valor_prompt(carta.get("descricao") or "", 500)
 
     habilidade = HABILIDADES.get(habilidade_id, {})
@@ -367,20 +367,23 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "Conclave Arcano": "FACTION IDENTITY: arcane scholars and battle-mages, runic geometry, violet astral light, ancient observatories and controlled magic. Favor functional scholar-warrior clothing, crafted instruments and physically coherent magical effects.",
     }
     origem = (
-        "CANON AND SOURCE POLICY: use the NARABOT card catalog as the authoritative source for card identity, category, faction, row, type, rarity, ability and description. "
-        "The card-specific scene below is an art-direction interpretation, not permission to alter canon. Do not invent names, backstory, powers, factions, symbols or relationships that are not present in the supplied card data. "
-        "Original NARABOT Gwent universe only: do not depict or name external video games, franchises, copyrighted characters, logos, costumes or locations."
+        "CANON AND SOURCE POLICY: the complete card facts are explicitly listed in this prompt; the image model has no access to the NARABOT database, website, renderer or external files. "
+        "Treat only CARD ID, name, category, faction, type, tactical row, rarity, ability rule and description as supplied canon. The scene is a visual interpretation, not new lore. "
+        "Do not invent official biography, relationships, powers, symbols, ranks or faction history. Where data is absent, stay visually neutral. "
+        "Create an original Coliseum-world illustration; do not reproduce identifiable characters, card compositions, costumes, creatures, locations, logos or interface from another franchise."
     )
+    # Fileira é apenas uma posição tática do jogo. Nunca determina arma,
+    # equipamento, profissão ou pose; isso vem da identidade e da cena da carta.
     fileiras = {
-        "melee": "TACTICAL ROLE: close-combat frontline. If the card is a unit, show credible proximity, a readable melee weapon or defensive stance, and physical interaction with the immediate battlefield.",
-        "ranged": "TACTICAL ROLE: ranged specialist. If the card is a unit, show a clear line of sight, a bow, crossbow, throwing weapon or precision tool, and a believable firing position.",
-        "siege": "TACTICAL ROLE: siege or arcane artillery. If the card is a unit, show range, machinery, a crafted focus or controlled long-distance spellcasting; establish distance and scale.",
+        "melee": "TACTICAL ROW (MELEE): this is a gameplay placement label only. It may suggest a close battlefield context, but it does NOT prescribe a weapon, class, profession or equipment.",
+        "ranged": "TACTICAL ROW (RANGED): this is a gameplay placement label only. It does NOT mean the subject must use a bow, crossbow, thrown weapon or ranged attack. Preserve the literal subject and equipment established by the card name and scene.",
+        "siege": "TACTICAL ROW (SIEGE): this is a gameplay placement label only. It does NOT force artillery, machinery or long-distance spellcasting. Preserve the literal subject and equipment established by the card name and scene.",
     }
-    diretriz_fileira = fileiras.get(fileira, "TACTICAL ROLE: follow the card's actual special-effect description; do not force a humanoid combat pose onto a spell, relic or battlefield effect.")
+    diretriz_fileira = fileiras.get(fileira, "TACTICAL ROW: no row information supplied. Do not infer equipment or combat role from missing data.")
 
     contexto = (
         f'CARD ID: {card_id or "not supplied"}.\nCARD NAME: "{nome}".\nCATEGORY: {categoria_raw}.\n'
-        f'FACTION: {faccao}.\nTACTICAL ROW: {fileira}.\nTYPE: {tipo or "unassigned"}.\nRARITY: {raridade}.\n'
+        f'FACTION: {faccao or "not specified"}.\nTACTICAL ROW: {fileira or "not specified"}.\nGWENT ROLE: {papel_gwent or "not specified"}.\nTYPE: {tipo or "unassigned"}.\nRARITY: {raridade}.\n'
         f'ABILITY: {habilidade_nome}.\nCANONICAL ABILITY RULE: {habilidade_regra or "No ability rule supplied."}'
     )
     if descricao:
@@ -395,7 +398,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
             "First identify the literal subject implied by the name; then show one concrete action or event that expresses the description. "
             "Do not substitute a generic warrior portrait. If the description is too sparse, depict the named object or role in a plausible setting and keep unknown details visually neutral."
         )),
-        diretrizes_faccao.get(faccao, diretrizes_faccao["Ordem de Ferro"]),
+        diretrizes_faccao.get(faccao, "FACTION IDENTITY: not specified. Do not invent faction insignia, uniforms, heraldry or faction-specific lore; use neutral, practical materials and colors.") ,
         diretriz_fileira,
         diretriz,
         raridade_prompt,
@@ -415,8 +418,8 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "NEGATIVE CONSTRAINTS: no generic fantasy stock character, no random dragon/skull/castle unless the card data calls for it, no unrelated companions, no extra weapons, "
         "no contradictory faction colors, no ability symbols that look like interface icons, no split panels, no collage, no illegible runes, no text, no logo, no watermark, "
         "no card frame, no card border, no title, no stats, no rarity gem and no UI.\n\n"
-        "FINAL OUTPUT: original standalone landscape 5:4 illustration only, designed to fit behind the official NARABOT card frame. "
-        "The renderer adds the frame, name, stats and ability separately. Do not draw or simulate any of those elements."
+        "FINAL OUTPUT: original standalone landscape 5:4 illustration only. The NARABOT renderer adds its own frame, name, stats and ability separately; do not draw or simulate those elements. "
+        "The image model does not know the renderer or its frame geometry. Keep all essential content comfortably inside the composition, with no assumed frame measurements."
     )
     return "\n\n".join(blocos)
 
