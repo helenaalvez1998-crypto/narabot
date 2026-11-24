@@ -758,7 +758,6 @@ class NaraBot(commands.Bot):
         app.router.add_get("/api/gwent/atelier/official/{card_id}", self._api_gwent_atelier_official_metadata)
         app.router.add_get("/api/gwent/store", self._api_gwent_store)
         app.router.add_post("/api/gwent/store/pack", self._api_gwent_store_pack)
-        app.router.add_post("/api/gwent/store/forge", self._api_gwent_store_forge)
         app.router.add_get("/api/gwent/deck", self._api_gwent_deck)
         app.router.add_post("/api/gwent/deck", self._api_gwent_deck_save)
         app.router.add_get("/api/gwent/matches", self._api_gwent_matches)
@@ -1583,7 +1582,6 @@ class NaraBot(commands.Bot):
                         "pity": int(state["pity"]), "fragments": int(fragments["quantidade"] or 0) if fragments else 0},
             "pack": {"available": usados < 3, "price": 120, "cards": 3,
                      "daily_limit": 3, "remaining": max(0, 3-usados)},
-            "forge_cards": [],
         })
 
     async def _api_gwent_store_pack(self, request: web.Request) -> web.Response:
@@ -1605,12 +1603,6 @@ class NaraBot(commands.Bot):
                                   "summary": {"denarios": int(state["denarios"]),
                                               "souls": int(state["almas"]),
                                               "fragments": int(state["fragmentos"])}})
-
-    async def _api_gwent_store_forge(self, request: web.Request) -> web.Response:
-        return web.json_response(
-            {"error": "A forja direta foi desativada. Cartas são conquistadas por drops; duplicatas geram Almas ou fragmentos."},
-            status=410,
-        )
 
     async def _api_gwent_cards(self, request: web.Request) -> web.Response:
         """Retorna cada exemplar como opção independente para o construtor do Gwent."""
