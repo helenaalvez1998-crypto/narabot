@@ -13,7 +13,7 @@ import hashlib
 import json
 import secrets
 import time
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 import threading
 import traceback
@@ -1014,7 +1014,7 @@ class NaraBot(commands.Bot):
                 item["exemplar_id"] = int(record["id"])
                 item["id"] = f"{card_id}::{int(record['id'])}"
                 item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
-                item["image_url"] = f"/api/gwent/cards/{card_id}/image"
+                item["image_url"] = f"/api/gwent/cards/{quote(card_id, safe='')}/image"
                 cards.append(item)
         from sistemas.gwent import LEADERS, DEFAULT_LEADERS, FACTIONS
         faction = str(row["faction"] or "") if row else ""
@@ -1649,7 +1649,7 @@ class NaraBot(commands.Bot):
                 item["exemplares"] = 1
                 item["source"] = str(record["source"] or "")
                 item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
-                item["image_url"] = f"/api/gwent/cards/{card_id}/image"
+                item["image_url"] = f"/api/gwent/cards/{quote(card_id, safe='')}/image"
                 cards.append(item)
             from levels import nivel_por_xp
             xp = int(estado["xp"])
@@ -2030,7 +2030,6 @@ class NaraBot(commands.Bot):
                 "habilidade_texto": gwent["habilidade_texto"],
             })
             if official_art:
-                import hashlib
                 cache = self.__dict__.setdefault("_arte_oficial_cache", {})
                 chave = hashlib.sha1((str(official_art["id"]) + json.dumps(source, sort_keys=True, default=str)).encode()).hexdigest()
                 png = cache.get(chave)
@@ -2047,12 +2046,39 @@ class NaraBot(commands.Bot):
                     body=png, content_type="image/png",
                     headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"},
                 )
-            # Pillow faz composição pesada (incluindo GaussianBlur) e não pode
-            # rodar no event loop do Discord/aiohttp.
-            image_bytes = await asyncio.to_thread(lambda: render_carta(source).read_bytes())
+            # Cache em memória + lock por carta: evita recalcular a mesma arte
+            # quando a coleção dispara dezenas de <img> ao mesmo tempo.
+            cache_key = hashlib.sha256(
+                json.dumps(source, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest()
+            image_cache = self.__dict__.setdefault("_gwent_card_image_cache", {})
+            image_locks = self.__dict__.setdefault("_gwent_card_image_locks", {})
+            if len(image_locks) > 512:
+                for old_key, old_lock in list(image_locks.items()):
+                    if not old_lock.locked():
+                        image_locks.pop(old_key, None)
+                    if len(image_locks) <= 384:
+                        break
+            cached_image = image_cache.get(cache_key)
+            if cached_image is None:
+                lock = image_locks.setdefault(cache_key, asyncio.Lock())
+                async with lock:
+                    cached_image = image_cache.get(cache_key)
+                    if cached_image is None:
+                        def _render_and_read() -> bytes:
+                            return render_carta(source).read_bytes()
+                        cached_image = await asyncio.to_thread(_render_and_read)
+                        if len(image_cache) >= 64:
+                            image_cache.pop(next(iter(image_cache)))
+                        image_cache[cache_key] = cached_image
             return web.Response(
-                body=image_bytes, content_type="image/png",
-                headers={"Content-Disposition": "inline", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+                body=cached_image, content_type="image/png",
+                headers={
+                    "Content-Disposition": "inline",
+                    "Cache-Control": "private, max-age=1800, stale-while-revalidate=86400",
+                    "ETag": f'"{cache_key}"',
+                    "X-Content-Type-Options": "nosniff",
+                },
             )
         except web.HTTPException:
             raise
