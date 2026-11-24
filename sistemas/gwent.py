@@ -6,7 +6,7 @@ ROWS = ("melee", "ranged", "siege")
 AI_PLAYER_ID = -1  # Identidade técnica reservada à NARA; nunca recebe ranking/recompensas.
 ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
-FACTIONS = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
+FACTIONS = {"Força": "Ordem Áurea", "Destreza": "Império Nocturno", "Magia": "Conclave da Ruína"}
 FACTION_TYPES = {value: key for key, value in FACTIONS.items()}
 
 # Contrato de cobertura: cada habilidade declarada no catálogo precisa estar ligada
