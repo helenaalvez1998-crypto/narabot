@@ -1354,13 +1354,14 @@ class NaraBot(commands.Bot):
         opponent = state["players"].get(opponent_id, {})
         guild = self.get_guild(int(getattr(config, "GUILD_ID", 0) or 0))
         opponent_member = guild.get_member(int(opponent_id)) if guild and str(opponent_id).isdigit() else None
-        from sistemas.gwent import LEADERS
+        from sistemas.gwent import LEADERS, opcoes_de_alvo
         leader_id = own.get("leader_id", "")
         public = {
             "match_id": match_id, "status": state["status"], "phase": state.get("phase", "battle"),
             "round": state["round"], "turn": state["turn"], "crowns": state["crowns"],
             "winner_id": state["winner_id"], "last_event": state["last_event"],
             "score": placar(state), "hand": own["hand"], "leader_used": own["leader_used"],
+            "alvos": opcoes_de_alvo(state, user_id),
             "weather_used": own.get("weather_used", False), "weather": state.get("weather", {}),
             "is_your_turn": state["turn"] == str(user_id), "your_id": str(user_id),
             "rounds": state["rounds"], "mulligan_done": own.get("mulligan_done", True),
@@ -1410,7 +1411,8 @@ class NaraBot(commands.Bot):
                 return web.json_response({"error": "Seleção de troca inválida."}, status=400)
 
             turno_antes = str(state.get("turn") or "")
-            result = aplicar_jogada(state, user_id, card_id, action, target_row, card_ids)
+            target_id = str(body.get("target_id", ""))[:120] or None
+            result = aplicar_jogada(state, user_id, card_id, action, target_row, card_ids, target_id)
             if "error" in result:
                 return web.json_response({"error": result["error"]}, status=409)
             state = result["state"]
