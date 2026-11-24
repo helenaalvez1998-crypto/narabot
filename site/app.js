@@ -810,19 +810,60 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
   });
 
   /* ---------- PERFIL ---------- */
+  const THEME_C = {Ouro: ['#d9ae62', 'Brasas douradas'], Prata: ['#c8d2dc', 'Neve de prata'], Safira: ['#5b8def', 'Bolhas do abismo'], Esmeralda: ['#4fcf8a', 'Vaga-lumes'], Rubi: ['#e0463a', 'Chamas rubras'], Ametista: ['#a98bff', 'Estrelas místicas']};
+  const LINKS = [['perfil', '🎮', 'Steam / PSN / Xbox'], ['youtube', '▶️', 'YouTube'], ['twitch', '📺', 'Twitch'], ['site', '🌐', 'Site / Portfólio']];
   loaders.profile = async () => {
     const box = $('#pt-profile'); if (!uid()) return box.innerHTML = login;
-    const r = await api('/api/portal/profile'); if (!r.ok) return box.innerHTML = empty('Não foi possível carregar o perfil', r.data.error);
+    const [r, sr] = await Promise.all([api('/api/portal/profile'), api(`/api/portal/sanctuaries/${uid()}`), loadPl()]);
+    if (!r.ok) return box.innerHTML = empty('Não foi possível carregar o perfil', r.data.error);
     const p = r.data.profile || {}; let links = {}; try { links = typeof p.links === 'string' ? JSON.parse(p.links || '{}') : (p.links || {}); } catch (e) {}
-    box.innerHTML = `<div class="pt-grid2"><div class="pt-card"><h4>Sobre você</h4><div class="pt-form">${field('Frase de destaque', 'pf-tag', 'Uma frase que te define', 100, 'wide')}${field('Jogo favorito', 'pf-fav', 'Ex.: Elden Ring', 100)}<label>Tema do santuário<select id="pf-theme">${THEMES.map(t => `<option>${t}</option>`).join('')}</select></label>${area('Biografia', 'pf-bio', 'Conte um pouco sobre você e seus jogos...', 1000, 5)}</div></div>
-    <div class="pt-card"><h4>Seus links</h4><div class="pt-form">${field('Steam / PSN / Xbox', 'pf-l-perfil', 'https://...', 250, 'wide')}${field('YouTube', 'pf-l-youtube', 'https://...', 250, 'wide')}${field('Twitch', 'pf-l-twitch', 'https://...', 250, 'wide')}${field('Site / Portfólio', 'pf-l-site', 'https://...', 250, 'wide')}</div></div></div>
-    <div class="pt-actions"><button class="primary" id="pf-save" type="button">Salvar perfil</button><button class="secondary" type="button" data-pt-go="sanctuary">Ver meu santuário</button></div>`;
-    $('#pf-tag').value = p.tagline || ''; $('#pf-fav').value = p.fav_game || ''; $('#pf-bio').value = p.bio || ''; if (THEMES.includes(p.theme)) $('#pf-theme').value = p.theme;
-    ['perfil', 'youtube', 'twitch', 'site'].forEach(k => $('#pf-l-' + k).value = links[k] || '');
+    const d = sr.ok ? sr.data : {}, s = d.summary || {}, rk = rankOf(s), nm = $('#profile-name').textContent || 'Seu nome';
+    const pl = (players || []).find(x => String(x.id) === String(uid())) || {}, pr = PRES[pl.web_online ? 'on' : pl.discord_presence] || PRES.on;
+    const num = {platinas: +s.platinas || 0, zerados: +s.zerados || 0, runs: +s.runs || 0, media_nota: +s.media_nota || 0};
+    const got = BADGES.filter(b => b[3](num, d));
+    const inp = (id, lab, ph, ml, ic) => `<label class="pf-f"><span>${ic ? `<em>${ic}</em>` : ''}${lab}<small class="pf-cnt" data-for="${id}"></small></span><input id="${id}" maxlength="${ml}" placeholder="${E(ph)}" autocomplete="off"></label>`;
+    const sw = Object.entries(THEME_C).map(([t, [c, ds]]) => `<button type="button" class="pf-sw" data-t="${t}" style="--c:${c}"><i></i><b>${t}</b><small>${ds}</small></button>`).join('');
+    box.innerHTML = `<div class="pf"><div class="pf-grid">
+      <aside class="pf-side"><small class="pf-lab">✦ Pré-visualização ao vivo</small>
+        <div class="pf-card" id="pf-card"><div class="pf-banner"><div class="pf-rays"></div><div class="pf-temple"></div></div>
+          <div class="pf-av"><div class="pf-av-in"><span>${E(nm[0] || '?').toUpperCase()}</span>${pl.avatar ? `<img src="${E(pl.avatar)}" alt="" onerror="this.remove()">` : ''}</div><i class="sx-pres ${pr[0]}"></i></div>
+          <div class="pf-body"><div class="pf-nrow"><h3>${E(nm)}</h3><span class="pf-rank">${rk.cur[2]} ${E(rk.cur[1])}</span></div>
+            <p class="pf-quote" id="pv-tag"></p>
+            <div class="pf-hr"></div><small class="pf-h">SOBRE MIM</small><p class="pf-bio" id="pv-bio"></p>
+            <div id="pv-act"></div>
+            <small class="pf-h">INSÍGNIAS · ${got.length}/${BADGES.length}</small><div class="pf-bdg">${got.map(b => `<span title="${E(b[1])}">${b[0]}</span>`).join('') || '<em>Jogue, zere e conquiste para ganhar insígnias.</em>'}</div>
+            <div id="pv-links" class="pf-lks"></div></div></div>
+        <small class="pf-note">É assim que seu santuário aparece para os outros membros.</small></aside>
+      <div class="pf-form">
+        <section class="pf-sec"><h4><i>1</i>Identidade</h4>${inp('pf-tag', 'Frase de destaque', 'Uma frase que te define', 100, '💬')}${inp('pf-fav', 'Jogo favorito', 'Ex.: Elden Ring', 100, '🎮')}</section>
+        <section class="pf-sec"><h4><i>2</i>Tema do santuário</h4><div class="pf-sws">${sw}</div><select id="pf-theme" hidden>${THEMES.map(t => `<option>${t}</option>`).join('')}</select></section>
+        <section class="pf-sec"><h4><i>3</i>Inscrições</h4><label class="pf-f"><span><em>📜</em>Biografia<small class="pf-cnt" data-for="pf-bio"></small></span><textarea id="pf-bio" rows="5" maxlength="1000" placeholder="Conte um pouco sobre você e seus jogos..."></textarea></label></section>
+        <section class="pf-sec"><h4><i>4</i>Portais</h4><div class="pf-lgrid">${LINKS.map(([k, ic, l]) => inp('pf-l-' + k, l, 'https://...', 250, ic)).join('')}</div><small class="pf-warn" id="pf-warn" hidden>Use links começando com https:// — os outros não aparecem no santuário.</small></section>
+      </div></div>
+      <div class="pf-bar"><span class="pf-dirty" id="pf-dirty" hidden>● alterações não salvas</span><div class="pt-actions"><button class="primary" id="pf-save" type="button">💾 Salvar perfil</button><button class="secondary" type="button" data-pt-go="sanctuary">🏛 Ver meu santuário</button></div></div></div>`;
+    $('#pf-tag').value = p.tagline || ''; $('#pf-fav').value = p.fav_game || ''; $('#pf-bio').value = p.bio || '';
+    const th = THEMES.includes(p.theme) ? p.theme : 'Ouro'; $('#pf-theme').value = th;
+    LINKS.forEach(([k]) => $('#pf-l-' + k).value = links[k] || '');
+    let dirty = false;
+    const upd = () => {
+      const t = $('#pf-theme').value, card = $('#pf-card'); card.className = `pf-card pt-th-${t}`;
+      $$('.pf-sw', box).forEach(b => b.classList.toggle('on', b.dataset.t === t));
+      $('#pv-tag').textContent = V('pf-tag') ? `“${V('pf-tag')}”` : 'Escreva uma frase que te define…';
+      $('#pv-bio').textContent = V('pf-bio') || 'Sua biografia aparecerá aqui.';
+      $('#pv-act').innerHTML = V('pf-fav') ? `<div class="sx-act pf-act"><div class="sx-act-ic">🎮</div><div><small>JOGO FAVORITO</small><b>${E(V('pf-fav'))}</b></div><span class="sx-eq"><i></i><i></i><i></i><i></i></span></div>` : '';
+      let bad = false;
+      $('#pv-links').innerHTML = LINKS.map(([k, ic, l]) => { const v = V('pf-l-' + k), el = $('#pf-l-' + k); const ok = !v || /^https?:\/\//.test(v); el.classList.toggle('bad', !ok); bad = bad || !ok; return v && ok ? `<span class="sx-portal">${ic} ${l.split(' ')[0]}</span>` : ''; }).join('');
+      $('#pf-warn').hidden = !bad;
+      $$('.pf-cnt', box).forEach(c => { const el = $('#' + c.dataset.for); c.textContent = `${el.value.length}/${el.maxLength}`; });
+      $('#pf-dirty').hidden = !dirty;
+    };
+    box.querySelector('.pf-form').addEventListener('input', () => { dirty = true; upd(); });
+    $$('.pf-sw', box).forEach(b => b.onclick = () => { $('#pf-theme').value = b.dataset.t; dirty = true; upd(); });
+    upd(); dirty = false; $('#pf-dirty').hidden = true;
     $('#pf-save').onclick = async () => {
-      const l = {}; ['perfil', 'youtube', 'twitch', 'site'].forEach(k => { const v = V('pf-l-' + k); if (v) l[k] = v; });
-      const s = await api('/api/portal/profile', {json: {tagline: V('pf-tag'), fav_game: V('pf-fav'), bio: V('pf-bio'), theme: $('#pf-theme').value, links: l}});
-      s.ok ? showNotice('Perfil salvo com sucesso.', 'success') : fail(s);
+      const l = {}; LINKS.forEach(([k]) => { const v = V('pf-l-' + k); if (v) l[k] = v; });
+      const s2 = await api('/api/portal/profile', {json: {tagline: V('pf-tag'), fav_game: V('pf-fav'), bio: V('pf-bio'), theme: $('#pf-theme').value, links: l}});
+      if (s2.ok) { showNotice('Perfil salvo com sucesso.', 'success'); dirty = false; upd(); const c = $('#pf-card'); c.classList.add('saved'); setTimeout(() => c.classList.remove('saved'), 1200); } else fail(s2);
     };
   };
   document.addEventListener('click', (e) => { const g = e.target.closest('[data-pt-go]'); if (g) sub('tab-portal', g.dataset.ptGo); });
