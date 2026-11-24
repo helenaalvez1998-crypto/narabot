@@ -1680,3 +1680,445 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--pro-line);fon
   object-fit: contain !important;
 }
 #gwent-arena .gwent-hand { align-items: start; }
+
+
+/* GWENT ARENA — mesa compacta em viewport único (desktop) */
+html.gwent-match-active,
+body.gwent-match-active {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+body.gwent-match-active .hud {
+  height: 58px;
+  min-height: 58px;
+  padding: 0 16px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+}
+body.gwent-match-active .hud nav { display: none !important; }
+body.gwent-match-active .hud .brand { padding: 0; }
+body.gwent-match-active .hud .brand small { display: block; }
+body.gwent-match-active main {
+  width: 100%;
+  max-width: none;
+  height: calc(100dvh - 58px);
+  min-height: 0;
+  margin: 0;
+  padding: 7px clamp(8px, 1.2vw, 18px);
+  overflow: hidden;
+}
+body.gwent-match-active .screen-title,
+body.gwent-match-active #notice,
+body.gwent-match-active #tab-arena > .stage,
+body.gwent-match-active #tab-arena > .gwent-rules,
+body.gwent-match-active #challenge-panel,
+body.gwent-match-active #gwent-match-list,
+body.gwent-match-active main > footer {
+  display: none !important;
+}
+body.gwent-match-active #gwent,
+body.gwent-match-active #tab-arena {
+  display: block !important;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+body.gwent-match-active #tab-arena { overflow: hidden; }
+body.gwent-match-active #gwent-arena:not([hidden]) {
+  display: grid !important;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  padding: 9px clamp(9px, 1.15vw, 18px);
+  overflow: hidden;
+  grid-template-rows: auto auto minmax(0, 1fr) auto minmax(0, 1.08fr);
+  gap: 7px;
+  border-width: 3px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 28px #000a, 0 8px 24px #0008;
+}
+body.gwent-match-active .gwent-arena-head {
+  min-height: 42px;
+  margin: 0;
+  padding: 0 0 6px;
+  align-items: center;
+  gap: 12px;
+}
+body.gwent-match-active .gwent-arena-title { min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: baseline; }
+body.gwent-match-active .gwent-arena-title .eyebrow { grid-column: 1 / -1; font-size: 8px; line-height: 1.1; }
+body.gwent-match-active .gwent-arena-title h2 { margin: 1px 0 0; font-size: clamp(15px, 1.35vw, 21px); letter-spacing: .09em; }
+body.gwent-match-active .gwent-arena-title h2 span { margin-left: 8px; color: #a9bad7; font: 700 11px Inter, sans-serif; letter-spacing: 0; text-transform: none; }
+body.gwent-match-active .gwent-arena-title .gwent-log { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; padding: 2px 0; border: 0; background: none; box-shadow: none; color: #b8c5db; font-size: 10px; line-height: 1.25; }
+body.gwent-match-active .gwent-arena-head-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
+body.gwent-match-active .gwent-exit,
+body.gwent-match-active .gwent-history summary {
+  padding: 7px 10px;
+  border: 1px solid rgba(213,173,105,.55);
+  border-radius: 6px;
+  background: rgba(6,9,19,.8);
+  color: #efd59f;
+  font: 700 9px Cinzel, serif;
+  letter-spacing: .04em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+body.gwent-match-active .gwent-arena-toolbar {
+  display: flex;
+  align-items: stretch;
+  min-height: 48px;
+  gap: 8px;
+  overflow: visible;
+}
+body.gwent-match-active .gwent-score {
+  flex: 0 0 min(43%, 570px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  min-width: 300px;
+  margin: 0;
+}
+body.gwent-match-active .gwent-score article {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-content: center;
+  justify-content: space-between;
+  gap: 1px 8px;
+  min-width: 0;
+  padding: 5px 10px;
+  border-width: 1px;
+  text-align: left;
+  box-shadow: inset 0 0 10px #000a;
+}
+body.gwent-match-active .gwent-score article small:first-child { grid-column: 1; font-size: 8px; letter-spacing: 1px; }
+body.gwent-match-active .gwent-score article strong { grid-column: 2; grid-row: 1 / 3; align-self: center; color: var(--gold-bright); font: 800 24px Cinzel, serif; }
+body.gwent-match-active .gwent-score article span { grid-column: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b6c2d9; font: 600 9px Inter, sans-serif; }
+body.gwent-match-active .gwent-faction {
+  display: grid;
+  align-content: center;
+  flex: 1 1 150px;
+  min-width: 110px;
+  margin: 0;
+  padding: 5px 10px;
+  overflow: hidden;
+  border-left-width: 2px;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.3;
+}
+body.gwent-match-active .gwent-faction b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-bright); }
+body.gwent-match-active .gwent-faction span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #b8c5db; }
+body.gwent-match-active .gwent-prep {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 5px 8px;
+  border-width: 1px;
+  box-shadow: none;
+}
+body.gwent-match-active .gwent-prep span { max-width: 230px; color: #c5d0e2; font-size: 9px; line-height: 1.25; }
+body.gwent-match-active .gwent-prep button { padding: 7px 9px; font-size: 9px; white-space: nowrap; }
+body.gwent-match-active .gwent-reward-panel {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-width: 1px;
+  box-shadow: none;
+  font-size: 10px;
+}
+body.gwent-match-active .gwent-reward-panel b { margin: 0; font-size: 10px; white-space: nowrap; }
+body.gwent-match-active .gwent-reward-panel span { color: #d8e4f3; white-space: nowrap; }
+body.gwent-match-active .gwent-history { position: relative; }
+body.gwent-match-active .gwent-history summary { list-style: none; }
+body.gwent-match-active .gwent-history summary::-webkit-details-marker { display: none; }
+body.gwent-match-active .gwent-history[open] ol {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(420px, 70vw);
+  max-height: min(55dvh, 420px);
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px 12px 30px;
+  border: 1px solid #c49c58;
+  background: #101626;
+  color: #d9e3f3;
+  box-shadow: 0 12px 35px #000d;
+  font: 11px/1.45 Inter, sans-serif;
+}
+body.gwent-match-active .gwent-history[open] li { padding: 3px 0; }
+body.gwent-match-active .gwent-battlefield {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+body.gwent-match-active .gwent-board-side {
+  display: grid;
+  grid-template-rows: 22px repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 8px;
+  border: 1px solid rgba(129,171,218,.28);
+  background: linear-gradient(160deg, rgba(18,25,45,.95), rgba(5,8,16,.92));
+  box-shadow: inset 0 0 18px #0009;
+}
+body.gwent-match-active .gwent-board-side > h3 {
+  margin: 0;
+  align-self: center;
+  color: #e9c989;
+  font: 700 10px Cinzel, serif;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+body.gwent-match-active .gwent-board-side .gwent-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 6px 4px 0;
+  border: 1px solid rgba(199,161,91,.52);
+  background: linear-gradient(90deg, rgba(16,24,47,.96), rgba(4,7,14,.85));
+  box-shadow: inset 0 0 12px #0009;
+}
+body.gwent-match-active .gwent-board-side .gwent-row h4 {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 100%;
+  margin: 0;
+  padding: 3px;
+  border: 0;
+  border-right: 2px solid var(--gold);
+  background: rgba(25,35,66,.8);
+  font: 700 8px/1.25 Cinzel, serif;
+  text-align: center;
+}
+body.gwent-match-active .gwent-board-side .gwent-row h4 b { color: var(--gold-bright); font: 800 14px Cinzel, serif; }
+body.gwent-match-active .gwent-board-cards {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+body.gwent-match-active .gwent-board-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(29px, 3.3vw, 48px);
+  min-width: 0;
+  height: calc(100% - 2px);
+  max-height: 82px;
+  padding: 2px;
+  border-width: 1px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px #000a;
+}
+body.gwent-match-active .gwent-board-card img {
+  display: block;
+  width: 100%;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+}
+body.gwent-match-active .gwent-board-power {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  min-width: 14px;
+  padding: 1px 3px;
+  border: 1px solid #ddbd80;
+  border-radius: 3px;
+  background: #080c18eF;
+  color: #ffe4a5;
+  font: 800 8px Inter, sans-serif;
+  text-align: center;
+}
+body.gwent-match-active .gwent-board-card .gwent-shield { position: absolute; top: 1px; right: 2px; color: #9fe4ff; font-size: 8px; }
+body.gwent-match-active .gwent-board-cards > .muted { padding-left: 4px; color: #75839b; font-size: 9px; }
+body.gwent-match-active .gwent-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 34px;
+  margin: 0;
+}
+body.gwent-match-active .gwent-actions button,
+body.gwent-match-active .gwent-actions select {
+  min-height: 29px;
+  padding: 5px 10px;
+  font-size: 9px;
+}
+body.gwent-match-active .gwent-actions select { width: 160px; max-width: 22vw; }
+body.gwent-match-active .gwent-hand-zone {
+  display: grid;
+  grid-template-rows: 23px minmax(0, 1fr);
+  gap: 5px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid rgba(199,161,91,.6);
+  padding-top: 5px;
+}
+body.gwent-match-active .gwent-hand-head { display: flex; align-items: center; justify-content: space-between; min-width: 0; gap: 10px; }
+body.gwent-match-active .gwent-hand-head h3 { margin: 0; color: #f0d59c; font: 800 11px Cinzel, serif; letter-spacing: .08em; text-transform: uppercase; }
+body.gwent-match-active .gwent-hand-head h3 span { margin-left: 7px; color: #9eb0ce; font: 600 9px Inter, sans-serif; letter-spacing: 0; }
+body.gwent-match-active .gwent-hand-head > small { overflow: hidden; color: #9baac2; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+body.gwent-match-active .gwent-hand {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 0 2px;
+  overflow: hidden;
+  border: 0;
+  background: none;
+}
+body.gwent-match-active .gwent-hand > .gwent-hand-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 3px;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(129,171,218,.55);
+  border-radius: 6px;
+  background: linear-gradient(160deg, #202943, #090e19 82%);
+  box-shadow: 0 3px 10px #0009;
+  animation: none !important;
+  transform: none !important;
+}
+body.gwent-match-active .gwent-hand-card > img {
+  display: block;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+  height: min(16vh, 150px) !important;
+  max-height: 150px;
+  aspect-ratio: 420 / 620 !important;
+  align-self: center;
+  object-fit: contain !important;
+  background: #070a12;
+}
+body.gwent-match-active .gwent-hand-card > b {
+  display: -webkit-box;
+  min-height: 2.25em;
+  margin: 1px 0 0;
+  overflow: hidden;
+  color: #f0d8a8;
+  font: 700 clamp(7px, .66vw, 10px)/1.15 Cinzel, serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+body.gwent-match-active .gwent-hand-meta,
+body.gwent-match-active .gwent-hand-ability {
+  display: block;
+  overflow: hidden;
+  color: #aebbd0;
+  font: 600 clamp(7px, .58vw, 9px)/1.2 Inter, sans-serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.gwent-match-active .gwent-hand-ability { color: #c2a5df; }
+body.gwent-match-active .gwent-hand-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; margin-top: auto; }
+body.gwent-match-active .gwent-hand-controls select,
+body.gwent-match-active .gwent-hand-controls button,
+body.gwent-match-active .gwent-swap-control {
+  width: 100%;
+  min-width: 0;
+  min-height: 23px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  font: 700 8px Inter, sans-serif;
+}
+body.gwent-match-active .gwent-hand-controls select { overflow: hidden; background: #080d18; color: #d9e2f1; border: 1px solid #4a5c79; }
+body.gwent-match-active .gwent-hand-controls button { background: linear-gradient(135deg,#9c6b32,#db9b42); color: #1a1420; border: 1px solid #f0c879; cursor: pointer; }
+body.gwent-match-active .gwent-swap-control { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: auto; color: #e2d0ac; }
+body.gwent-match-active .gwent-swap-control input { width: 12px; height: 12px; margin: 0; accent-color: #d8ad64; }
+body.gwent-match-active .gwent-empty-hand { grid-column: 1 / -1; display: grid; place-items: center; color: #a5b2c8; border: 1px dashed rgba(129,171,218,.35); border-radius: 7px; }
+body.gwent-match-active .gwent-hand-card:has(button:disabled) { filter: saturate(.75); }
+body.gwent-match-active .gwent-arena button:disabled { opacity: .43; cursor: not-allowed; }
+
+@media (max-height: 820px) and (min-width: 901px) {
+  body.gwent-match-active #gwent-arena:not([hidden]) { padding: 6px 9px; gap: 5px; }
+  body.gwent-match-active .gwent-arena-head { min-height: 36px; }
+  body.gwent-match-active .gwent-arena-toolbar { min-height: 42px; }
+  body.gwent-match-active .gwent-board-side { grid-template-rows: 18px repeat(3, minmax(0, 1fr)); gap: 3px; padding: 4px 6px; }
+  body.gwent-match-active .gwent-board-side .gwent-row { grid-template-columns: 64px minmax(0,1fr); }
+  body.gwent-match-active .gwent-board-card { width: clamp(26px, 2.8vw, 39px); }
+  body.gwent-match-active .gwent-hand-card > img { max-height: 12.5vh; }
+  body.gwent-match-active .gwent-hand-head { grid-template-rows: 18px; }
+}
+@media (max-width: 1100px) and (min-width: 901px) {
+  body.gwent-match-active .gwent-score { flex-basis: 46%; min-width: 260px; }
+  body.gwent-match-active .gwent-faction { display: none; }
+  body.gwent-match-active .gwent-hand { gap: 3px; }
+  body.gwent-match-active .gwent-hand > .gwent-hand-card { padding: 3px 2px; }
+  body.gwent-match-active .gwent-hand-card > b { font-size: 7px; }
+}
+@media (max-width: 900px) {
+  body.gwent-match-active { height: auto; min-height: 100dvh; overflow: auto; }
+  body.gwent-match-active main { height: auto; min-height: calc(100dvh - 58px); overflow: visible; padding: 8px; }
+  body.gwent-match-active #gwent,
+  body.gwent-match-active #tab-arena { height: auto; }
+  body.gwent-match-active #gwent-arena:not([hidden]) {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    grid-template-rows: auto auto auto auto auto;
+  }
+  body.gwent-match-active .gwent-battlefield { grid-template-columns: 1fr; overflow: visible; }
+  body.gwent-match-active .gwent-board-side { grid-template-rows: 20px repeat(3, 70px); }
+  body.gwent-match-active .gwent-hand { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: auto; overflow: visible; }
+  body.gwent-match-active .gwent-hand > .gwent-hand-card { height: auto; min-height: 0; }
+  body.gwent-match-active .gwent-hand-card > img { height: 150px !important; max-height: 150px; }
+}
+@media (max-width: 600px) {
+  body.gwent-match-active .hud { grid-template-columns: auto minmax(0,1fr); }
+  body.gwent-match-active .hud .wallet { display: none; }
+  body.gwent-match-active .gwent-arena-head { align-items: flex-start; }
+  body.gwent-match-active .gwent-arena-title { display: block; }
+  body.gwent-match-active .gwent-arena-title .gwent-log { display: block; max-width: 66vw; }
+  body.gwent-match-active .gwent-score { flex: 1 1 100%; min-width: 0; }
+  body.gwent-match-active .gwent-arena-toolbar { flex-wrap: wrap; }
+  body.gwent-match-active .gwent-prep { flex-wrap: wrap; }
+  body.gwent-match-active .gwent-hand { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  body.gwent-match-active .gwent-actions { flex-wrap: wrap; }
+}

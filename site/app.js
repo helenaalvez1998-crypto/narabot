@@ -477,7 +477,9 @@ async function createGwentMatch() {
 }
 
 function gwentCardView(card) {
-  return `<article class="gwent-board-card">${cardImageMarkup(card)}<b>${escapeHTML(card.nome)}</b><small>${number(Number(card.poder) + Number(card.bonus || 0))} poder · ${escapeHTML(card.row_label)}</small>${Number(card.escudo || 0) > 0 ? '<span class="gwent-shield" title="Escudo: ignora a primeira remoção sofrida.">Escudo</span>' : ''}</article>`;
+  const power = number(Number(card.poder) + Number(card.bonus || 0));
+  const title = `${card.nome || 'Carta'} · ${power} poder · ${card.row_label || ''}${Number(card.escudo || 0) > 0 ? ' · Escudo' : ''}`;
+  return `<article class="gwent-board-card" title="${escapeHTML(title)}">${cardImageMarkup(card)}<span class="gwent-board-power">${power}</span>${Number(card.escudo || 0) > 0 ? '<i class="gwent-shield" title="Escudo">◆</i>' : ''}</article>`;
 }
 
 let gwentAlvos = {};
@@ -582,29 +584,95 @@ function replaceGwentArenaMarkup(arena, markup) {
 }
 
 function renderGwentArena(data) {
-  const arena = $('#gwent-arena'); arena.hidden = false;
-  gwentAlvos = data.alvos || {}; if (!data.is_your_turn) closeGwentTargetPicker();
-  const score = data.score || {}; const ids = Object.keys(score);
-  const my = data.your_id; const enemy = ids.find(id => id !== my);
+  const arena = $('#gwent-arena');
+  arena.hidden = false;
+  gwentAlvos = data.alvos || {};
+  if (!data.is_your_turn) closeGwentTargetPicker();
+
+  const score = data.score || {};
+  const ids = Object.keys(score);
+  const my = String(data.your_id || '');
+  const enemy = ids.find(id => String(id) !== my);
   const mine = score[my] || {board:[], score:0, crowns:0, hand:0, passed:false};
   const theirs = score[enemy] || {board:[], score:0, crowns:0, hand:0, passed:false};
   const opponentName = data.opponent?.name || `Jogador ${String(enemy || '').slice(-4)}`;
-  const winnerLabel = data.winner_id ? (String(data.winner_id) === String(my) ? 'Você venceu' : `${opponentName} venceu`) : 'Empate';
-  const board = (side) => gwentRows.map(([key,label]) => `<div class="gwent-row"><h4>${label} · ${number((side.board || []).filter(c => c.row === key).reduce((n,c) => n + Math.max(1, c.poder + Number(c.bonus || 0) - Number((data.weather && data.weather[key]) || 0)),0))} poder</h4><div class="gwent-board-cards">${(side.board || []).filter(c => c.row === key).map(gwentCardView).join('') || '<small class="muted">Nenhuma unidade</small>'}</div></div>`).join('');
+  const winnerLabel = data.winner_id
+    ? (String(data.winner_id) === my ? 'Você venceu' : `${opponentName} venceu`)
+    : 'Empate';
   const prep = data.phase === 'mulligan';
-  const mulliganControls = prep ? `<div class="gwent-prep"><b>Preparação inicial</b><p>Escolha até duas cartas para trocar ou mantenha sua mão. A preparação é simultânea. Você tem ${number(data.draw_count || 0)} carta(s) de reserva.</p><button class="secondary" data-gwent-keep ${data.mulligan_done ? 'disabled' : ''}>Manter minha mão</button><button class="primary" data-gwent-mulligan ${data.mulligan_done ? 'disabled' : ''}>Trocar selecionadas</button></div>` : '';
-  const eventHistory = Array.isArray(data.event_log) ? data.event_log : [];
-  const eventPanel = `<section class="gwent-event-history"><h3>Histórico da partida</h3><ol>${eventHistory.slice().reverse().map(item => `<li>${escapeHTML(item)}</li>`).join('') || '<li>A partida ainda não possui jogadas registradas.</li>'}</ol></section>`;
-  const reward = data.reward;
-  const rewardPanel = data.status === 'finished' && reward ? `<aside class="gwent-reward-panel"><b>Recompensas da partida</b><p>+${number(reward.reward_xp)} XP · +${number(reward.reward_denarios)} Denários · ${number(reward.mmr_delta)} MMR</p>${(reward.drops || []).map(drop => { const result = drop.outcome === 'carta' || drop.outcome === 'singular' ? `Exemplar #${drop.exemplar_id} · ${number(drop.power)} poder` : drop.outcome === 'almas' ? `Duplicata · +${number(drop.almas_delta)} Almas` : drop.outcome === 'fragmentos' ? `Duplicata · +${number(drop.fragmentos_delta)} fragmentos` : drop.outcome; return `<small>Drop: ${escapeHTML(drop.rarity)} · ${escapeHTML(drop.card_name || drop.card_id)} · ${escapeHTML(result)}</small>`; }).join('')}</aside>` : '';
-  replaceGwentArenaMarkup(arena, `<div class="gwent-arena-head"><div><small class="eyebrow">RODADA ${number(data.round)} / 3</small><h2>Arena Gwent</h2><p class="gwent-log">${escapeHTML(data.last_event || '')}</p><p class="muted">Adversário: <strong>${escapeHTML(opponentName)}</strong> · ${escapeHTML(data.opponent?.faction || 'Facção não informada')}</p></div><b>${data.status === 'finished' ? winnerLabel : (prep ? (data.mulligan_done ? 'Aguardando adversário' : 'Sua preparação') : (data.is_your_turn ? 'Sua vez' : 'Vez do adversário'))}</b></div>${rewardPanel}
-    <div class="gwent-faction">Facção: <strong>${escapeHTML(data.faction || mine.faction || '—')}</strong> · Líder: <strong>${escapeHTML(data.leader_name || 'Líder')}</strong> · ${escapeHTML(data.leader_description || (gwentFactionInfo[data.faction || mine.faction] || {}).description || 'Sinergias de facção ativas.')}</div>${mulliganControls}
-    <div class="gwent-score"><article><small>VOCÊ</small><h3>${number(mine.score)} poder</h3><small>${number(mine.crowns)} coroas · ${number(mine.hand)} cartas na mão ${mine.passed ? '· passou' : ''}</small></article><article><small>${escapeHTML(opponentName)}</small><h3>${number(theirs.score)} poder</h3><small>${number(theirs.crowns)} coroas · ${number(theirs.hand)} cartas na mão ${theirs.passed ? '· passou' : ''}</small></article></div>
-    <h3>Seu campo</h3>${board(mine)}<h3>Campo adversário</h3>${board(theirs)}
-    <div class="gwent-actions"><button class="secondary" data-gwent-pass ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>Passar rodada</button><select id="gwent-leader-row"><option value="melee">Fileira: Corpo a corpo</option><option value="ranged">Fileira: Longa distância</option><option value="siege">Fileira: Cerco</option></select><button class="secondary" data-gwent-leader ${!data.is_your_turn || data.leader_used || data.status !== 'active' || prep ? 'disabled' : ''}>Usar líder</button><button class="secondary" data-gwent-weather ${!data.is_your_turn || data.weather_used || data.status !== 'active' || prep ? 'disabled' : ''}>Clima</button><button class="danger" data-gwent-surrender ${data.status !== 'active' ? 'disabled' : ''}>Desistir da partida</button></div>
-    ${eventPanel}<h3>Sua mão</h3><div class="gwent-hand">${(data.hand || []).map(c => `<article class="gwent-unit">${cardImageMarkup(c)}<b>${escapeHTML(c.nome)}</b><small>${c.especial ? 'Carta especial' : `${number(c.poder)} poder · ${escapeHTML(c.row_label)}`}</small><small title="${escapeHTML(c.habilidade_texto || '')}">${escapeHTML(c.habilidade_nome || 'Unidade')} · ${escapeHTML(c.habilidade_texto || 'Sem efeito adicional')}</small>${prep ? `<label><input type="checkbox" data-gwent-swap value="${escapeHTML(c.id)}" ${data.mulligan_done || !(data.draw_count > 0) ? 'disabled' : ''}> Trocar</label>` : `<select data-gwent-row="${escapeHTML(c.id)}"><option value="${c.row}">${escapeHTML(c.row_label)}</option>${gwentRows.filter(([r])=>r!==c.row).map(([r,l])=>`<option value="${r}">${l}</option>`).join('')}</select><button data-gwent-play="${escapeHTML(c.id)}" ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>${c.especial ? 'Usar especial' : 'Jogar unidade'}</button>`}</article>`).join('') || '<div class="empty-state">Sua mão está vazia.</div>'}</div>`);
-}
+  const hand = Array.isArray(data.hand) ? data.hand : [];
 
+  const board = (side) => gwentRows.map(([key,label]) => {
+    const cards = (side.board || []).filter(card => card.row === key);
+    const rowPower = cards.reduce((total, card) => total + Math.max(
+      1,
+      Number(card.poder || 0) + Number(card.bonus || 0) - Number((data.weather && data.weather[key]) || 0)
+    ), 0);
+    return `<div class="gwent-row" data-row="${escapeHTML(key)}">
+      <h4><span>${escapeHTML(label)}</span><b>${number(rowPower)}</b></h4>
+      <div class="gwent-board-cards">${cards.map(gwentCardView).join('') || '<small class="muted">Vazia</small>'}</div>
+    </div>`;
+  }).join('');
+
+  const eventHistory = Array.isArray(data.event_log) ? data.event_log : [];
+  const eventPanel = `<details class="gwent-history"><summary>Histórico · ${number(eventHistory.length)}</summary><ol>${eventHistory.slice().reverse().map(item => `<li>${escapeHTML(item)}</li>`).join('') || '<li>A partida ainda não possui jogadas registradas.</li>'}</ol></details>`;
+  const reward = data.reward;
+  const rewardPanel = data.status === 'finished' && reward
+    ? `<aside class="gwent-reward-panel"><b>Recompensas</b><span>+${number(reward.reward_xp)} XP · +${number(reward.reward_denarios)} Denários · ${number(reward.mmr_delta)} MMR</span></aside>`
+    : '';
+  const phaseLabel = data.status === 'finished'
+    ? winnerLabel
+    : prep
+      ? (data.mulligan_done ? 'Aguardando adversário' : 'Preparação inicial')
+      : (data.is_your_turn ? 'Sua vez' : 'Vez do adversário');
+  const prepPanel = prep
+    ? `<div class="gwent-prep"><span>Troque até 2 cartas ou mantenha sua mão · ${number(data.draw_count || 0)} reserva(s)</span><button class="secondary" data-gwent-keep ${data.mulligan_done ? 'disabled' : ''}>Manter mão</button><button class="primary" data-gwent-mulligan ${data.mulligan_done ? 'disabled' : ''}>Trocar selecionadas</button></div>`
+    : '';
+  const handMarkup = hand.map(card => {
+    const cardId = escapeHTML(card.id);
+    const cardName = escapeHTML(card.nome);
+    const ability = escapeHTML(card.habilidade_texto || 'Sem efeito adicional');
+    const abilityName = escapeHTML(card.habilidade_nome || 'Unidade');
+    const meta = card.especial ? 'Carta especial' : `${number(card.poder)} poder · ${escapeHTML(card.row_label)}`;
+    const controls = prep
+      ? `<label class="gwent-swap-control"><input type="checkbox" data-gwent-swap value="${cardId}" ${data.mulligan_done || !(data.draw_count > 0) ? 'disabled' : ''}> <span>Trocar</span></label>`
+      : `<div class="gwent-hand-controls"><select data-gwent-row="${cardId}" aria-label="Fileira de ${cardName}"><option value="${escapeHTML(card.row)}">${escapeHTML(card.row_label)}</option>${gwentRows.filter(([row]) => row !== card.row).map(([row,label]) => `<option value="${row}">${escapeHTML(label)}</option>`).join('')}</select><button data-gwent-play="${cardId}" ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>Jogar</button></div>`;
+    return `<article class="gwent-unit gwent-hand-card" title="${cardName} · ${abilityName}: ${ability}">${cardImageMarkup(card)}<b>${cardName}</b><small class="gwent-hand-meta">${meta}</small><small class="gwent-hand-ability">${abilityName}</small>${controls}</article>`;
+  }).join('') || '<div class="gwent-empty-hand">Sua mão está vazia.</div>';
+
+  const factionName = data.faction || mine.faction || '—';
+  const factionInfo = (gwentFactionInfo[factionName] || {}).description || 'Sinergias de facção ativas.';
+  const leaderDescription = data.leader_description || factionInfo;
+  const actionDisabled = !data.is_your_turn || data.status !== 'active' || prep;
+
+  replaceGwentArenaMarkup(arena, `<div class="gwent-arena-head">
+      <div class="gwent-arena-title"><small class="eyebrow">GWENT DO COLISEU · RODADA ${number(data.round)} / 3</small><h2>Arena <span>${escapeHTML(phaseLabel)}</span></h2><p class="gwent-log">${escapeHTML(data.last_event || `${opponentName} · ${data.opponent?.faction || 'Facção não informada'}`)}</p></div>
+      <div class="gwent-arena-head-actions">${eventPanel}<button type="button" class="gwent-exit" data-gwent-exit>Voltar ao lobby</button></div>
+    </div>
+    <div class="gwent-arena-toolbar">
+      <div class="gwent-score">
+        <article><small>VOCÊ</small><strong>${number(mine.score)}</strong><span>${number(mine.crowns)} coroas · ${number(mine.hand)} na mão${mine.passed ? ' · passou' : ''}</span></article>
+        <article><small>${escapeHTML(opponentName)}</small><strong>${number(theirs.score)}</strong><span>${number(theirs.crowns)} coroas · ${number(theirs.hand)} na mão${theirs.passed ? ' · passou' : ''}</span></article>
+      </div>
+      <div class="gwent-faction" title="${escapeHTML(leaderDescription)}"><b>${escapeHTML(factionName)}</b><span>Líder: ${escapeHTML(data.leader_name || 'Líder')}</span></div>
+      ${prepPanel}${rewardPanel}
+    </div>
+    <div class="gwent-battlefield">
+      <section class="gwent-board-side gwent-board-mine"><h3>Seu campo</h3>${board(mine)}</section>
+      <section class="gwent-board-side gwent-board-enemy"><h3>Campo de ${escapeHTML(opponentName)}</h3>${board(theirs)}</section>
+    </div>
+    <div class="gwent-actions">
+      <button class="secondary" data-gwent-pass ${actionDisabled || mine.passed ? 'disabled' : ''}>Passar rodada</button>
+      <select id="gwent-leader-row" aria-label="Fileira do líder"><option value="melee">Corpo a corpo</option><option value="ranged">Longa distância</option><option value="siege">Cerco</option></select>
+      <button class="secondary" data-gwent-leader ${actionDisabled || data.leader_used ? 'disabled' : ''}>Usar líder</button>
+      <button class="secondary" data-gwent-weather ${actionDisabled || data.weather_used ? 'disabled' : ''}>Clima</button>
+      <button class="danger" data-gwent-surrender ${data.status !== 'active' ? 'disabled' : ''}>Desistir</button>
+    </div>
+    <section class="gwent-hand-zone">
+      <div class="gwent-hand-head"><h3>Sua mão <span>${number(hand.length)} cartas</span></h3><small>${data.is_your_turn && !prep && !mine.passed ? 'Selecione uma carta para jogar' : prep ? 'Marque até duas cartas para trocar' : 'Aguardando a ação do adversário'}</small></div>
+      <div class="gwent-hand">${handMarkup}</div>
+    </section>`);
+}
 
 async function parseGwentApiResponse(response) {
   const raw = await response.text();
@@ -665,6 +733,8 @@ async function refreshGwentMatch() {
 }
 
 async function openGwentMatch(id) {
+  document.body.classList.add('gwent-match-active');
+  document.documentElement.classList.add('gwent-match-active');
   // Invalida qualquer resposta da partida anterior antes de trocar o contexto.
   gwentRefreshEpoch += 1;
   if (gwentPoll) { clearInterval(gwentPoll); gwentPoll = null; }
@@ -673,7 +743,7 @@ async function openGwentMatch(id) {
   gwentMatchFinished = false;
   gwentLastRenderSignature = '';
   const canOpen = await refreshGwentMatch();
-  if (!canOpen) { currentGwentMatch = null; return; }
+  if (!canOpen) { currentGwentMatch = null; document.body.classList.remove('gwent-match-active'); document.documentElement.classList.remove('gwent-match-active'); return; }
   if (!gwentMatchFinished) {
     gwentPoll = setInterval(() => {
       if (!document.hidden) refreshGwentMatch();
@@ -681,7 +751,7 @@ async function openGwentMatch(id) {
   }
   const arena = $('#gwent-arena');
   const bounds = arena.getBoundingClientRect();
-  if (bounds.top < 0 || bounds.bottom > window.innerHeight) {
+  if (!document.body.classList.contains('gwent-match-active') && (bounds.top < 0 || bounds.bottom > window.innerHeight)) {
     const root = document.documentElement;
     const oldBehavior = root.style.scrollBehavior;
     root.style.scrollBehavior = 'auto';
@@ -768,6 +838,17 @@ document.addEventListener('click', async event => {
   const add = event.target.closest('[data-gwent-add]'); const remove = event.target.closest('[data-gwent-remove]');
   const play = event.target.closest('[data-gwent-play]'); const open = event.target.closest('[data-gwent-open]');
   const respond = event.target.closest('[data-gwent-respond]');
+  const exitArena = event.target.closest('[data-gwent-exit]');
+  if (exitArena) {
+    document.body.classList.remove('gwent-match-active');
+    document.documentElement.classList.remove('gwent-match-active');
+    currentGwentMatch = null;
+    gwentRefreshEpoch += 1;
+    if (gwentPoll) { clearInterval(gwentPoll); gwentPoll = null; }
+    $('#gwent-arena').hidden = true;
+    await loadGwentMatches();
+    return;
+  }
   const evolve = event.target.closest('[data-gwent-evolve]');
   if (evolve) {
     evolve.disabled = true;
