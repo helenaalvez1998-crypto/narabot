@@ -19,7 +19,7 @@ from config import get_data_dir
 
 from .cartas import HABILIDADES, VERSAO_ARTES
 from .arte_gwent_efeitos import desenhar_aura_unidade, desenhar_emblema_especial
-from . import templates_cartas
+from . import molduras_cartas, templates_cartas
 
 # Cor principal da moldura por raridade: as categorias e os tipos continuam
 # visualmente distintos dentro de cada faixa de raridade.
@@ -56,12 +56,16 @@ LARGURA_PADRAO = 420
 ALTURA_PADRAO = 620
 
 
-def _font(size: int, bold: bool = False):
+def _font(size: int, bold: bool = False, serif: bool = False):
+    """Fonte da carta. Prefere as famílias embutidas em ``fonts/`` e cai para as do sistema."""
     root = Path(__file__).resolve().parents[1]
-    candidates = [
-        root / "fonts" / ("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"),
-        root / "fonts" / "DejaVuSans.ttf",
-    ]
+    nomes = []
+    if serif:
+        nomes += ["DejaVuSerif-Bold.ttf"] if bold else ["DejaVuSerif.ttf"]
+    nomes += ["DejaVuSans-Bold.ttf"] if bold else []
+    nomes += ["DejaVuSans.ttf"]
+    candidates = [root / "fonts" / n for n in nomes]
+    candidates += [Path("/usr/share/fonts/truetype/dejavu") / n for n in nomes]
     for path in candidates:
         if path.exists():
             try:
@@ -99,6 +103,20 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[st
     if current:
         lines.append(current)
     return lines or [""]
+
+
+def _largura_rastreada(draw: ImageDraw.ImageDraw, texto: str, font, tracking: float) -> float:
+    """Largura de um texto com espaçamento extra entre letras (versaletes elegantes)."""
+    return sum(draw.textlength(ch, font=font) for ch in texto) + tracking * max(0, len(texto) - 1)
+
+
+def _texto_rastreado(draw: ImageDraw.ImageDraw, xy, texto: str, font, fill, tracking: float, *, centro: bool = False):
+    x, y = xy
+    if centro:
+        x -= _largura_rastreada(draw, texto, font, tracking) / 2
+    for ch in texto:
+        draw.text((x, y), ch, font=font, fill=fill, anchor="lm")
+        x += draw.textlength(ch, font=font) + tracking
 
 
 def _seed(card: dict[str, Any]) -> int:
@@ -1085,104 +1103,88 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
                        (cx,cy+int(ah*.28)),(cx-int(aw*.18),cy)],
                       fill=(*accent,75),outline=(*metal,235),width=max(2,X(3)))
             rr=int(aw*.07); a.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),fill=(*accent,180),outline=(*metal,255),width=max(2,X(3)))
-    im.alpha_composite(art,(X(18),Y(92)))
+    im.alpha_composite(art,(X(18),Y(90)))
+    # Acabamento: vinheta, brilho de borda e foil conforme a raridade.
+    im=molduras_cartas.aplicar_efeitos_arte(im,rarity,seed,X,Y)
+    especial=category=="Especial"
+    est=molduras_cartas.ESTILOS.get(rarity,molduras_cartas.ESTILOS["Comum"])
+    fac=molduras_cartas.FACCOES.get(faction,molduras_cartas.FACCOES["Ordem de Ferro"])
     d=ImageDraw.Draw(im,"RGBA")
-    # Moldura de metal envelhecido e acabamento diferente por raridade.
-    d.rounded_rectangle(B(5,5,415,615),radius=X(18),fill=(8,9,11,255),outline=(*rdark,255),width=max(4,X(7)))
-    # A moldura é desenhada antes da pintura para não cobrir a ilustração procedural.
-    # Cabeçalho, medalhão e painel inferior são compostos depois, sobre a arte.
-    im.alpha_composite(art,(X(18),Y(92)))
+
+    # Largura da placa de raridade depende do texto (medida em unidades da grade 420).
+    f_rar=_font(max(8,X(10)),True)
+    rar_txt=rarity.upper()
+    larg_rar=_largura_rastreada(d,rar_txt,f_rar,X(1.6))/max(sx,.01)+12
+    ov=molduras_cartas.overlay_pronto(rarity,faction,ctype,row,especial,int(math.ceil(larg_rar/4)*4),width,height)
+    im=Image.alpha_composite(im,ov)
     d=ImageDraw.Draw(im,"RGBA")
-    d.rounded_rectangle(B(12,12,408,608),radius=X(14),outline=(*rlight,255),width=max(1,X(2)))
-    d.rounded_rectangle(B(18,18,402,602),radius=X(10),outline=(*metal,95),width=max(1,X(1)))
-    # Cantoneiras rebitadas e filetes laterais.
-    for xx,yy in ((23,23),(397,23),(23,597),(397,597)):
-        d.ellipse(B(xx-3,yy-3,xx+3,yy+3),fill=(*rlight,240),outline=(*metal,255))
-    if rarity in ("Épica","Lendária","Mítica","Primordial","Singular"):
-        for side in (1,-1):
-            xx=X(23 if side==1 else 397)
-            d.line((xx,Y(125),xx,Y(405)),fill=(*rlight,110),width=max(1,X(2)))
-            for yy in range(150,400,48):
-                d.polygon([(xx,Y(yy-5)),(xx+X(5*side),Y(yy)),(xx,Y(yy+5)),(xx-X(5*side),Y(yy))],fill=(*rlight,180))
-    if rarity in ("Primordial", "Singular"):
-        d.rounded_rectangle(B(2,2,418,618),radius=X(21),outline=(255,235,170,255),width=max(2,X(3)))
-    if rarity == "Mítica":
-        # Quatro constelações de oito pontas identificam a raridade Mítica.
-        for cx, cy in ((31, 94), (389, 94), (31, 526), (389, 526)):
-            points = []
-            for i in range(16):
-                angle = -math.pi / 2 + i * math.pi / 8
-                radius = 11 if i % 2 == 0 else 4
-                points.append((X(cx) + math.cos(angle) * X(radius),
-                               Y(cy) + math.sin(angle) * Y(radius)))
-            d.polygon(points, fill=(*rdark, 245), outline=(*rlight, 255))
-    elif rarity == "Primordial":
-        # Selos solares ancestrais no eixo da carta, acima e abaixo da arte.
-        for cx, cy in ((210, 94), (210, 526)):
-            d.ellipse(B(cx-13,cy-13,cx+13,cy+13), outline=(*rlight,255), width=max(2,X(2)))
-            d.ellipse(B(cx-5,cy-5,cx+5,cy+5), fill=(255,245,190,245))
-            for angle in range(0,360,45):
-                rad=math.radians(angle)
-                d.line((X(cx+16*math.cos(rad)),Y(cy+16*math.sin(rad)),
-                        X(cx+24*math.cos(rad)),Y(cy+24*math.sin(rad))),
-                       fill=(*rlight,235), width=max(1,X(2)))
-    elif rarity == "Singular":
-        # Assinatura assimétrica e um único losango: não se confunde com a moldura Primordial.
-        d.line((X(12),Y(175),X(12),Y(445),X(28),Y(461)), fill=(*rlight,230), width=max(2,X(3)))
-        d.line((X(408),Y(145),X(408),Y(420)), fill=(*accent,220), width=max(1,X(2)))
-        d.polygon([ (X(210),Y(7)), (X(220),Y(22)), (X(210),Y(37)), (X(200),Y(22)) ],
-                  fill=(*rdark,255), outline=(*rlight,255))
-    # Placa superior.
-    d.rounded_rectangle(B(24,22,396,83),radius=X(7),fill=(11,13,15,235),outline=(*rlight,185),width=max(1,X(2)))
-    d.text((X(35),Y(27)),"COLISEU  ·  CRÔNICAS DE GUERRA",font=_font(max(8,X(10)),True),fill=(*metal,215))
-    title=str(card.get("nome","Carta")); title_font=_font(max(12,X(22)),True)
-    for i,line in enumerate(_wrap(d,title,title_font,X(340))[:2]):
-        d.text((X(35),Y(45+i*22)),line,font=title_font,fill=(246,239,221,255))
-    # Medalhão de poder.
-    px,py=X(48),Y(119); pr=X(28)
-    d.polygon([(px,py-pr),(px+pr,py-Y(13)),(px+pr,py+Y(13)),(px,py+pr),(px-pr,py+Y(13)),(px-pr,py-Y(13))],
-              fill=(*rdark,255),outline=(*rlight,255))
-    d.text((px,py-Y(1)),str(int(card.get("poder",0) or 0)),font=_font(max(14,X(25)),True),
-           fill=(255,248,225,255),anchor="mm",stroke_width=max(1,X(1)),stroke_fill=(0,0,0,255))
-    # Brasão vetorial sem fonte de ícones.
-    ex,ey=X(370),Y(119); er=X(18)
-    d.ellipse((ex-er,ey-er,ex+er,ey+er),fill=(10,13,15,230),outline=(*accent,255),width=max(2,X(3)))
-    if faction=="Ordem de Ferro":
-        d.line((ex,ey+Y(11),ex,ey-Y(11)),fill=(*metal,255),width=max(2,X(3)))
-        d.line((ex-X(11),ey-Y(3),ex+X(11),ey-Y(3)),fill=(*metal,255),width=max(2,X(3)))
-        d.polygon([(ex,ey-Y(16)),(ex+X(5),ey-Y(5)),(ex,ey+Y(2)),(ex-X(5),ey-Y(5))],fill=(*accent,255))
-    elif faction=="Errantes do Véu":
-        for ang in range(0,360,60):
-            rr=math.radians(ang); ox=ex+int(math.cos(rr)*er*.62); oy=ey+int(math.sin(rr)*er*.62)
-            d.ellipse((ox-X(3),oy-Y(3),ox+X(3),oy+Y(3)),fill=(*metal,255))
-        d.ellipse((ex-X(5),ey-Y(5),ex+X(5),ey+Y(5)),fill=(*accent,255))
+
+    creme=(249,243,228,255); sombra=(0,0,0,205)
+    def txt(xy,texto,font,fill,anchor="mm",sombra_px=1):
+        if sombra_px:
+            d.text((xy[0],xy[1]+max(1,X(sombra_px))),texto,font=font,fill=sombra,anchor=anchor)
+        d.text(xy,texto,font=font,fill=fill,anchor=anchor)
+
+    # Título centralizado na placa; uma linha ganha legenda da coleção, duas linhas ocupam a placa.
+    px1,py1,px2,py2=molduras_cartas.PLACA
+    pcx=X((px1+px2)/2); pcy=Y((py1+py2)/2); maxw=X(296)
+    title=str(card.get("nome","Carta")); linhas=None
+    for tam in (22,20,18,17):
+        ft=_font(max(10,X(tam)),True,serif=True)
+        if d.textlength(title,font=ft)<=maxw:
+            linhas=[title]; break
+    if linhas is None:
+        for tam in (17,16,15,14):
+            ft=_font(max(9,X(tam)),True,serif=True); linhas=_wrap(d,title,ft,maxw)
+            if len(linhas)<=2: break
+        linhas=linhas[:2]
+    if len(linhas)==1:
+        _texto_rastreado(d,(pcx,Y(37)),"COLISEU  ·  CRÔNICAS DE GUERRA",_font(max(7,X(8)),True),
+                         (*est["cor"],235),X(1.4),centro=True)
+        txt((pcx,Y(61)),linhas[0],ft,creme)
     else:
-        d.ellipse((ex-X(10),ey-Y(10),ex+X(10),ey+Y(10)),outline=(*metal,255),width=max(1,X(2)))
-        d.line((ex,ey-Y(12),ex,ey+Y(12)),fill=(*accent,255),width=max(2,X(2)))
-        d.line((ex-X(9),ey+Y(5),ex+X(9),ey-Y(5)),fill=(*accent,255),width=max(2,X(2)))
-    # Painel inferior com tipografia e texto de efeito.
-    d.polygon([(X(22),Y(468)),(X(398),Y(468)),(X(390),Y(602)),(X(30),Y(602))],
-              fill=(13,15,16,250),outline=(*rlight,230))
-    d.line((X(29),Y(475),X(391),Y(475)),fill=(*accent,235),width=max(2,Y(2)))
-    d.text((X(37),Y(482)),faction.upper(),font=_font(max(9,X(12)),True),fill=(*accent,255))
-    row_label={"melee":"CORPO A CORPO","ranged":"LONGA DISTÂNCIA","siege":"CERCO"}.get(row,"TÁTICA") if category=="Unidade" else "CARTA ESPECIAL  ·  TÁTICA"
-    d.text((X(37),Y(501)),row_label,font=_font(max(8,X(10)),True),fill=(*metal,225))
+        txt((pcx,Y(46)),linhas[0],ft,creme); txt((pcx,Y(67)),linhas[1],ft,creme)
+
+    # Poder (ou selo de carta especial, já desenhado na moldura).
+    if not especial:
+        poder=int(card.get("poder",0) or 0)
+        f_pod=_font(max(14,X(30 if poder<10 else 24)),True,serif=True)
+        qx,qy=molduras_cartas.CENTRO_PODER
+        d.text((X(qx),Y(qy)+max(1,X(1))),str(poder),font=f_pod,fill=(0,0,0,255),anchor="mm",
+               stroke_width=max(2,X(2)),stroke_fill=(0,0,0,255))
+        d.text((X(qx),Y(qy)),str(poder),font=f_pod,fill=(255,250,232,255),anchor="mm")
+
+    # Placa de raridade.
+    rx,ry=molduras_cartas.CENTRO_RARIDADE
+    _texto_rastreado(d,(X(rx),Y(ry)+max(1,X(1))),rar_txt,f_rar,(0,0,0,210),X(1.6),centro=True)
+    _texto_rastreado(d,(X(rx),Y(ry)),rar_txt,f_rar,(255,250,236,255),X(1.6),centro=True)
+
+    # Painel: facção + fileira, habilidade e texto de efeito.
+    f_lbl=_font(max(8,X(9.5)),True)
+    row_label={"melee":"CORPO A CORPO","ranged":"LONGA DISTÂNCIA","siege":"CERCO"}.get(row,"TÁTICA") if not especial else "CARTA ESPECIAL"
+    _texto_rastreado(d,(X(38),Y(491)),faction.upper(),f_lbl,(*fac["cor"],255),X(1.0))
+    larg=_largura_rastreada(d,row_label,f_lbl,X(1.0))
+    _texto_rastreado(d,(X(386)-larg,Y(491)),row_label,f_lbl,(*fac["metal"],225),X(1.0))
     ability=HABILIDADES.get(str(card.get("habilidade","")),{})
     aname=str(ability.get("nome","Tática")); atext=str(ability.get("texto",card.get("descricao","")))
-    d.text((X(37),Y(524)),aname.upper()[:29],font=_font(max(9,X(12)),True),fill=(*rlight,255))
+    f_hab=_font(max(10,X(13.5)),True,serif=True)
+    txt((X(38),Y(518)),aname,f_hab,(*est["luz"],255),anchor="lm")
     # O texto usa o maior tamanho que couber em 3 linhas (12 → 9); só no mínimo aceita 4 linhas.
-    # Antes o texto era cortado em silêncio na 4ª linha.
     for tam in (12, 11, 10, 9):
-        fonte_txt=_font(max(8,X(tam))); linhas_txt=_wrap(d,atext,fonte_txt,X(270))
+        fonte_txt=_font(max(8,X(tam))); linhas_txt=_wrap(d,atext,fonte_txt,X(268))
         if len(linhas_txt)<=3: break
-    passo=tam+3 if len(linhas_txt)<=3 else 12
+    passo=tam+3.4 if len(linhas_txt)<=3 else 12.6
     for i,line in enumerate(linhas_txt[:4]):
-        d.text((X(37),Y(541+i*passo)),line,font=fonte_txt,fill=(226,222,210,250))
-    d.text((X(330),Y(483)),rarity.upper(),font=_font(max(8,X(10)),True),fill=(*rlight,255),anchor="ra")
+        d.text((X(38),Y(538+i*passo)),line,font=fonte_txt,fill=(228,224,212,255),anchor="lm")
+
+    # Custo de deck.
     cost=int(card.get("custo",0) or 0)
-    d.ellipse(B(340,520,391,571),fill=(*rdark,255),outline=(*rlight,255),width=max(2,X(3)))
-    d.text((X(365),Y(537)),str(cost),font=_font(max(13,X(22)),True),fill=(255,247,222,255),anchor="mm")
-    d.text((X(365),Y(556)),"PROV.",font=_font(max(7,X(8)),True),fill=(*metal,255),anchor="mm")
+    ox,oy=molduras_cartas.CENTRO_CUSTO
+    f_cost=_font(max(13,X(23)),True,serif=True)
+    d.text((X(ox),Y(oy-5)+max(1,X(1))),str(cost),font=f_cost,fill=(0,0,0,255),anchor="mm",
+           stroke_width=max(1,X(1.5)),stroke_fill=(0,0,0,255))
+    d.text((X(ox),Y(oy-5)),str(cost),font=f_cost,fill=(255,250,232,255),anchor="mm")
+    _texto_rastreado(d,(X(ox),Y(oy+13)),"CUSTO",_font(max(6,X(7)),True),(*est["luz"],255),X(.8),centro=True)
     return im.convert("RGB")
 
 
