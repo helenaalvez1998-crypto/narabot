@@ -172,7 +172,7 @@ const key=r=>String(r||'Comum').toLowerCase().normalize('NFD').replace(/[\u0300-
 const E=v=>escapeHTML(v==null?'':v),N=v=>number(v);
 const fmt=s=>{try{return new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return s||''}};
 const SRC={zerado:'Jogo zerado',platina:'Platina',run:'Run Soulslike',comunidade:'Comunidade',port:'Port enviado',mod:'Mod enviado',boas_vindas:'Boas-vindas',patente:'Patente',feito_singular:'Feito especial',pacote:'Pacote da Forja',loja:'Mercado'};
-let list=[],idx=0,ov=null,hist=null,histPromise=null,histFetchedAt=0;
+let list=[],idx=0,ov=null,hist=null;
 
 function build(){ov=document.createElement('div');ov.id='cd';ov.hidden=true;ov.innerHTML='<div class="cd-back"></div><div class="cd-shell" role="dialog" aria-modal="true"><button class="cd-x" aria-label="Fechar">✕</button><button class="cd-nav prev" aria-label="Anterior">‹</button><button class="cd-nav next" aria-label="Próxima">›</button><div class="cd-body"></div></div>';document.body.appendChild(ov);
 ov.querySelector('.cd-back').onclick=ov.querySelector('.cd-x').onclick=close;ov.querySelector('.prev').onclick=()=>go(-1);ov.querySelector('.next').onclick=()=>go(1)}
@@ -181,7 +181,7 @@ function go(d){if(list.length<2)return;idx=(idx+d+list.length)%list.length;rende
 
 function open(card,pool){if(!ov)build();list=pool&&pool.length?pool:[card];idx=Math.max(0,list.findIndex(c=>c===card||(c.exemplar_id&&c.exemplar_id===card.exemplar_id)));if(idx<0){list=[card];idx=0}
 ov.hidden=false;document.body.style.overflow='hidden';hist=null;render();
-if(hist && Date.now()-histFetchedAt<30000){renderHistory();return}if(!histPromise){histPromise=fetch('/api/gwent/drops/history',{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{hist=d||{history:[],movements:[]};histFetchedAt=Date.now();return hist}).catch(()=>{hist={history:[],movements:[]};return hist}).finally(()=>{histPromise=null})}histPromise.then(()=>{if(!ov.hidden)renderHistory()})}
+fetch('/api/gwent/drops/history',{credentials:'same-origin',cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{hist=d||{history:[],movements:[]};if(!ov.hidden)renderHistory()}).catch(()=>{hist={history:[],movements:[]};if(!ov.hidden)renderHistory()})}
 
 function render(){const c=list[idx],rk=key(c.raridade),esp=c.categoria==='Especial'||c.especial,pw=Number(c.poder||0),mx=Number(c.max_power||pw||0);
 ov.style.setProperty('--rc',RC[rk]||RC.comum);ov.dataset.r=rk;
@@ -193,7 +193,7 @@ const syn=(c.sinergias||[]).map(s=>`<span class="syn">${E(String(s).replaceAll('
 const combos=(c.combos_compativeis||[]).map(x=>`<li><b>${E(x.nome)}</b><small>${E(x.descricao)}</small></li>`).join('');
 const canEvo=c.exemplar_id&&!esp&&EVO[c.raridade],canUp=c.exemplar_id&&!esp&&UPG[c.raridade]&&pw<mx;
 ov.querySelector('.cd-body').innerHTML=`
-<div class="cd-art"><div class="cd-frame"><img src="${E(imageUrl(c,{detail:true}))}" alt="${E(c.nome)}" loading="eager" decoding="async" fetchpriority="high"><div class="cd-shine"></div></div><div class="cd-plate">${E(c.nome)}</div><small class="cd-ex">${c.exemplar_id?`Exemplar #${N(c.exemplar_id)}`:'Carta'} · ${idx+1} / ${list.length}</small></div>
+<div class="cd-art"><div class="cd-frame"><img class="cd-card-art" src="${E(imageUrl(c))}" alt="${E(c.nome)}" decoding="async"><div class="cd-shine"></div></div><div class="cd-plate">${E(c.nome)}</div><small class="cd-ex">${c.exemplar_id?`Exemplar #${N(c.exemplar_id)}`:'Carta'} · ${idx+1} / ${list.length}</small></div>
 <div class="cd-info">
  <small class="eyebrow">${E(c.arquetipo_faccao||c.faccao||'Gwent do Coliseu')}</small>
  <h2>${E(c.nome)}</h2>
@@ -206,6 +206,20 @@ ov.querySelector('.cd-body').innerHTML=`
  <div class="cd-actions">${canEvo?`<button class="primary" data-gwent-evolve="${E(c.exemplar_id)}">⬆ Evoluir · ${EVO[c.raridade]} fragmentos</button>`:''}${canUp?`<button class="secondary" data-gwent-upgrade="${E(c.exemplar_id)}">✦ Lapidar +1 · ${UPG[c.raridade]} Almas</button>`:''}<button class="secondary cd-close2">Fechar</button></div>
 </div>`;
 ov.querySelector('.cd-close2').onclick=close;
+// A miniatura aparece primeiro; a imagem HD só a substitui depois de carregar.
+const artImg=ov.querySelector('.cd-card-art');
+if(artImg){
+ const hdUrl=new URL(imageUrl(c),window.location.origin);
+ if(hdUrl.pathname.includes('/api/gwent/cards/')){
+   hdUrl.searchParams.delete('thumb');
+   hdUrl.searchParams.set('detail','1');
+   hdUrl.searchParams.set('v','21');
+   const hd=new Image(); hd.decoding='async';
+   hd.onload=()=>{ if(ov && !ov.hidden && list[idx]===c) artImg.src=hdUrl.pathname+hdUrl.search; };
+   hd.onerror=()=>{};
+   hd.src=hdUrl.pathname+hdUrl.search;
+ }
+}
 const fr=ov.querySelector('.cd-frame');fr.onmousemove=e=>{const b=fr.getBoundingClientRect(),px=(e.clientX-b.left)/b.width,py=(e.clientY-b.top)/b.height;fr.style.setProperty('--mx',px*100+'%');fr.style.setProperty('--my',py*100+'%');fr.style.transform=`perspective(900px) rotateX(${(.5-py)*14}deg) rotateY(${(px-.5)*16}deg)`};fr.onmouseleave=()=>{fr.style.transform=''};
 ov.querySelector('.cd-body').scrollTop=0;if(hist)renderHistory()}
 
