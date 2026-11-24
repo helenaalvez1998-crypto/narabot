@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 from config import get_data_dir
 
 from .cartas import HABILIDADES, VERSAO_ARTES
+from .arte_gwent_efeitos import desenhar_aura_unidade, desenhar_emblema_especial
 from . import templates_cartas
 
 # Cor principal da moldura por raridade: as categorias e os tipos continuam
@@ -1063,6 +1064,8 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
                 ox=cx+int(aw*.24); oy=int(ah*.17)
                 a.line((hx,hy,ox,oy),fill=(*metal,255),width=max(5,X(8)))
                 rr=int(aw*.06); a.ellipse((ox-rr,oy-rr,ox+rr,oy+rr),fill=(*accent,215),outline=(*metal,255),width=max(2,X(3)))
+            # aura visual da habilidade (escudo, vingança, ressurgir, devorar, sobrevivente, espólios)
+            desenhar_aura_unidade(art, str(card.get("habilidade", "")), aw, ah, cx, int(ah * .85), accent, metal, seed)
             # partículas, runas e luz de recorte
             for _ in range(42):
                 qx=rng.randint(4,aw-4); qy=rng.randint(int(ah*.18),ah-4); rr=rng.choice((1,2,3))
@@ -1077,10 +1080,11 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
             rad=math.radians(ang+rng.randint(-5,5))
             ex=cx+int(math.cos(rad)*aw*.46); ey=cy+int(math.sin(rad)*ah*.43)
             a.line((cx,cy,ex,ey),fill=(*metal,105),width=max(1,X(2)))
-        a.polygon([(cx,cy-int(ah*.28)),(cx+int(aw*.18),cy),
-                   (cx,cy+int(ah*.28)),(cx-int(aw*.18),cy)],
-                  fill=(*accent,75),outline=(*metal,235),width=max(2,X(3)))
-        rr=int(aw*.07); a.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),fill=(*accent,180),outline=(*metal,255),width=max(2,X(3)))
+        if not desenhar_emblema_especial(art, str(card.get("habilidade", "")), aw, ah, accent, metal, seed):
+            a.polygon([(cx,cy-int(ah*.28)),(cx+int(aw*.18),cy),
+                       (cx,cy+int(ah*.28)),(cx-int(aw*.18),cy)],
+                      fill=(*accent,75),outline=(*metal,235),width=max(2,X(3)))
+            rr=int(aw*.07); a.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),fill=(*accent,180),outline=(*metal,255),width=max(2,X(3)))
     im.alpha_composite(art,(X(18),Y(92)))
     d=ImageDraw.Draw(im,"RGBA")
     # Moldura de metal envelhecido e acabamento diferente por raridade.
@@ -1166,8 +1170,15 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     ability=HABILIDADES.get(str(card.get("habilidade","")),{})
     aname=str(ability.get("nome","Tática")); atext=str(ability.get("texto",card.get("descricao","")))
     d.text((X(37),Y(524)),aname.upper()[:29],font=_font(max(9,X(12)),True),fill=(*rlight,255))
-    for i,line in enumerate(_wrap(d,atext,_font(max(8,X(10))),X(270))[:3]):
-        d.text((X(37),Y(543+i*13)),line,font=_font(max(8,X(10))),fill=(226,222,210,250))
+    # O texto usa o maior tamanho que couber em 3 linhas (12 → 9); só no mínimo aceita 4 linhas.
+    # Antes o texto era cortado em silêncio na 4ª linha.
+    for tam in (12, 11, 10, 9):
+        fonte_txt=_font(max(8,X(tam))); linhas_txt=_wrap(d,atext,fonte_txt,X(270))
+        if len(linhas_txt)<=3: break
+    passo=tam+3 if len(linhas_txt)<=3 else 12
+    for i,line in enumerate(linhas_txt[:4]):
+        d.text((X(37),Y(541+i*passo)),line,font=fonte_txt,fill=(226,222,210,250))
+    d.text((X(330),Y(483)),rarity.upper(),font=_font(max(8,X(10)),True),fill=(*rlight,255),anchor="ra")
     cost=int(card.get("custo",0) or 0)
     d.ellipse(B(340,520,391,571),fill=(*rdark,255),outline=(*rlight,255),width=max(2,X(3)))
     d.text((X(365),Y(537)),str(cost),font=_font(max(13,X(22)),True),fill=(255,247,222,255),anchor="mm")
