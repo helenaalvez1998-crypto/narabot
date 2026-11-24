@@ -17,6 +17,7 @@ from urllib.parse import quote, urlencode, urlsplit
 
 import threading
 import traceback
+from collections import OrderedDict
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -584,6 +585,14 @@ class NaraBot(commands.Bot):
         self._web_presence: dict[int, float] = {}
         self._gwent_bootstrapped: set[int] = set()
         self._gwent_bootstrap_locks: dict[int, asyncio.Lock] = {}
+        # Cache LRU compartilhado entre artes-base e oficiais: limite por bytes evita
+        # que imagens enviadas pela comunidade cresçam sem controle na memória.
+        self._gwent_image_cache: OrderedDict[str, bytes] = OrderedDict()
+        self._gwent_image_cache_size = 0
+        self._gwent_image_cache_max_bytes = 32 * 1024 * 1024
+        self._gwent_image_cache_max_items = 96
+        self._gwent_image_locks: dict[str, asyncio.Lock] = {}
+        self._gwent_render_semaphore = asyncio.Semaphore(3)
 
     def _handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
         exception = context.get("exception")
@@ -982,7 +991,7 @@ class NaraBot(commands.Bot):
         exemplar_by_id = {int(e["id"]): e for e in exemplars}
         owned = await self.db.coliseu_listar_colecao(user_id)
         game_by_id = {str(r["card_id"]): str(r["game_name"] or "") for r in owned}
-        from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar
+        from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar, VERSAO_ARTES
         from sistemas.gwent import preparar_carta
         cards = []
         for index, card_id in enumerate(ids):
@@ -1013,7 +1022,10 @@ class NaraBot(commands.Bot):
                 item["exemplar_id"] = int(record["id"])
                 item["id"] = f"{card_id}::{int(record['id'])}"
                 item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
-                item["image_url"] = f"/api/gwent/cards/{quote(card_id, safe='')}/image"
+                item["image_url"] = (
+                    f"/api/gwent/cards/{quote(card_id, safe='')}/image"
+                    f"?exemplar_id={int(record['id'])}&v={VERSAO_ARTES}"
+                )
                 cards.append(item)
         from sistemas.gwent import LEADERS, DEFAULT_LEADERS, FACTIONS
         faction = str(row["faction"] or "") if row else ""
@@ -1612,7 +1624,7 @@ class NaraBot(commands.Bot):
         try:
             await self._gwent_prepare_user(user_id)
             await self._gwent_sync_patents(user_id)
-            from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar
+            from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar, VERSAO_ARTES
             from sistemas.gwent import preparar_carta
             estado = await self.db.coliseu_estado_usuario(user_id)
             owned_rows = await self.db.coliseu_listar_colecao(user_id)
@@ -1641,7 +1653,10 @@ class NaraBot(commands.Bot):
                 item["exemplares"] = 1
                 item["source"] = str(record["source"] or "")
                 item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
-                item["image_url"] = f"/api/gwent/cards/{quote(card_id, safe='')}/image"
+                item["image_url"] = (
+                    f"/api/gwent/cards/{quote(card_id, safe='')}/image"
+                    f"?exemplar_id={int(record['id'])}&v={VERSAO_ARTES}"
+                )
                 cards.append(item)
             from levels import nivel_por_xp
             xp = int(estado["xp"])
@@ -1927,36 +1942,203 @@ class NaraBot(commands.Bot):
         art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
         if not art:
             raise web.HTTPNotFound(text="Esta carta ainda utiliza a arte-base.")
-        response = web.Response(body=bytes(art["image_data"]), content_type=str(art["mime_type"] or "image/jpeg"))
-        response.headers["Cache-Control"] = "private, max-age=300"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        return response
+        from sistemas.arte_cartas import detectar_mime_imagem
+        dados_arte = bytes(art["image_data"])
+        mime_real = await asyncio.to_thread(detectar_mime_imagem, dados_arte)
+        if mime_real is None:
+            raise web.HTTPUnprocessableEntity(text="A arte oficial armazenada está inválida.")
+        etag = hashlib.sha256(f"atelier-art:{art['id']}".encode("utf-8")).hexdigest()
+        headers = {
+            "Cache-Control": "private, no-cache, must-revalidate",
+            "ETag": f'"{etag}"',
+            "X-Content-Type-Options": "nosniff",
+            "Vary": "Cookie",
+        }
+        incoming = request.headers.get("If-None-Match", "")
+        if any(token.strip() in ("*", headers["ETag"], f"W/{headers['ETag']}") for token in incoming.split(",")):
+            return web.Response(status=304, headers=headers)
+        return web.Response(body=dados_arte, content_type=mime_real, headers=headers)
+
+    def _gwent_image_cache_get(self, key: str) -> bytes | None:
+        cache = self._gwent_image_cache
+        value = cache.get(key)
+        if value is not None:
+            cache.move_to_end(key)
+        return value
+
+    def _gwent_image_cache_put(self, key: str, value: bytes) -> None:
+        if len(value) > self._gwent_image_cache_max_bytes:
+            return
+        cache = self._gwent_image_cache
+        previous = cache.pop(key, None)
+        if previous is not None:
+            self._gwent_image_cache_size -= len(previous)
+        cache[key] = value
+        self._gwent_image_cache_size += len(value)
+        while cache and (
+            len(cache) > self._gwent_image_cache_max_items
+            or self._gwent_image_cache_size > self._gwent_image_cache_max_bytes
+        ):
+            _old_key, old_value = cache.popitem(last=False)
+            self._gwent_image_cache_size -= len(old_value)
+
+    async def _gwent_render_cached(self, key: str, renderer) -> bytes:
+        """Single-flight + limite de concorrência sem liberar vagas de threads ativas.
+
+        asyncio.to_thread não interrompe o trabalho do Pillow quando a requisição HTTP
+        é cancelada. Nesses casos, a vaga do semáforo só é liberada pelo callback quando
+        a thread realmente termina; o resultado válido ainda pode aquecer o cache LRU.
+        """
+        cached = self._gwent_image_cache_get(key)
+        if cached is not None:
+            return cached
+
+        locks = self._gwent_image_locks
+        if len(locks) > 512:
+            for old_key, old_lock in list(locks.items()):
+                if not old_lock.locked():
+                    locks.pop(old_key, None)
+                if len(locks) <= 384:
+                    break
+        lock = locks.setdefault(key, asyncio.Lock())
+        try:
+            await asyncio.wait_for(lock.acquire(), timeout=20)
+        except asyncio.TimeoutError as exc:
+            log.warning("Fila de renderização Gwent cheia; chave=%s", key[:12])
+            raise web.HTTPServiceUnavailable(
+                text="Renderização ocupada. Tente novamente em alguns segundos.",
+                headers={"Retry-After": "5"},
+            ) from exc
+
+        try:
+            cached = self._gwent_image_cache_get(key)
+            if cached is not None:
+                return cached
+
+            semaphore = self._gwent_render_semaphore
+            try:
+                await asyncio.wait_for(semaphore.acquire(), timeout=12)
+            except asyncio.TimeoutError as exc:
+                log.warning("Limite de renderização Gwent atingido; chave=%s", key[:12])
+                raise web.HTTPServiceUnavailable(
+                    text="Renderização ocupada. Tente novamente em alguns segundos.",
+                    headers={"Retry-After": "5"},
+                ) from exc
+
+            vaga_liberada_no_callback = False
+            try:
+                # Uma renderização anterior pode ter terminado enquanto esta chamada
+                # aguardava o semáforo (por exemplo, após cancelamento do cliente HTTP).
+                cached = self._gwent_image_cache_get(key)
+                if cached is not None:
+                    return cached
+
+                inicio = time.monotonic()
+                render_task = asyncio.create_task(asyncio.to_thread(renderer))
+
+                def finalizar_render_em_background(task: asyncio.Task) -> None:
+                    """Finaliza o trabalho desacoplado sem perder vaga nem resultado válido."""
+                    try:
+                        imagem_final = task.result()
+                        if (isinstance(imagem_final, bytes)
+                                and imagem_final.startswith(b"\x89PNG\r\n\x1a\n")):
+                            self._gwent_image_cache_put(key, imagem_final)
+                        else:
+                            log.error("Renderização Gwent cancelada/expirada produziu PNG inválido: %s", key[:12])
+                    except Exception as exc:
+                        log.error(
+                            "Renderização Gwent em background falhou (%s): %s", key[:12], exc,
+                            exc_info=(type(exc), exc, exc.__traceback__),
+                        )
+                    finally:
+                        semaphore.release()
+
+                try:
+                    imagem = await asyncio.wait_for(asyncio.shield(render_task), timeout=30)
+                except asyncio.TimeoutError as exc:
+                    render_task.add_done_callback(finalizar_render_em_background)
+                    vaga_liberada_no_callback = True
+                    log.warning("Renderização Gwent excedeu 30s; chave=%s", key[:12])
+                    raise web.HTTPServiceUnavailable(
+                        text="A imagem excedeu o tempo de renderização. Tente novamente.",
+                        headers={"Retry-After": "5"},
+                    ) from exc
+                except asyncio.CancelledError:
+                    render_task.add_done_callback(finalizar_render_em_background)
+                    vaga_liberada_no_callback = True
+                    raise
+            finally:
+                if not vaga_liberada_no_callback:
+                    semaphore.release()
+
+            if not isinstance(imagem, bytes) or not imagem.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise ValueError("O renderizador não produziu um PNG válido.")
+            self._gwent_image_cache_put(key, imagem)
+            log.debug("Imagem Gwent renderizada/cacheada: %.3fs | %s bytes", time.monotonic() - inicio, len(imagem))
+            return imagem
+        finally:
+            lock.release()
 
     async def _api_gwent_card_image(self, request: web.Request) -> web.Response:
-        """Renderiza arte de carta para o Gwent sem depender do cog antigo."""
+        """Renderiza uma carta com cache verificável e falhas isoladas por requisição."""
         user_id = self._api_user_id(request)
         if user_id is None:
             raise web.HTTPUnauthorized(text="Faça login com o Discord.")
         card_id = str(request.match_info.get("card_id", "")).strip()
         if not card_id or len(card_id) > 120:
             raise web.HTTPNotFound(text="Carta não encontrada.")
+
+        cache_control = "private, no-cache, must-revalidate"
+
+        def _etag_corresponde(etag: str) -> bool:
+            etag_header = f'"{etag}"'
+            incoming = request.headers.get("If-None-Match", "")
+            return any(token.strip() in ("*", etag_header, f"W/{etag_header}") for token in incoming.split(","))
+
+        def _responder(body: bytes, mime: str, etag: str) -> web.Response:
+            etag_header = f'"{etag}"'
+            headers = {
+                "Content-Disposition": "inline",
+                "Cache-Control": cache_control,
+                "ETag": etag_header,
+                "X-Content-Type-Options": "nosniff",
+                "Vary": "Cookie",
+            }
+            if _etag_corresponde(etag):
+                return web.Response(status=304, headers=headers)
+            headers["Content-Length"] = str(len(body))
+            return web.Response(body=body, content_type=mime, headers=headers)
+
         try:
-            # Arte aprovada no Ateliê é global por modelo e substitui a ilustração-base.
-            # A arte oficial entra na JANELA da carta (moldura, nome, poder e texto continuam);
-            # só vira imagem pura se a carta não puder ser montada.
+            from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE
+            from sistemas.gwent import preparar_carta
+            from sistemas.arte_cartas import render_carta, render_carta_bytes, detectar_mime_imagem, _fingerprint_templates, VERSAO_RENDERIZADOR
+
             official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
 
-            def _arte_pura() -> web.Response:
-                return web.Response(
-                    body=bytes(official_art["image_data"]),
-                    content_type=str(official_art["mime_type"] or "image/jpeg"),
-                    headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300",
-                             "X-Content-Type-Options": "nosniff"},
-                )
-            # A imagem deve funcionar também para cartas do adversário no campo.
-            # A posse local continua exigida para abrir imagens fora de uma partida.
+            # A coleção fornece o título de origem para cartas de jogos e o melhor
+            # exemplar legado. A URL nova informa exemplar_id para não misturar cópias.
             rows = await self.db.coliseu_listar_colecao(user_id)
-            owned_row = next((item for item in rows if str(item["card_id"]) == card_id), None)
+            owned_model = next((item for item in rows if str(item["card_id"]) == card_id), None)
+            exemplar_id_raw = request.query.get("exemplar_id", "").strip()
+            owned_row = owned_model
+            if exemplar_id_raw:
+                try:
+                    exemplar_id = int(exemplar_id_raw)
+                except (TypeError, ValueError):
+                    raise web.HTTPNotFound(text="Exemplar não encontrado.")
+                exemplares = await self.db.coliseu_listar_exemplares(user_id, card_id)
+                exemplar = next((item for item in exemplares if int(item["id"]) == exemplar_id), None)
+                if exemplar is None:
+                    raise web.HTTPNotFound(text="Exemplar não encontrado na sua coleção.")
+                owned_row = {
+                    "card_id": card_id,
+                    "game_name": owned_model["game_name"] if owned_model is not None else "",
+                    "rarity": exemplar["rarity"],
+                    "exemplar_power": exemplar["power"],
+                    "exemplar_id": exemplar_id,
+                }
+
             snapshot = None
             if owned_row is None:
                 matches = await self.db._all(
@@ -1984,12 +2166,17 @@ class NaraBot(commands.Bot):
                         break
                 if snapshot is None:
                     if official_art:
-                        return _arte_pura()
+                        raw_art = bytes(official_art["image_data"])
+                        raw_mime = await asyncio.to_thread(detectar_mime_imagem, raw_art)
+                        if raw_mime:
+                            etag = hashlib.sha256(f"official-raw:{official_art['id']}".encode()).hexdigest()
+                            return _responder(raw_art, raw_mime, etag)
                     raise web.HTTPNotFound(text="Carta não encontrada na sua coleção ou nas suas partidas.")
-            from sistemas.cartas import get_carta, carta_de_jogo_por_id
+
             card = get_carta(card_id)
             if card is None and card_id.startswith("jogo_"):
-                game_name = str((owned_row["game_name"] if owned_row is not None else "") or (snapshot or {}).get("jogo_origem") or "")
+                game_name = str((owned_model["game_name"] if owned_model is not None else "") or
+                                (snapshot or {}).get("jogo_origem") or "")
                 if game_name:
                     try:
                         card = carta_de_jogo_por_id(card_id, game_name)
@@ -1999,13 +2186,15 @@ class NaraBot(commands.Bot):
                 card = snapshot
             if card is None:
                 if official_art:
-                    return _arte_pura()
+                    raw_art = bytes(official_art["image_data"])
+                    raw_mime = await asyncio.to_thread(detectar_mime_imagem, raw_art)
+                    if raw_mime:
+                        etag = hashlib.sha256(f"official-raw:{official_art['id']}".encode()).hexdigest()
+                        return _responder(raw_art, raw_mime, etag)
                 raise web.HTTPNotFound(text="Carta não encontrada no catálogo.")
-            from sistemas.gwent import preparar_carta
-            from sistemas.arte_cartas import render_carta, render_carta_bytes
+
             source = card.para_dict() if hasattr(card, "para_dict") else dict(card)
             if owned_row is not None and owned_row["rarity"]:
-                from sistemas.cartas import CUSTO_RARIDADE
                 source["raridade"] = str(owned_row["rarity"])
                 source["poder"] = int(owned_row["exemplar_power"] or source.get("poder", 0))
                 source["custo"] = int(CUSTO_RARIDADE.get(source["raridade"], source.get("custo", 0)))
@@ -2021,57 +2210,41 @@ class NaraBot(commands.Bot):
                 "habilidade_nome": gwent["habilidade_nome"],
                 "habilidade_texto": gwent["habilidade_texto"],
             })
+            source_json = json.dumps(source, ensure_ascii=False, sort_keys=True, default=str)
+            template_fingerprint = _fingerprint_templates({"card": source})
+
             if official_art:
-                cache = self.__dict__.setdefault("_arte_oficial_cache", {})
-                chave = hashlib.sha1((str(official_art["id"]) + json.dumps(source, sort_keys=True, default=str)).encode()).hexdigest()
-                png = cache.get(chave)
-                if png is None:
-                    try:
-                        png = (await asyncio.to_thread(render_carta_bytes, source, bytes(official_art["image_data"]))).getvalue()
-                    except Exception:
-                        log.exception("Falha ao compor arte oficial na carta card=%s", card_id)
-                        return _arte_pura()
-                    if len(cache) >= 300:
-                        cache.pop(next(iter(cache)))
-                    cache[chave] = png
-                return web.Response(
-                    body=png, content_type="image/png",
-                    headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"},
-                )
-            # Cache em memória + lock por carta: evita recalcular a mesma arte
-            # quando a coleção dispara dezenas de <img> ao mesmo tempo.
-            cache_key = hashlib.sha256(
-                json.dumps(source, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+                etag = hashlib.sha256(
+                    f"official:{official_art['id']}:{VERSAO_RENDERIZADOR}:{template_fingerprint}:{source_json}".encode("utf-8")
+                ).hexdigest()
+                if _etag_corresponde(etag):
+                    return _responder(b"", "image/png", etag)
+                chave = f"official:{etag}"
+                try:
+                    png = await self._gwent_render_cached(
+                        chave,
+                        lambda: render_carta_bytes(source, bytes(official_art["image_data"])).getvalue(),
+                    )
+                    return _responder(png, "image/png", etag)
+                except ValueError as exc:
+                    log.warning("Arte oficial inválida para card=%s; usando arte-base: %s", card_id, exc)
+                except web.HTTPException:
+                    raise
+                except Exception:
+                    log.exception("Falha ao compor arte oficial na carta card=%s; usando arte-base.", card_id)
+
+            etag = hashlib.sha256(
+                f"base:{VERSAO_RENDERIZADOR}:{template_fingerprint}:{source_json}".encode("utf-8")
             ).hexdigest()
-            image_cache = self.__dict__.setdefault("_gwent_card_image_cache", {})
-            image_locks = self.__dict__.setdefault("_gwent_card_image_locks", {})
-            if len(image_locks) > 512:
-                for old_key, old_lock in list(image_locks.items()):
-                    if not old_lock.locked():
-                        image_locks.pop(old_key, None)
-                    if len(image_locks) <= 384:
-                        break
-            cached_image = image_cache.get(cache_key)
-            if cached_image is None:
-                lock = image_locks.setdefault(cache_key, asyncio.Lock())
-                async with lock:
-                    cached_image = image_cache.get(cache_key)
-                    if cached_image is None:
-                        def _render_and_read() -> bytes:
-                            return render_carta(source).read_bytes()
-                        cached_image = await asyncio.to_thread(_render_and_read)
-                        if len(image_cache) >= 64:
-                            image_cache.pop(next(iter(image_cache)))
-                        image_cache[cache_key] = cached_image
-            return web.Response(
-                body=cached_image, content_type="image/png",
-                headers={
-                    "Content-Disposition": "inline",
-                    "Cache-Control": "private, max-age=1800, stale-while-revalidate=86400",
-                    "ETag": f'"{cache_key}"',
-                    "X-Content-Type-Options": "nosniff",
-                },
+            if _etag_corresponde(etag):
+                return web.Response(status=304, headers={
+                    "Cache-Control": cache_control, "ETag": f'"{etag}"',
+                    "X-Content-Type-Options": "nosniff", "Vary": "Cookie",
+                })
+            png = await self._gwent_render_cached(
+                f"base:{etag}", lambda: render_carta(source).read_bytes()
             )
+            return _responder(png, "image/png", etag)
         except web.HTTPException:
             raise
         except Exception:
