@@ -725,11 +725,22 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
   const grid = $('#cat-grid'), cnt = $('#cat-count');
   const safeUrl = (u) => /^https?:\/\//i.test(u || '') ? u : '';
   const card = (it) => {
-    const img = safeUrl(it.image) || (String(it.image || '').startsWith('/') ? it.image : '');
+    // image_url aponta para a rota do portal que serve capas locais do catálogo.
+    const img = it.image_url || safeUrl(it.image);
     const tag = kind === 'ports' ? (it.platform || 'Port') : 'Mod';
     const sub = kind === 'ports' ? '' : `<small class="cat-game">${escapeHTML(it.game || '')}</small>`;
-    const link = safeUrl(it.link), tut = safeUrl(it.tutorial);
-    return `<article class="cat-card"><div class="cat-img"${img ? ` style="background-image:url('${escapeHTML(img)}')"` : ''}>${img ? '' : `<span>${escapeHTML((it.name || '?')[0].toUpperCase())}</span>`}<em class="cat-tag">${escapeHTML(tag)}</em></div><div class="cat-body">${sub}<h4>${escapeHTML(it.name || 'Sem nome')}</h4><p>${escapeHTML(it.description || 'Sem descrição.')}</p><div class="cat-actions">${link ? `<a class="primary linkbtn" href="${escapeHTML(link)}" target="_blank" rel="noopener noreferrer">${kind === 'ports' ? 'Baixar' : 'Ver mod'}</a>` : ''}${tut ? `<a class="secondary linkbtn" href="${escapeHTML(tut)}" target="_blank" rel="noopener noreferrer">Tutorial</a>` : ''}</div></div></article>`;
+    const link = safeUrl(it.link), tut = safeUrl(it.tutorial), iso = safeUrl(it.iso);
+    const extras = Array.isArray(it.other_links) ? it.other_links : [];
+    const actions = [
+      link ? `<a class="primary linkbtn" href="${escapeHTML(link)}" target="_blank" rel="noopener noreferrer">${kind === 'ports' ? 'Baixar' : 'Ver mod'}</a>` : '',
+      iso ? `<a class="secondary linkbtn" href="${escapeHTML(iso)}" target="_blank" rel="noopener noreferrer">ISO original</a>` : '',
+      tut ? `<a class="secondary linkbtn" href="${escapeHTML(tut)}" target="_blank" rel="noopener noreferrer">Tutorial</a>` : '',
+      ...extras.map(x => {
+        const url = safeUrl(x.url);
+        return url ? `<a class="secondary linkbtn" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(x.name || 'Link adicional')}</a>` : '';
+      })
+    ].filter(Boolean).join('');
+    return `<article class="cat-card"><div class="cat-img"${img ? ` style="background-image:url('${escapeHTML(img)}')"` : ''}>${img ? '' : `<span>${escapeHTML((it.name || '?')[0].toUpperCase())}</span>`}<em class="cat-tag">${escapeHTML(tag)}</em></div><div class="cat-body">${sub}<h4>${escapeHTML(it.name || 'Sem nome')}</h4><p>${escapeHTML(it.description || 'Sem descrição.')}</p><div class="cat-actions">${actions}</div></div></article>`;
   };
   async function loadCatalog() {
     const my = ++seq, q = ($('#cat-search').value || '').trim();
