@@ -4287,3 +4287,59 @@ body.gwent-match-active .gwent-hand-zone { backdrop-filter: blur(8px); }
   body.gwent-match-active .gwent-hand-card,
   body.gwent-match-active .gwent-board-card { transition: none !important; }
 }
+
+
+/* ARENA V4 — hover ampliado, modal de jogada e cartas maiores */
+@media (min-width: 901px) {
+  body.gwent-match-active .gwent-hand-zone { grid-template-rows:18px minmax(0,1fr)!important; gap:3px!important; overflow:visible!important; position:relative; }
+  body.gwent-match-active .gwent-hand { display:flex!important; align-items:center!important; justify-content:center!important; flex-wrap:nowrap!important; gap:clamp(8px,1vw,18px)!important; width:100%!important; height:100%!important; min-height:0!important; overflow:visible!important; padding:8px 14px!important; }
+  body.gwent-match-active .gwent-hand>.gwent-hand-card { display:block!important; flex:0 1 clamp(70px,8.1vw,142px)!important; width:clamp(70px,8.1vw,142px)!important; min-width:52px!important; height:auto!important; aspect-ratio:420/620; padding:0!important; overflow:visible!important; border:0!important; background:transparent!important; box-shadow:0 5px 16px #000a!important; cursor:pointer; }
+  body.gwent-match-active .gwent-hand-card>img { display:block; width:100%!important; height:100%!important; max-height:none!important; object-fit:contain!important; pointer-events:none; border-radius:5px; }
+  body.gwent-match-active .gwent-hand-card>b,body.gwent-match-active .gwent-hand-card>small,body.gwent-match-active .gwent-hand-card>.gwent-hand-controls,body.gwent-match-active .gwent-card-inspect { display:none!important; }
+  body.gwent-match-active .gwent-hand-card:hover,body.gwent-match-active .gwent-hand-card:focus-visible { outline:2px solid #f0c77d; outline-offset:4px; filter:brightness(1.12) drop-shadow(0 0 10px rgba(237,190,105,.55)); transform:translateY(-4px); }
+  body.gwent-match-active .gwent-hand-swap-input { position:absolute; top:5px; right:5px; z-index:4; width:17px; height:17px; accent-color:#e4b968; }
+  #gwent-hand-hover-preview { position:fixed; z-index:20000; inset:0; display:grid; place-items:center; pointer-events:none; background:radial-gradient(ellipse at center,rgba(0,0,0,.16),rgba(0,0,0,.03) 40%,transparent 70%); }
+  #gwent-hand-hover-preview img { width:min(23vw,320px); height:min(76vh,520px); object-fit:contain; border:2px solid rgba(236,194,120,.9); border-radius:10px; background:#080d18; box-shadow:0 24px 90px #000e,0 0 38px rgba(190,139,230,.38); }
+
+  .gwent-play-card-modal { position:fixed; z-index:21000; inset:0; display:grid; place-items:center; padding:24px; background:rgba(2,5,12,.84); backdrop-filter:blur(8px); }
+  .gwent-play-card-dialog { position:relative; display:grid; grid-template-columns:minmax(220px,300px) minmax(300px,480px); align-items:center; gap:clamp(22px,3vw,42px); width:min(860px,94vw); max-height:90vh; padding:clamp(22px,3vw,38px); overflow:auto; border:2px solid transparent; border-image:linear-gradient(135deg,#f1d58f,#7955a9,#d9b46e) 1; background:radial-gradient(ellipse at 15% 5%,rgba(116,75,151,.22),transparent 42%),linear-gradient(145deg,#151c30,#080c16 75%); box-shadow:0 24px 100px #000e; }
+  .gwent-play-card-art { display:flex; align-items:center; justify-content:center; min-width:0; }
+  .gwent-play-card-art img { display:block; width:100%; max-height:78vh; object-fit:contain; filter:drop-shadow(0 12px 20px #000b); }
+  .gwent-play-card-info { display:grid; gap:14px; min-width:0; }
+  .gwent-play-card-info .eyebrow { color:#9eafd0; font:800 10px Inter,sans-serif; letter-spacing:.18em; }
+  .gwent-play-card-info h2 { margin:0; color:#f2c57e; font:900 clamp(22px,2.2vw,34px)/1.1 Cinzel,serif; }
+  .gwent-play-card-tags { display:flex; flex-wrap:wrap; gap:8px; }
+  .gwent-play-card-tags span { padding:6px 10px; border:1px solid rgba(224,184,116,.55); color:#e8d2aa; background:rgba(7,12,24,.72); font:800 9px Cinzel,serif; text-transform:uppercase; }
+  .gwent-play-card-ability { display:grid; gap:7px; padding:14px; border:1px solid #344b70; background:rgba(8,14,27,.76); }
+  .gwent-play-card-ability small,.gwent-play-card-row span { color:#e7a14c; font:900 10px Cinzel,serif; letter-spacing:.16em; }
+  .gwent-play-card-ability strong { color:#f1d5a3; font:800 15px Cinzel,serif; }
+  .gwent-play-card-ability p { margin:0; color:#d5ddeb; font:500 13px/1.5 Inter,sans-serif; }
+  .gwent-play-card-state { margin:0; color:#9eabc1; font:500 12px/1.45 Inter,sans-serif; }
+  .gwent-play-card-row { display:grid; gap:7px; }
+  .gwent-play-card-row select { width:100%; min-height:46px; padding:8px 12px; border:1px solid #b98a4b; border-radius:5px; background:#090f1d; color:#f5e6c7; font:800 12px Inter,sans-serif; }
+  .gwent-play-card-confirm { min-height:50px; border:1px solid #ffe0a0; border-radius:5px; background:linear-gradient(135deg,#ffe2a1,#d49a42 58%,#8d5428); color:#211626; font:900 12px Cinzel,serif; letter-spacing:.1em; cursor:pointer; box-shadow:0 4px 0 #633d25,0 8px 22px rgba(224,171,83,.22); }
+  .gwent-play-card-confirm:disabled { opacity:.42; filter:grayscale(.65); cursor:not-allowed; }
+  .gwent-play-card-close { position:absolute; top:12px; right:12px; width:38px; height:38px; border:1px solid #e8a044; border-radius:50%; background:#111827; color:#f4c477; font-size:25px; cursor:pointer; }
+
+  body.gwent-match-active .gwent-board-side .gwent-row { grid-template-columns:clamp(68px,5.2vw,94px) minmax(0,1fr)!important; }
+  body.gwent-match-active .gwent-board-cards { display:flex!important; align-items:center!important; justify-content:flex-start!important; gap:clamp(6px,.65vw,12px)!important; min-width:0; min-height:0; padding:5px 10px!important; overflow:hidden!important; }
+  body.gwent-match-active .gwent-board-card { flex:0 0 auto!important; width:auto!important; height:var(--row-card-height,140px)!important; aspect-ratio:420/620; max-height:calc(100% - 8px)!important; padding:0!important; overflow:visible!important; border:1px solid rgba(225,187,119,.75); border-radius:6px; background:#080d18; box-shadow:0 5px 16px #000a; }
+  body.gwent-match-active .gwent-board-card img { display:block; width:100%!important; height:100%!important; object-fit:contain!important; border-radius:5px; }
+  body.gwent-match-active .gwent-board-card:hover { z-index:90; transform:translateY(-4px) scale(1.04); box-shadow:0 0 20px rgba(226,181,105,.4); }
+  body.gwent-match-active .gwent-empty-slot { display:none!important; }
+}
+@media (max-width:900px) {
+  .gwent-play-card-modal { padding:12px; }
+  .gwent-play-card-dialog { grid-template-columns:minmax(110px,32%) minmax(0,1fr); gap:14px; width:min(680px,96vw); padding:18px; }
+  .gwent-play-card-art img { max-height:62vh; }
+  .gwent-play-card-info { gap:9px; }
+  .gwent-play-card-info h2 { font-size:20px; }
+  .gwent-play-card-ability { padding:10px; }
+  .gwent-play-card-ability p { font-size:11px; }
+  .gwent-play-card-confirm { min-height:44px; }
+}
+@media (max-width:560px) {
+  .gwent-play-card-dialog { grid-template-columns:1fr; max-height:92vh; overflow:auto; }
+  .gwent-play-card-art img { max-height:34vh; }
+  #gwent-hand-hover-preview img { width:min(56vw,260px); height:min(54vh,400px); }
+}

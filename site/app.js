@@ -611,7 +611,7 @@ function replaceGwentArenaMarkup(arena, markup) {
   if (focused) {
     if (focused.id) focusInfo = {id: focused.id};
     else {
-      const attr = ['data-gwent-swap', 'data-gwent-row', 'data-gwent-play', 'data-gwent-select-card', 'data-gwent-selected-details', 'data-gwent-play-selected', 'data-gwent-pass', 'data-gwent-leader', 'data-gwent-weather', 'data-gwent-keep', 'data-gwent-mulligan', 'data-gwent-surrender', 'data-gwent-hand-toggle'].find(name => focused.hasAttribute(name));
+      const attr = ['data-gwent-swap', 'data-gwent-row', 'data-gwent-play', 'data-gwent-select-card', 'data-gwent-pass', 'data-gwent-leader', 'data-gwent-weather', 'data-gwent-keep', 'data-gwent-mulligan', 'data-gwent-surrender', 'data-gwent-hand-toggle'].find(name => focused.hasAttribute(name));
       if (attr) focusInfo = {attr, value: attr === 'data-gwent-swap' ? focused.value : focused.getAttribute(attr)};
     }
   }
@@ -704,7 +704,7 @@ function renderGwentArena(data) {
       1,
       Number(card.poder || 0) + Number(card.bonus || 0) - Number((data.weather && data.weather[key]) || 0)
     ), 0);
-    return `<div class="gwent-row" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)}">
+    return `<div class="gwent-row" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.max(76, 174 - Math.max(0, cards.length - 1) * 13)}px">
       <h4><span>${escapeHTML(label)}</span><b>${number(rowPower)}</b></h4>
       <div class="gwent-board-cards">${cards.map(card => gwentCardView(card, !cardsAlreadyOnBoard.has(String(card.id)))).join('')}</div>
     </div>`;
@@ -803,22 +803,9 @@ function renderGwentArena(data) {
         <div class="gwent-hand-info"><h3>SUA MÃO <span>${number(hand.length)} CARTAS</span></h3><small>${data.is_your_turn && !prep && !mine.passed ? 'Escolha a fileira na carta e pressione Jogar' : prep ? 'Marque até duas cartas para trocar' : 'A mão fica protegida enquanto a NARA / adversário joga'}</small></div>
         <button type="button" class="gwent-hand-toggle ${handIsOpen ? 'is-open' : ''}" data-gwent-hand-toggle data-count="${number(hand.length)}" aria-expanded="${handIsOpen ? 'true' : 'false'}" aria-controls="gwent-hand-cards">${handIsOpen ? 'OCULTAR CARTAS' : `MOSTRAR MINHA MÃO · ${number(hand.length)}`}</button>
       </div>
-      <div class="gwent-hand" id="gwent-hand-cards" style="${handLayoutStyle}" ${handIsOpen ? '' : 'hidden'}>${handMarkup}</div>
-      <div class="gwent-selected-play-panel" data-gwent-selected-details hidden>
-        <div class="gwent-selected-card-thumb" id="gwent-selected-card-image" hidden></div>
-        <div class="gwent-selected-copy">
-          <strong id="gwent-selected-name">Selecione uma carta</strong>
-          <small id="gwent-selected-effect">Clique em uma carta para configurar a jogada.</small>
-        </div>
-        <label class="gwent-selected-row-picker"><span>FILEIRA</span><select id="gwent-selected-row" aria-label="Escolher fileira" data-turn-allowed="${canPlayFromHand ? 'true' : 'false'}" ${canPlayFromHand ? '' : 'disabled'}>
-          <option value="melee">Corpo a corpo</option>
-          <option value="ranged">Longa distância</option>
-          <option value="siege">Cerco</option>
-        </select></label>
-        <button type="button" class="gwent-selected-play-button" data-gwent-play-selected data-turn-allowed="${canPlayFromHand ? 'true' : 'false'}" ${canPlayFromHand ? '' : 'disabled'}>JOGAR CARTA</button>
-      </div>
+      <div class="gwent-hand" id="gwent-hand-cards" data-can-play="${canPlayFromHand ? 'true' : 'false'}" style="${handLayoutStyle}" ${handIsOpen ? '' : 'hidden'}>${handMarkup}</div>
     </section>`);
-  updateGwentSelectedCardUI(gwentSelectedHandCard);
+  gwentSelectedHandCard = gwentHandCardsById.has(String(gwentSelectedHandCard)) ? gwentSelectedHandCard : '';
 }
 
 function showGwentResultOverlay(data, roundResult = null) {
@@ -1044,6 +1031,109 @@ $('#gwent-save-deck').addEventListener('click', saveGwentDeck);
 $('#gwent-create-match').addEventListener('click', createGwentMatch);
 $('#gwent-solo-match')?.addEventListener('click', createGwentSoloMatch);
 $('#gwent-open-pack').addEventListener('click', buyGwentPack);
+
+function closeGwentHandHoverPreview() {
+  document.getElementById('gwent-hand-hover-preview')?.remove();
+}
+function showGwentHandHoverPreview(cardId) {
+  const card = gwentHandCardsById.get(String(cardId || ''));
+  if (!card) return closeGwentHandHoverPreview();
+  closeGwentHandHoverPreview();
+  const preview = document.createElement('div');
+  preview.id = 'gwent-hand-hover-preview';
+  preview.setAttribute('aria-hidden', 'true');
+  const image = document.createElement('img');
+  image.alt = '';
+  const highRes = new URL(imageUrl(card), window.location.origin);
+  highRes.searchParams.delete('thumb');
+  highRes.searchParams.set('detail', '1');
+  image.src = `${highRes.pathname}${highRes.search}`;
+  preview.appendChild(image);
+  document.body.appendChild(preview);
+}
+function closeGwentPlayCardModal() {
+  document.getElementById('gwent-play-card-modal')?.remove();
+}
+function openGwentPlayCardModal(cardId) {
+  const card = gwentHandCardsById.get(String(cardId || ''));
+  if (!card) return;
+  closeGwentPlayCardModal();
+  const arena = document.getElementById('gwent-arena');
+  const hand = arena?.querySelector('#gwent-hand-cards');
+  const canPlay = hand?.dataset.canPlay === 'true';
+  const prep = !!arena?.querySelector('.gwent-prep');
+  const modal = document.createElement('div');
+  modal.id = 'gwent-play-card-modal';
+  modal.className = 'gwent-play-card-modal';
+  modal.dataset.cardId = String(card.id);
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-label', `Preparar jogada: ${card.nome || 'carta'}`);
+  const row = ['melee','ranged','siege'].includes(card.row) ? card.row : 'melee';
+  const options = [['melee','Corpo a corpo'],['ranged','Longa distância'],['siege','Cerco']]
+    .map(([v,l]) => `<option value="${v}" ${row === v ? 'selected' : ''}>${l}</option>`).join('');
+  const power = card.especial ? 'Carta especial · efeito tático' : `${number(card.poder)} poder`;
+  const stateText = prep ? 'Na preparação, marque a carta para incluí-la na troca.'
+    : canPlay ? 'Escolha a fileira onde esta carta será posicionada.'
+    : 'Você poderá jogar esta carta quando chegar sua vez.';
+  const modalCard = {...card};
+  const modalImageUrl = imageUrl(card);
+  if (modalImageUrl.includes('/api/gwent/cards/')) {
+    const highRes = new URL(modalImageUrl, window.location.origin);
+    highRes.searchParams.delete('thumb');
+    highRes.searchParams.set('detail', '1');
+    modalCard.image_url = `${highRes.pathname}${highRes.search}`;
+  }
+  modal.innerHTML = `
+    <section class="gwent-play-card-dialog">
+      <button type="button" class="gwent-play-card-close" data-gwent-modal-close aria-label="Fechar">×</button>
+      <div class="gwent-play-card-art">${cardImageMarkup(modalCard, card.nome || 'Carta')}</div>
+      <div class="gwent-play-card-info">
+        <small class="eyebrow">PREPARAR JOGADA</small>
+        <h2>${escapeHTML(card.nome || 'Carta')}</h2>
+        <div class="gwent-play-card-tags"><span>${escapeHTML(card.raridade || 'Carta')}</span><span>${escapeHTML(power)}</span></div>
+        <section class="gwent-play-card-ability">
+          <small>HABILIDADE</small>
+          <strong>${escapeHTML(card.habilidade_nome || 'Sem habilidade')}</strong>
+          <p>${escapeHTML(card.habilidade_texto || 'Sem efeito adicional.')}</p>
+        </section>
+        <p class="gwent-play-card-state">${escapeHTML(stateText)}</p>
+        <label class="gwent-play-card-row"><span>POSICIONAR NA FILEIRA</span>
+          <select data-gwent-modal-row ${canPlay && !prep ? '' : 'disabled'}>${options}</select>
+        </label>
+        <button type="button" class="gwent-play-card-confirm" data-gwent-modal-play ${canPlay && !prep ? '' : 'disabled'}>JOGAR CARTA</button>
+      </div>
+    </section>`;
+  document.body.appendChild(modal);
+  observeCardImages(modal);
+  modal.addEventListener('click', event => {
+    if (event.target === modal || event.target.closest('[data-gwent-modal-close]')) {
+      closeGwentPlayCardModal(); return;
+    }
+    const play = event.target.closest('[data-gwent-modal-play]');
+    if (!play || play.disabled) return;
+    const selectedRow = modal.querySelector('[data-gwent-modal-row]')?.value || row;
+    closeGwentPlayCardModal();
+    const targetInfo = gwentOpcoesDoAlvo(String(card.id), selectedRow);
+    if (targetInfo && targetInfo.opcoes.length) openGwentTargetPicker(String(card.id), selectedRow, targetInfo);
+    else sendGwentAction('play', String(card.id), selectedRow);
+  });
+  modal.querySelector('[data-gwent-modal-close]')?.focus();
+}
+document.addEventListener('mouseover', event => {
+  const card = event.target.closest('[data-gwent-hand-card]');
+  if (!card || card.contains(event.relatedTarget)) return;
+  showGwentHandHoverPreview(card.dataset.gwentHandCard);
+});
+document.addEventListener('mouseout', event => {
+  const card = event.target.closest('[data-gwent-hand-card]');
+  if (!card || card.contains(event.relatedTarget)) return;
+  closeGwentHandHoverPreview();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { closeGwentPlayCardModal(); closeGwentHandHoverPreview(); }
+});
+
 document.addEventListener('keydown', event => {
   const handCard = event.target.closest('[data-gwent-hand-card]');
   if (!handCard || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -1060,7 +1150,8 @@ document.addEventListener('click', async event => {
       if (swap && !swap.disabled && event.target !== swap) swap.checked = !swap.checked;
       handCard.classList.toggle('is-swap-marked', !!swap?.checked);
     } else {
-      updateGwentSelectedCardUI(cardId === gwentSelectedHandCard ? '' : cardId);
+      gwentSelectedHandCard = cardId;
+      openGwentPlayCardModal(cardId);
     }
     return;
   }
