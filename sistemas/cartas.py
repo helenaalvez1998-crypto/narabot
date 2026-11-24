@@ -7,7 +7,7 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 # ============================================================
@@ -1517,7 +1517,7 @@ CARTAS_PATENTE = [carta_patente(i, nome) for i, nome in PATENTES]
 # carta independente; o primeiro mantém o ID legado e as cópias recebem sufixos.
 _ids_usados = set()
 _contagem_ids = {}
-for _carta in _CARTAS_BASE:
+for _indice_carta, _carta in enumerate(_CARTAS_BASE):
     _id_original = str(_carta.id)
     _contagem_ids[_id_original] = _contagem_ids.get(_id_original, 0) + 1
     if _id_original not in _ids_usados:
@@ -1528,7 +1528,8 @@ for _carta in _CARTAS_BASE:
     while _novo_id in _ids_usados:
         _numero += 1
         _novo_id = f"{_id_original}_{_numero:03d}"
-    _carta.id = _novo_id
+    _carta = replace(_carta, id=_novo_id)
+    _CARTAS_BASE[_indice_carta] = _carta
     _ids_usados.add(_novo_id)
 
 CARTAS_POR_ID = {c.id: c for c in _CARTAS_BASE}
