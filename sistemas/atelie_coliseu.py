@@ -456,6 +456,35 @@ def _perfil_facial_carta(card_id: str, nome: str) -> str:
         "open chest and steady stance, without heroic exaggeration",
         "slight habitual stoop consistent with age and burden",
         "loose, economical posture suggesting practiced movement"), "posture")
+    # Coerência de apresentação: personagens de apresentação feminina não recebem barba.
+    if "feminine" in apresentacao:
+        barba = "no visible facial hair"
+        fisico = escolher((
+            "feminine body proportions with naturally varied curves, a defined or soft waist, and realistic anatomy",
+            "slender feminine physique with naturally proportioned shoulders, waist and hips",
+            "athletic feminine build with strong legs, functional muscle and realistic proportions",
+            "curvy feminine build with a fuller hip line and natural waist-to-hip variation",
+            "compact feminine physique with sturdy legs, natural curves and realistic proportions",
+            "tall feminine frame with long limbs, naturally proportioned shoulders and hips",
+            "broad-shouldered athletic feminine physique with balanced, realistic proportions",
+            "soft, full-figured feminine physique with natural body mass and believable anatomy",
+            "lean feminine physique with subtle muscle definition and natural proportions",
+            "mature feminine physique with age-appropriate softness and realistic body proportions",
+        ), "feminine_physique")
+        proporcoes = escolher((
+            "naturally proportioned feminine shoulders, waist and hips, with realistic variation",
+            "moderately wider hips relative to the waist, without exaggerated hourglass proportions",
+            "athletic hips and thighs with a functional, strong lower body",
+            "slender hips and shoulders with a naturally defined waist",
+            "fuller hips and thighs with a soft, natural waistline",
+            "balanced shoulder-to-hip proportions and a realistic torso",
+            "broad shoulders with strong arms and naturally proportioned hips",
+            "compact torso with naturally proportioned hips and sturdy legs",
+        ), "feminine_proportions")
+    elif "androgynous" in apresentacao:
+        barba = escolher((
+            "clean-shaven", "very faint natural stubble", "no visible facial hair",
+        ), "androgynous_beard")
     maos = escolher(("large scarred working hands", "long fine-boned fingers", "broad palms and thick fingers",
         "small nimble hands", "calloused hands with blunt nails", "strong hands with visible tendon structure",
         "weathered hands with age spots", "hands with short clean nails"), "hands")
@@ -603,6 +632,28 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
             "Do not substitute a generic warrior portrait. If the description is too sparse, depict the named subject in a plausible setting and keep unknown details visually neutral."
         )),
         _perfil_facial_carta(card_id, nome),
+        (
+            "CANONICAL IDENTITY AND STORY OVERRIDE — ABSOLUTE PRIORITY: the card name, full "
+            "canonical description, ability name and ability rule together define WHO or WHAT "
+            "the subject is and WHAT is happening. Treat them as one connected story, not as "
+            "independent decorative tags. First resolve the literal identity implied by the name; "
+            "then use the description and ability to establish the subject's role, motives, powers, "
+            "relationships, circumstances and the specific instant worth depicting. The image must "
+            "visually tell that card's story through action, expression, gesture, objects, setting "
+            "and consequence. Do not invent biography or plot facts absent from the card data. "
+            "Every visual choice must be traceable to the name, description, ability or established "
+            "faction identity. The randomized appearance profile is ONLY a fallback for details the "
+            "card does not specify. It must NEVER change the named identity, canonical gender or "
+            "sex presentation, species, age, role, status, equipment, powers, injuries, allegiance "
+            "or story circumstances. If any randomized trait conflicts with the name or card facts, "
+            "discard that trait. If the name or description establishes a woman, use coherent "
+            "female facial presentation, no beard or moustache, and naturally varied feminine "
+            "anatomy; if it establishes a man, preserve coherent masculine presentation; if it "
+            "establishes a non-human being, object, spirit or group, follow that identity instead "
+            "of forcing a human body. Never assign gender from randomness when the card does not "
+            "specify it. The scene must feel like a meaningful moment from THIS card's story, not "
+            "a generic fantasy portrait."
+        ),
         diretrizes_faccao.get(faccao, "FACTION IDENTITY: not specified. Do not invent faction insignia, uniforms, heraldry or faction-specific lore; use neutral, practical materials and colors.") ,
         diretriz_fileira,
         diretriz,
