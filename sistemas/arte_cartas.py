@@ -11,6 +11,7 @@ import io
 import json
 import math
 import random
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -1437,9 +1438,19 @@ def render_carta(
     imagem = _draw_card(card)
     if imagem.size != (largura, altura):
         imagem = imagem.resize((largura, altura), Image.Resampling.LANCZOS)
-    temporario = path.with_suffix(".png.tmp")
-    imagem.save(temporario, format="PNG", optimize=False)
-    temporario.replace(path)
+    # Um nome exclusivo evita colisões quando duas requisições renderizam
+    # a mesma carta em threads diferentes após o uso de asyncio.to_thread().
+    temporario: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f"{path.stem}.", suffix=".png.tmp", dir=path.parent, delete=False
+        ) as arquivo:
+            temporario = Path(arquivo.name)
+        imagem.save(temporario, format="PNG", optimize=False)
+        temporario.replace(path)
+    finally:
+        if temporario is not None:
+            temporario.unlink(missing_ok=True)
     return path
 
 
