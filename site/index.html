@@ -170,6 +170,14 @@ const EVO={Comum:20,Rara:40,'Épica':80,'Lendária':160},UPG={Comum:10,Rara:20,'
 const RC={comum:'#b9a888',rara:'#6fb4ee',epica:'#b07af0',lendaria:'#ffd36b',mitica:'#ff6fb4',primordial:'#ffb84d',singular:'#6ff5e1'};
 const key=r=>String(r||'Comum').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const E=v=>escapeHTML(v==null?'':v),N=v=>number(v);
+const fullCardImageUrl=c=>{
+  const raw=c.image_url||`/api/gwent/cards/${encodeURIComponent(c.card_id||String(c.id||'').split('::')[0])}/image`;
+  const u=new URL(raw,window.location.origin);
+  // A visualização ampliada nunca deve reutilizar a miniatura WebP da grade.
+  u.searchParams.delete('thumb');
+  if(!u.searchParams.has('v'))u.searchParams.set('v','20');
+  return `${u.pathname}${u.search}`;
+};
 const fmt=s=>{try{return new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return s||''}};
 const SRC={zerado:'Jogo zerado',platina:'Platina',run:'Run Soulslike',comunidade:'Comunidade',port:'Port enviado',mod:'Mod enviado',boas_vindas:'Boas-vindas',patente:'Patente',feito_singular:'Feito especial',pacote:'Pacote da Forja',loja:'Mercado'};
 let list=[],idx=0,ov=null,hist=null;
@@ -193,7 +201,7 @@ const syn=(c.sinergias||[]).map(s=>`<span class="syn">${E(String(s).replaceAll('
 const combos=(c.combos_compativeis||[]).map(x=>`<li><b>${E(x.nome)}</b><small>${E(x.descricao)}</small></li>`).join('');
 const canEvo=c.exemplar_id&&!esp&&EVO[c.raridade],canUp=c.exemplar_id&&!esp&&UPG[c.raridade]&&pw<mx;
 ov.querySelector('.cd-body').innerHTML=`
-<div class="cd-art"><div class="cd-frame"><img src="${E(imageUrl(c))}" alt="${E(c.nome)}"><div class="cd-shine"></div></div><div class="cd-plate">${E(c.nome)}</div><small class="cd-ex">${c.exemplar_id?`Exemplar #${N(c.exemplar_id)}`:'Carta'} · ${idx+1} / ${list.length}</small></div>
+<div class="cd-art"><div class="cd-frame"><img src="${E(fullCardImageUrl(c))}" alt="${E(c.nome)}"><div class="cd-shine"></div></div><div class="cd-plate">${E(c.nome)}</div><small class="cd-ex">${c.exemplar_id?`Exemplar #${N(c.exemplar_id)}`:'Carta'} · ${idx+1} / ${list.length}</small></div>
 <div class="cd-info">
  <small class="eyebrow">${E(c.arquetipo_faccao||c.faccao||'Gwent do Coliseu')}</small>
  <h2>${E(c.nome)}</h2>
