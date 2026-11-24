@@ -704,7 +704,7 @@ function renderGwentArena(data) {
       1,
       Number(card.poder || 0) + Number(card.bonus || 0) - Number((data.weather && data.weather[key]) || 0)
     ), 0);
-    return `<div class="gwent-row" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.max(76, 174 - Math.max(0, cards.length - 1) * 13)}px">
+    return `<div class="gwent-row" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.max(112, 238 - Math.max(0, cards.length - 1) * 18)}px">
       <h4><span>${escapeHTML(label)}</span><b>${number(rowPower)}</b></h4>
       <div class="gwent-board-cards">${cards.map(card => gwentCardView(card, !cardsAlreadyOnBoard.has(String(card.id)))).join('')}</div>
     </div>`;
@@ -1035,21 +1035,31 @@ $('#gwent-open-pack').addEventListener('click', buyGwentPack);
 function closeGwentHandHoverPreview() {
   document.getElementById('gwent-hand-hover-preview')?.remove();
 }
-function showGwentHandHoverPreview(cardId) {
-  const card = gwentHandCardsById.get(String(cardId || ''));
-  if (!card) return closeGwentHandHoverPreview();
+function showGwentImageHoverPreview(source, alt = '') {
+  if (!source) return closeGwentHandHoverPreview();
   closeGwentHandHoverPreview();
   const preview = document.createElement('div');
   preview.id = 'gwent-hand-hover-preview';
   preview.setAttribute('aria-hidden', 'true');
   const image = document.createElement('img');
-  image.alt = '';
-  const highRes = new URL(imageUrl(card), window.location.origin);
-  highRes.searchParams.delete('thumb');
-  highRes.searchParams.set('detail', '1');
-  image.src = `${highRes.pathname}${highRes.search}`;
+  image.alt = alt || '';
+  try {
+    const highRes = new URL(source, window.location.origin);
+    if (highRes.pathname.includes('/api/gwent/cards/')) {
+      highRes.searchParams.delete('thumb');
+      highRes.searchParams.set('detail', '1');
+    }
+    image.src = `${highRes.pathname}${highRes.search}`;
+  } catch {
+    image.src = source;
+  }
   preview.appendChild(image);
   document.body.appendChild(preview);
+}
+function showGwentHandHoverPreview(cardId) {
+  const card = gwentHandCardsById.get(String(cardId || ''));
+  if (!card) return closeGwentHandHoverPreview();
+  showGwentImageHoverPreview(imageUrl(card), card.nome || 'Carta');
 }
 function closeGwentPlayCardModal() {
   document.getElementById('gwent-play-card-modal')?.remove();
@@ -1057,6 +1067,7 @@ function closeGwentPlayCardModal() {
 function openGwentPlayCardModal(cardId) {
   const card = gwentHandCardsById.get(String(cardId || ''));
   if (!card) return;
+  closeGwentHandHoverPreview();
   closeGwentPlayCardModal();
   const arena = document.getElementById('gwent-arena');
   const hand = arena?.querySelector('#gwent-hand-cards');
@@ -1121,14 +1132,25 @@ function openGwentPlayCardModal(cardId) {
   modal.querySelector('[data-gwent-modal-close]')?.focus();
 }
 document.addEventListener('mouseover', event => {
-  const card = event.target.closest('[data-gwent-hand-card]');
-  if (!card || card.contains(event.relatedTarget)) return;
-  showGwentHandHoverPreview(card.dataset.gwentHandCard);
+  const handCard = event.target.closest('[data-gwent-hand-card]');
+  if (handCard && !handCard.contains(event.relatedTarget)) {
+    showGwentHandHoverPreview(handCard.dataset.gwentHandCard);
+    return;
+  }
+  const boardCard = event.target.closest('.gwent-board-card');
+  if (boardCard && !boardCard.contains(event.relatedTarget)) {
+    const image = boardCard.querySelector('img[data-card-src]');
+    if (image) showGwentImageHoverPreview(image.dataset.cardSrc || image.currentSrc || image.src, image.alt);
+  }
 });
 document.addEventListener('mouseout', event => {
-  const card = event.target.closest('[data-gwent-hand-card]');
-  if (!card || card.contains(event.relatedTarget)) return;
-  closeGwentHandHoverPreview();
+  const handCard = event.target.closest('[data-gwent-hand-card]');
+  if (handCard && !handCard.contains(event.relatedTarget)) {
+    closeGwentHandHoverPreview();
+    return;
+  }
+  const boardCard = event.target.closest('.gwent-board-card');
+  if (boardCard && !boardCard.contains(event.relatedTarget)) closeGwentHandHoverPreview();
 });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') { closeGwentPlayCardModal(); closeGwentHandHoverPreview(); }
