@@ -13,7 +13,7 @@ from typing import Any
 
 from levels import PATENTES
 
-VERSAO_ARTES = 19
+VERSAO_ARTES = 20
 
 TIPOS = ("Destreza", "Força", "Magia")
 

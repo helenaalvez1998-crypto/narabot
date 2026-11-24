@@ -137,6 +137,61 @@ def _cache_png_valido(path: Path) -> bool:
         return False
 
 
+def webp_disponivel() -> bool:
+    """Indica se o Pillow atual possui encoder/decoder WebP."""
+    try:
+        return Image.registered_extensions().get(".webp") == "WEBP"
+    except Exception:
+        return False
+
+
+def _cache_webp_valido(path: Path, tamanho: tuple[int, int]) -> bool:
+    """Valida miniatura WebP e aproveita a assinatura física para cachear a checagem."""
+    try:
+        stat = path.stat()
+        assinatura = (int(stat.st_size), int(stat.st_mtime_ns))
+        if stat.st_size < 64:
+            return False
+        chave = str(path)
+        with _CACHE_LOCK_GUARD:
+            if _CACHE_VALIDATED.get(chave) == assinatura:
+                return True
+        with Image.open(path) as imagem:
+            if imagem.format != "WEBP" or imagem.size != tamanho:
+                return False
+            imagem.verify()
+        with _CACHE_LOCK_GUARD:
+            _CACHE_VALIDATED[chave] = assinatura
+            if len(_CACHE_VALIDATED) > 2048:
+                for antiga in list(_CACHE_VALIDATED)[:512]:
+                    _CACHE_VALIDATED.pop(antiga, None)
+        return True
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return False
+
+
+def _salvar_webp_atomico(
+    imagem: Image.Image, path: Path, *, quality: int = 82, method: int = 4,
+) -> None:
+    """Grava WebP temporário e publica por rename atômico."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporario: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f"{path.stem}.", suffix=".webp.tmp", dir=path.parent, delete=False
+        ) as arquivo:
+            temporario = Path(arquivo.name)
+        imagem.save(temporario, format="WEBP", quality=max(50, min(95, int(quality))),
+                    method=max(0, min(6, int(method))))
+        temporario.replace(path)
+        stat = path.stat()
+        with _CACHE_LOCK_GUARD:
+            _CACHE_VALIDATED[str(path)] = (int(stat.st_size), int(stat.st_mtime_ns))
+    finally:
+        if temporario is not None:
+            temporario.unlink(missing_ok=True)
+
+
 def _salvar_png_atomico(imagem: Image.Image, path: Path, *, optimize: bool = False) -> None:
     """Publica PNG completo por rename atômico; nunca deixa arquivo parcial no cache."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -1591,6 +1646,184 @@ def _cache_path(payload: Any, suffix: str) -> Path:
     return root / f"{digest}.{suffix}"
 
 
+def cache_carta_existente(
+    card: dict[str, Any],
+    *,
+    tamanho: tuple[int, int] = (LARGURA_PADRAO, ALTURA_PADRAO),
+) -> Path | None:
+    """Retorna o PNG persistente validado sem iniciar uma renderização."""
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    path = _cache_path({"card": card, "size": [largura, altura]}, "png")
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+    return None
+
+
+def cache_arte_oficial_existente(
+    card: dict[str, Any], illustration_bytes: bytes,
+) -> Path | None:
+    """Retorna a composição persistente da arte oficial, identificada pelo hash da imagem."""
+    illustration_hash = hashlib.sha256(illustration_bytes).hexdigest()
+    payload = {
+        "card": card,
+        "kind": "official-illustration",
+        "illustration_sha256": illustration_hash,
+        "size": [LARGURA_PADRAO, ALTURA_PADRAO],
+    }
+    path = _cache_path(payload, "png")
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+    return None
+
+
+def _cache_path_arte_oficial_id(
+    card: dict[str, Any], official_art_id: int | str,
+    tamanho: tuple[int, int] = (LARGURA_PADRAO, ALTURA_PADRAO),
+    *, suffix: str = "png",
+) -> Path:
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    payload = {
+        "card": card,
+        "kind": "official-illustration",
+        # A submissão aprovada é imutável: nova arte recebe outro ID. Isso permite
+        # consultar o cache sem carregar o BLOB inteiro do SQLite em cache hit.
+        "official_art_id": str(official_art_id),
+        "size": [largura, altura],
+    }
+    return _cache_path(payload, suffix)
+
+
+def cache_arte_oficial_por_id_existente(
+    card: dict[str, Any], official_art_id: int | str,
+    tamanho: tuple[int, int] = (LARGURA_PADRAO, ALTURA_PADRAO),
+) -> Path | None:
+    """Localiza composição oficial persistente usando apenas o ID da submissão."""
+    path = _cache_path_arte_oficial_id(card, official_art_id, tamanho)
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+    return None
+
+
+def render_arte_oficial_cacheada_por_id(
+    card: dict[str, Any], illustration_bytes: bytes, official_art_id: int | str,
+    tamanho: tuple[int, int] = (LARGURA_PADRAO, ALTURA_PADRAO),
+) -> Path:
+    """Gera composição oficial uma vez por ID, versão visual e dimensões."""
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    path = _cache_path_arte_oficial_id(card, official_art_id, (largura, altura))
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+        if path.exists():
+            path.unlink(missing_ok=True)
+            with _CACHE_LOCK_GUARD:
+                _CACHE_VALIDATED.pop(str(path), None)
+        if not validar_imagem_bytes(illustration_bytes):
+            raise ValueError("A imagem oficial armazenada não é válida ou excede os limites permitidos.")
+        imagem = _draw_card(card, width=largura, height=altura, illustration_bytes=illustration_bytes)
+        _salvar_png_atomico(imagem, path, optimize=False)
+    return path
+
+
+def cache_carta_webp_existente(
+    card: dict[str, Any], *, tamanho: tuple[int, int] = (210, 310),
+) -> Path | None:
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    payload = {"card": card, "size": [largura, altura], "format": "webp", "quality": 82}
+    path = _cache_path(payload, "webp")
+    with _cache_lock_for(path):
+        if _cache_webp_valido(path, (largura, altura)):
+            return path
+    return None
+
+
+def render_carta_webp(
+    card: dict[str, Any], *, tamanho: tuple[int, int] = (210, 310), quality: int = 82,
+) -> Path:
+    """Miniatura WebP persistente; desenha diretamente na resolução de destino."""
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    quality = max(50, min(95, int(quality)))
+    payload = {"card": card, "size": [largura, altura], "format": "webp", "quality": quality}
+    path = _cache_path(payload, "webp")
+    with _cache_lock_for(path):
+        if _cache_webp_valido(path, (largura, altura)):
+            return path
+        if path.exists():
+            path.unlink(missing_ok=True)
+            with _CACHE_LOCK_GUARD:
+                _CACHE_VALIDATED.pop(str(path), None)
+        imagem = _draw_card(card, width=largura, height=altura)
+        _salvar_webp_atomico(imagem, path, quality=quality, method=4)
+    return path
+
+
+def cache_arte_oficial_webp_existente(
+    card: dict[str, Any], official_art_id: int | str,
+    tamanho: tuple[int, int] = (210, 310), quality: int = 82,
+) -> Path | None:
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    payload = {
+        "card": card, "kind": "official-illustration", "official_art_id": str(official_art_id),
+        "size": [largura, altura], "format": "webp", "quality": int(quality),
+    }
+    path = _cache_path(payload, "webp")
+    with _cache_lock_for(path):
+        if _cache_webp_valido(path, (largura, altura)):
+            return path
+    return None
+
+
+def render_arte_oficial_webp_cacheada_por_id(
+    card: dict[str, Any], illustration_bytes: bytes, official_art_id: int | str,
+    tamanho: tuple[int, int] = (210, 310), quality: int = 82,
+) -> Path:
+    largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
+    quality = max(50, min(95, int(quality)))
+    payload = {
+        "card": card, "kind": "official-illustration", "official_art_id": str(official_art_id),
+        "size": [largura, altura], "format": "webp", "quality": quality,
+    }
+    path = _cache_path(payload, "webp")
+    with _cache_lock_for(path):
+        if _cache_webp_valido(path, (largura, altura)):
+            return path
+        if path.exists():
+            path.unlink(missing_ok=True)
+            with _CACHE_LOCK_GUARD:
+                _CACHE_VALIDATED.pop(str(path), None)
+        if not validar_imagem_bytes(illustration_bytes):
+            raise ValueError("A imagem oficial armazenada não é válida ou excede os limites permitidos.")
+        imagem = _draw_card(card, width=largura, height=altura, illustration_bytes=illustration_bytes)
+        _salvar_webp_atomico(imagem, path, quality=quality, method=4)
+    return path
+
+
+def render_carta_bytes_cacheada(card: dict[str, Any], illustration_bytes: bytes) -> Path:
+    """Compõe arte oficial uma única vez e persiste o PNG validado para próximos acessos."""
+    payload = {
+        "card": card,
+        "kind": "official-illustration",
+        "illustration_sha256": hashlib.sha256(illustration_bytes).hexdigest(),
+        "size": [LARGURA_PADRAO, ALTURA_PADRAO],
+    }
+    path = _cache_path(payload, "png")
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+        if path.exists():
+            path.unlink(missing_ok=True)
+            with _CACHE_LOCK_GUARD:
+                _CACHE_VALIDATED.pop(str(path), None)
+        if not validar_imagem_bytes(illustration_bytes):
+            raise ValueError("A imagem oficial armazenada não é válida ou excede os limites permitidos.")
+        imagem = _draw_card(card, illustration_bytes=illustration_bytes)
+        _salvar_png_atomico(imagem, path, optimize=False)
+    return path
+
+
 def render_carta(
     card: dict[str, Any],
     *,
@@ -1608,9 +1841,9 @@ def render_carta(
             path.unlink(missing_ok=True)
             with _CACHE_LOCK_GUARD:
                 _CACHE_VALIDATED.pop(str(path), None)
-        imagem = _draw_card(card)
-        if imagem.size != (largura, altura):
-            imagem = imagem.resize((largura, altura), Image.Resampling.LANCZOS)
+        # O renderer é proporcional; desenhar no tamanho final evita criar um RGBA
+        # 420x620 apenas para reduzi-lo em miniaturas de catálogo.
+        imagem = _draw_card(card, width=largura, height=altura)
         _salvar_png_atomico(imagem, path, optimize=False)
     return path
 
