@@ -1517,3 +1517,36 @@ raridades = Counter(c.raridade for c in _CARTAS_BASE)
 for r in RARIDADES:
     print(f"  {r}: {raridades.get(r, 0)}")
 print("\nPatentes adicionadas com sucesso!")
+
+
+# ============================================================
+# FUNÇÕES AUXILIARES NECESSÁRIAS PELO SISTEMA
+# ============================================================
+
+def get_carta(carta_id: str):
+    """Retorna uma carta pelo seu ID."""
+    return CARTAS_POR_ID.get(carta_id)
+
+
+def carta_de_jogo_por_id():
+    """Retorna dict de todas as cartas de jogo por ID."""
+    return {c.id: c for c in CARTAS_POR_ID.values() if c.categoria != "Patente"}
+
+
+def carta_jogo(carta_id: str):
+    """Retorna uma carta de jogo pelo ID."""
+    return CARTAS_POR_ID.get(carta_id)
+
+
+def faixa_poder_exemplar(raridade: str):
+    """Retorna faixa de poder para uma raridade."""
+    return FAIXA_PODER.get(raridade, (1, 5))
+
+
+# Cartas primordiais (para compatibilidade com código existente)
+CARTAS_PRIMORDIAIS = [c for c in CARTAS_POR_ID.values() if c.raridade == "Primordial"]
+
+# Constantes necessárias
+VERSAO_ARTES = "21"
+CUSTO_APRIMORAMENTO_ALMAS = {"Comum": 50, "Incomum": 100, "Rara": 250, "Épica": 500, "Lendária": 1000, "Mítica": 2500, "Primordial": 5000, "Singular": 10000, "Patente": 0}
+BONUS_EVOLUCAO_FRAGMENTOS = {"Comum": 1, "Incomum": 2, "Rara": 5, "Épica": 10, "Lendária": 20, "Mítica": 50, "Primordial": 100, "Singular": 500}
