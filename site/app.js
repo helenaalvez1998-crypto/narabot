@@ -775,60 +775,45 @@ function renderGwentArena(data) {
   }
   gwentLastTurnAnnouncement = turnAnnouncement;
 
-  const opponentInitial = escapeHTML(String(opponentName).trim().slice(0, 1).toUpperCase() || 'N');
-  const myInitial = escapeHTML(String(data.player_name || 'Você').trim().slice(0, 1).toUpperCase() || 'V');
   replaceGwentArenaMarkup(arena, `<div class="gwent-arena-head">
-      <div class="gwent-arena-title"><small class="eyebrow">GWENT DO COLISEU · RODADA ${number(data.round)} / 3</small><h2>Mesa de batalha <span>${escapeHTML(phaseLabel)}</span></h2><p class="gwent-log">${escapeHTML(data.last_event || `${opponentName} · ${data.opponent?.faction || 'Facção não informada'}`)}</p></div>
+      <div class="gwent-arena-title"><small class="eyebrow">GWENT DO COLISEU · RODADA ${number(data.round)} / 3</small><h2>Arena <span>${escapeHTML(phaseLabel)}</span></h2><p class="gwent-log">${escapeHTML(data.last_event || `${opponentName} · ${data.opponent?.faction || 'Facção não informada'}`)}</p></div>
       <div class="gwent-arena-head-actions">${eventPanel}<button type="button" class="gwent-exit" data-gwent-exit>Voltar ao lobby</button></div>
     </div>
-    <div class="gwent-table-layout">
-      <aside class="gwent-player-rail" aria-label="Jogadores e informações da partida">
-        <section class="gwent-player-card gwent-player-enemy ${theirs.passed ? 'is-passed' : ''} ${enemyTurn ? 'is-active' : ''}">
-          <div class="gwent-player-identity"><span class="gwent-player-avatar enemy-avatar">${opponentInitial}</span><div><small>ADVERSÁRIO</small><b>${escapeHTML(opponentName)}</b><em>${escapeHTML(data.opponent?.faction || 'Facção')}</em></div></div>
-          <strong class="gwent-player-score">${number(theirs.score)}</strong>
-          <div class="gwent-player-stats"><span>♛ ${number(theirs.crowns)} coroas</span><span>▣ ${number(theirs.hand)} cartas</span></div>
-          <div class="gwent-player-state">${enemyTurn ? 'JOGANDO AGORA' : theirs.passed ? 'PASSOU A RODADA' : data.is_ai_match ? 'NARA IA' : 'AGUARDANDO'}</div>
-        </section>
-        <section class="gwent-side-relic" title="${escapeHTML(leaderDescription)}">
-          <small>FACÇÃO / LÍDER</small><b>${escapeHTML(factionName)}</b><span>${escapeHTML(data.leader_name || 'Líder')}</span>
-          <div class="gwent-relic-actions"><span class="${data.leader_used ? 'is-used' : ''}">✦ ${data.leader_used ? 'Líder usado' : 'Líder disponível'}</span><span class="${data.weather_used ? 'is-used' : ''}">❄ ${data.weather_used ? 'Clima usado' : 'Clima disponível'}</span></div>
-          ${rewardPanel}
-        </section>
-        <section class="gwent-player-card gwent-player-mine ${mine.passed ? 'is-passed' : ''} ${myTurn ? 'is-active' : ''}">
-          <div class="gwent-player-identity"><span class="gwent-player-avatar mine-avatar">${myInitial}</span><div><small>VOCÊ</small><b>${escapeHTML(data.player_name || 'Você')}</b><em>${escapeHTML(factionName)}</em></div></div>
-          <strong class="gwent-player-score">${number(mine.score)}</strong>
-          <div class="gwent-player-stats"><span>♛ ${number(mine.crowns)} coroas</span><span>▣ ${number(mine.hand)} cartas</span></div>
-          <div class="gwent-player-state">${myTurn ? 'SUA VEZ DE JOGAR' : mine.passed ? 'VOCÊ PASSOU' : 'AGUARDANDO'}</div>
-        </section>
-      </aside>
-      <section class="gwent-table-main">
-        <div class="gwent-turn-indicator ${turnClass}" role="status" aria-live="polite"><strong>${turnHeadline}</strong><small>${turnSubline}</small></div>
-        <div class="gwent-battlefield" aria-label="Campo de batalha">
-          <section class="gwent-board-side gwent-board-enemy ${enemyTurn ? 'is-active' : ''} ${theirs.passed ? 'is-passed' : ''}"><h3><span>CAMPO DE ${escapeHTML(opponentName)}${data.is_ai_match ? ' · NARA IA' : ''}</span>${enemyTurn ? '<b>JOGANDO AGORA</b>' : theirs.passed ? '<b>PASSOU</b>' : ''}</h3>${board(theirs, true)}</section>
-          <div class="gwent-battle-line" aria-hidden="true"><span>⚔ LINHA DE CONFRONTO ⚔</span></div>
-          <section class="gwent-board-side gwent-board-mine ${myTurn ? 'is-active' : ''} ${mine.passed ? 'is-passed' : ''}"><h3><span>SEU CAMPO</span>${myTurn ? '<b>SUA VEZ</b>' : mine.passed ? '<b>PASSOU</b>' : ''}</h3>${board(mine, false)}</section>
-        </div>
-        <div class="gwent-actions ${prep ? 'is-prep' : ''}">
-          ${prepPanel}
-          <div class="gwent-action-main"><button class="gwent-pass-button" data-gwent-pass ${actionDisabled || mine.passed ? 'disabled' : ''}>PASSAR RODADA</button></div>
-          <div class="gwent-action-tools">
-            <label class="gwent-leader-picker"><span>FILEIRA DO LÍDER</span><select id="gwent-leader-row" aria-label="Fileira do líder" ${actionDisabled ? 'disabled' : ''}>
-              <option value="melee">Corpo a corpo</option><option value="ranged">Longa distância</option><option value="siege">Cerco</option>
-            </select></label>
-            <button class="gwent-leader-button" data-gwent-leader ${actionDisabled || data.leader_used ? 'disabled' : ''}>USAR LÍDER</button>
-            <button class="gwent-weather-button" data-gwent-weather ${actionDisabled || data.weather_used ? 'disabled' : ''}>CLIMA</button>
-            <button class="gwent-surrender-button" data-gwent-surrender ${data.status !== 'active' ? 'disabled' : ''}>DESISTIR</button>
-          </div>
-        </div>
-        <section class="gwent-hand-zone ${handIsOpen ? 'is-open' : ''}">
-          <div class="gwent-hand-head">
-            <div class="gwent-hand-info"><h3>SUA MÃO <span>${number(hand.length)} CARTAS</span></h3><small>${data.is_your_turn && !prep && !mine.passed ? 'Escolha uma carta e defina sua fileira de combate' : prep ? 'Marque até duas cartas para trocar ou mantenha sua mão' : 'Sua mão fica protegida enquanto o adversário joga'}</small></div>
-            <button type="button" class="gwent-hand-toggle ${handIsOpen ? 'is-open' : ''}" data-gwent-hand-toggle data-count="${number(hand.length)}" aria-expanded="${handIsOpen ? 'true' : 'false'}" aria-controls="gwent-hand-cards">${handIsOpen ? 'RECOLHER MÃO' : `ABRIR MÃO · ${number(hand.length)}`}</button>
-          </div>
-          <div class="gwent-hand" id="gwent-hand-cards" style="${handLayoutStyle}" ${handIsOpen ? '' : 'hidden'}>${handMarkup}</div>
-        </section>
-      </section>
-    </div>`);
+    <div class="gwent-arena-toolbar">
+      <div class="gwent-score">
+        <article><small>VOCÊ</small><strong>${number(mine.score)}</strong><span>${number(mine.crowns)} coroas · ${number(mine.hand)} na mão${mine.passed ? ' · passou' : ''}</span></article>
+        <article><small>${escapeHTML(opponentName)}</small><strong>${number(theirs.score)}</strong><span>${number(theirs.crowns)} coroas · ${number(theirs.hand)} na mão${theirs.passed ? ' · passou' : ''}</span></article>
+      </div>
+      <div class="gwent-turn-indicator ${turnClass}" role="status" aria-live="polite"><strong>${turnHeadline}</strong><small>${turnSubline}</small></div>
+      <div class="gwent-faction" title="${escapeHTML(leaderDescription)}"><b>${escapeHTML(factionName)}</b><span>Líder: ${escapeHTML(data.leader_name || 'Líder')}</span></div>
+      ${rewardPanel}
+    </div>
+    <div class="gwent-battlefield" aria-label="Campo de batalha">
+      <section class="gwent-board-side gwent-board-enemy ${enemyTurn ? 'is-active' : ''} ${theirs.passed ? 'is-passed' : ''}"><h3><span>CAMPO DE ${escapeHTML(opponentName)}${data.is_ai_match ? ' · NARA IA' : ''}</span>${enemyTurn ? '<b>JOGANDO AGORA</b>' : theirs.passed ? '<b>PASSOU</b>' : ''}</h3>${board(theirs, true)}</section>
+      <div class="gwent-battle-line" aria-hidden="true"><span>LINHA DE CONFRONTO</span></div>
+      <section class="gwent-board-side gwent-board-mine ${myTurn ? 'is-active' : ''} ${mine.passed ? 'is-passed' : ''}"><h3><span>SEU CAMPO</span>${myTurn ? '<b>SUA VEZ</b>' : mine.passed ? '<b>PASSOU</b>' : ''}</h3>${board(mine, false)}</section>
+    </div>
+    <div class="gwent-actions ${prep ? 'is-prep' : ''}">
+      ${prepPanel}
+      <div class="gwent-action-main">
+        <button class="gwent-pass-button" data-gwent-pass ${actionDisabled || mine.passed ? 'disabled' : ''}>PASSAR RODADA</button>
+      </div>
+      <div class="gwent-action-tools">
+        <label class="gwent-leader-picker"><span>FILEIRA DO LÍDER</span><select id="gwent-leader-row" aria-label="Fileira do líder" ${actionDisabled ? 'disabled' : ''}>
+          <option value="melee">Corpo a corpo</option><option value="ranged">Longa distância</option><option value="siege">Cerco</option>
+        </select></label>
+        <button class="gwent-leader-button" data-gwent-leader ${actionDisabled || data.leader_used ? 'disabled' : ''}>USAR LÍDER</button>
+        <button class="gwent-weather-button" data-gwent-weather ${actionDisabled || data.weather_used ? 'disabled' : ''}>CLIMA</button>
+        <button class="gwent-surrender-button" data-gwent-surrender ${data.status !== 'active' ? 'disabled' : ''}>DESISTIR</button>
+      </div>
+    </div>
+    <section class="gwent-hand-zone ${handIsOpen ? 'is-open' : ''}">
+      <div class="gwent-hand-head">
+        <div class="gwent-hand-info"><h3>SUA MÃO <span>${number(hand.length)} CARTAS</span></h3><small>${data.is_your_turn && !prep && !mine.passed ? 'Escolha a fileira na carta e pressione Jogar' : prep ? 'Marque até duas cartas para trocar' : 'A mão fica protegida enquanto a NARA / adversário joga'}</small></div>
+        <button type="button" class="gwent-hand-toggle ${handIsOpen ? 'is-open' : ''}" data-gwent-hand-toggle data-count="${number(hand.length)}" aria-expanded="${handIsOpen ? 'true' : 'false'}" aria-controls="gwent-hand-cards">${handIsOpen ? 'OCULTAR CARTAS' : `MOSTRAR MINHA MÃO · ${number(hand.length)}`}</button>
+      </div>
+      <div class="gwent-hand" id="gwent-hand-cards" style="${handLayoutStyle}" ${handIsOpen ? '' : 'hidden'}>${handMarkup}</div>
+    </section>`);
   updateGwentSelectedCardUI(gwentSelectedHandCard);
 }
 
