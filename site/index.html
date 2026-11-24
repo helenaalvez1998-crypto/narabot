@@ -2,9 +2,9 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#07080d"><title>NARA — Portal Gamer</title>
+  <meta name="theme-color" content="#07080d"><title>NARABOT — Comunidade e Gwent do Coliseu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Cormorant+Garamond:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=nara-portal-20261123c">
+  <link rel="stylesheet" href="/style.css?v=pro-20261123">
 <script>try{const v=JSON.parse(localStorage.getItem('vis')||'{}'),r=document.documentElement;r.dataset.theme=v.tema||'cinzas';if(/^#[0-9a-f]{6}$/i.test(v.cor||'')){r.style.setProperty('--gold',v.cor);r.style.setProperty('--gold-bright','color-mix(in srgb,'+v.cor+' 70%,#fff)')}}catch(e){}</script>
 
 </head>
@@ -47,17 +47,6 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
     <button class="nav" data-tab="market"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 22 12 12 22 2 12z"/></svg></i><span>Mercado</span></button>
     <button class="nav" data-tab="atelier"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1 1.5-2-.6-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16.5" cy="9.5" r="1"/></svg></i><span>Ateliê</span></button>
     <button class="nav" data-tab="guide"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M9 8h6M9 12h6"/></svg></i><span>Guia</span></button>
-    <button class="nav portal-nav" data-tab="submit"><i>✧</i><span>Enviar conquista</span></button>
-    <button class="nav portal-nav" data-tab="submissions"><i>◷</i><span>Meus envios</span></button>
-    <button class="nav portal-nav" data-tab="runs"><i>⚔</i><span>Runs Soulslike</span></button>
-    <button class="nav portal-nav" data-tab="library"><i>▤</i><span>Biblioteca</span></button>
-    <button class="nav portal-nav" data-tab="community-web"><i>✧</i><span>Comunidade</span></button>
-    <button class="nav portal-nav" data-tab="sanctuary-web"><i>⚜</i><span>Santuários</span></button>
-    <button class="nav portal-nav" data-tab="nara-web"><i>✦</i><span>NARA IA</span></button>
-    <button class="nav portal-nav" data-tab="profile-web"><i>♙</i><span>Meu perfil</span></button>
-    <button class="nav portal-nav" data-tab="notifications-web"><i>◉</i><span>Notificações</span></button>
-    <button class="nav portal-nav" data-tab="store-web"><i>◈</i><span>Loja & inventário</span></button>
-    <button class="nav portal-nav" data-tab="admin-web"><i>⚙</i><span>Administração</span></button>
   </nav>
   <div class="wallet"><span title="Almas">✦ <b id="souls">—</b></span><span title="Fragmentos">✧ <b id="fragments">—</b></span><span title="Denários">◈ <b id="denarios">—</b></span><span title="XP">⚑ <b id="gwent-xp">—</b></span></div>
   <button class="vis-btn" id="vis-open" type="button" title="Personalizar visual" aria-label="Personalizar visual">🎨</button>
@@ -73,7 +62,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 <section class="hub-card"><div class="section-head"><div><small class="eyebrow">PERGUNTE À NARA</small><h3>Dúvidas do servidor</h3></div></div><div id="nara-log" class="nara-log" aria-live="polite"><p class="nara-msg bot">Fale comigo, guerreiro. Pergunte sobre XP, platinas, zerados, cartas ou como o bot funciona.</p></div><form id="nara-form" class="nara-form"><input id="nara-input" maxlength="300" placeholder="Ex.: como ganho cartas?" autocomplete="off"><button class="primary" type="submit">Enviar</button></form></section></div>
 <div class="section-head"><div><small class="eyebrow">DESTAQUES</small><h3>Top 5 do servidor</h3></div><button class="text-btn" data-goto="community" type="button">Ranking completo →</button></div><div class="hub-tops" id="hub-tops"><p class="muted">Entre com Discord para ver o ranking.</p></div>
 <div class="section-head"><div><small class="eyebrow">AO VIVO</small><h3>Atividade recente</h3></div></div><div id="hub-recent" class="hub-recent"><p class="muted">Entre com Discord para ver as conquistas da comunidade.</p></div></div>
-  <div class="tab" id="tab-community" data-title="Comunidade"><div class="section-head"><div><small class="eyebrow">COMUNIDADE</small><h3>Ranking</h3></div><div class="seg" id="rank-seg"><button class="on" data-rank="xp" type="button">XP</button><button data-rank="platinas" type="button">Platinas</button><button data-rank="zerados" type="button">Zerados</button><button data-rank="runs" type="button">Runs</button><button data-rank="recordes" type="button">Recordes</button></div></div><div id="rank-podium"></div><div id="rank-list" class="rank-list"><p class="muted">Entre com Discord para ver o ranking.</p></div><div class="section-head"><div><small class="eyebrow">MEMBROS</small><h3>Quem está online</h3></div><input id="players-search" class="deck-search" type="search" placeholder="Buscar membro..." style="max-width:260px;margin:0"></div><div id="players-list" class="players-list"></div></div>
+  <div class="tab" id="tab-community" data-title="Comunidade"><div class="section-head"><div><small class="eyebrow">COMUNIDADE</small><h3>Ranking</h3></div><div class="seg" id="rank-seg"><button class="on" data-rank="xp" type="button">XP</button><button data-rank="platinas" type="button">Platinas</button><button data-rank="zerados" type="button">Zerados</button></div></div><div id="rank-podium"></div><div id="rank-list" class="rank-list"><p class="muted">Entre com Discord para ver o ranking.</p></div><div class="section-head"><div><small class="eyebrow">MEMBROS</small><h3>Quem está online</h3></div><input id="players-search" class="deck-search" type="search" placeholder="Buscar membro..." style="max-width:260px;margin:0"></div><div id="players-list" class="players-list"></div></div>
   <div class="tab" id="tab-arena" data-title="Arena"><div class="stage">
   <div class="stage-cards"><i>⚔</i><i>✦</i><i>♜</i></div>
   <div class="stage-center">
@@ -139,117 +128,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
       <section class="sec-title reveal"><small class="eyebrow">SPOILS DA ARENA</small><h2>Recompensas</h2></section>
       <div class="rewards-strip reveal"><div class="reward-chip"><span>✦</span>Almas</div><div class="reward-chip"><span>✧</span>Fragmentos</div><div class="reward-chip"><span>◈</span>Denários</div><div class="reward-chip"><span>🂠</span>Cartas Raras</div><div class="reward-chip"><span>♛</span>Ranking MMR</div></div>
       </div>
-
-      <div class="tab portal-page" id="tab-submit" data-title="Enviar conquista">
-        <section class="portal-hero"><div><small class="eyebrow">SUA JORNADA NO NARA</small><h2>Registre suas conquistas</h2><p>Envie platinas e jogos zerados, anexe comprovantes e acompanhe a análise da equipe.</p></div><div class="portal-seal">⚜</div></section>
-        <div class="portal-switch"><button type="button" class="on" data-submit-kind="platina">💎 Platina</button><button type="button" data-submit-kind="zerado">🏆 Jogo zerado</button></div>
-        <form id="portal-submit-form" class="portal-form" enctype="multipart/form-data">
-          <input type="hidden" name="kind" value="platina">
-          <div class="portal-form-head"><div><small class="eyebrow">NOVO REGISTRO</small><h3 id="portal-form-title">Enviar uma platina</h3></div><span class="pending-pill">Revisão da equipe</span></div>
-          <div class="portal-fields">
-            <label>Nome do jogo<input name="game" maxlength="100" placeholder="Ex.: Elden Ring" required></label>
-            <label>Plataforma<select name="platform" required><option value="">Selecione</option><option>PlayStation 5</option><option>PlayStation 4</option><option>PC</option><option>Xbox Series X|S</option><option>Xbox One</option><option>Nintendo Switch</option><option>Outra</option></select></label>
-            <label>Data da conquista<input name="date" type="date" required></label>
-            <label class="optional-field">Nota do jogo (1–10)<input name="rating" type="number" min="1" max="10" placeholder="Opcional"></label>
-            <label class="optional-field">Dificuldade (1–5)<input name="difficulty" type="number" min="1" max="5" placeholder="Opcional"></label>
-            <label class="wide">Comentário<textarea name="comment" maxlength="500" rows="3" placeholder="Conte um pouco sobre essa conquista..."></textarea></label>
-          </div>
-          <label class="portal-upload" for="portal-proofs"><span class="upload-icon">↥</span><b>Adicionar comprovantes</b><small>Imagens ou vídeos · até 5 arquivos · 8 MB por arquivo</small><input id="portal-proofs" name="proofs" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" multiple><span id="portal-file-list">Nenhum arquivo selecionado</span></label>
-          <div class="portal-form-foot"><p>Seu registro ficará pendente até a validação da equipe. Registros duplicados são bloqueados.</p><button class="primary" type="submit">Enviar para análise <span>→</span></button></div>
-          <div id="portal-submit-feedback" class="portal-feedback" role="status" hidden></div>
-        </form>
-      </div>
-      <div class="tab portal-page" id="tab-submissions" data-title="Meus envios">
-        <section class="portal-hero"><div><small class="eyebrow">HISTÓRICO PESSOAL</small><h2>Meus envios</h2><p>Acompanhe solicitações, decisões e comprovantes enviados à equipe.</p></div><div class="portal-seal">◷</div></section>
-        <div class="portal-list-head"><h3>Histórico de solicitações</h3><button class="secondary" id="portal-refresh">Atualizar ↻</button></div>
-        <div id="portal-submission-list" class="portal-submission-list"><div class="portal-empty">Entre com Discord para consultar seus envios.</div></div>
-      </div>
-      <div class="tab portal-page" id="tab-runs" data-title="Runs Soulslike">
-        <section class="portal-hero"><div><small class="eyebrow">PROVAS DE HABILIDADE</small><h2>Registre sua run</h2><p>Envie seu tempo, build e comprovante. Runs aprovadas entram nos rankings oficiais.</p></div><div class="portal-seal">⚔</div></section>
-        <form id="portal-run-form" class="portal-form"><div class="portal-fields">
-          <label>Jogo<select name="game_id" id="run-game" required><option value="">Carregando jogos…</option></select></label>
-          <label>Desafio<select name="challenge_id" id="run-challenge" required><option value="">Selecione um jogo</option></select></label>
-          <label>Tempo em segundos<input name="seconds" type="number" min="30" max="604800" required placeholder="Ex.: 3600"></label>
-          <label>Build<input name="build" maxlength="300" placeholder="Arma, classe, atributos..."></label>
-          <label>Nota (1–10)<input name="rating" type="number" min="1" max="10"></label>
-          <label>Dificuldade (1–5)<input name="difficulty" type="number" min="1" max="5"></label>
-          <label class="wide">Observações<textarea name="comment" rows="3" maxlength="500"></textarea></label>
-        </div>
-        <label class="portal-upload" for="run-proofs"><span class="upload-icon">↥</span><b>Comprovante obrigatório</b><small>Imagem ou vídeo · máximo 5 arquivos</small><input id="run-proofs" name="proofs" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" multiple><span id="run-file-list">Nenhum arquivo selecionado</span></label>
-        <div class="portal-form-foot"><p>O registro ficará pendente até análise da moderação.</p><button class="primary">Enviar run →</button></div><div id="run-feedback" class="portal-feedback" hidden></div></form>
-      </div>
-      <div class="tab portal-page" id="tab-library" data-title="Biblioteca">
-        <section class="portal-hero"><div><small class="eyebrow">ARQUIVO DA COMUNIDADE</small><h2>Ports & Mods</h2><p>Explore conteúdos cadastrados e envie sugestões para análise da equipe.</p></div><div class="portal-seal">▤</div></section>
-        <div class="portal-switch"><button class="on" data-catalog-kind="ports">Ports</button><button data-catalog-kind="mods">Mods</button></div>
-        <div class="portal-list-head"><h3 id="catalog-title">Ports disponíveis</h3><input id="catalog-search" placeholder="Pesquisar..." aria-label="Pesquisar catálogo"></div>
-        <div id="catalog-list" class="portal-submission-list"><div class="portal-empty">Carregando catálogo…</div></div>
-        <form id="catalog-suggest-form" class="portal-form" style="margin-top:22px"><h3>Enviar uma sugestão</h3><div class="portal-fields">
-          <label class="catalog-game-field" hidden>Jogo<input name="game" maxlength="100"></label><label id="catalog-item-label">Nome do port<input name="name" required maxlength="120"></label>
-          <label>Plataforma<input name="platform" maxlength="40" placeholder="Ex.: PC / PS2"></label><label>Link principal<input name="link" type="url" required placeholder="https://..."></label><label class="catalog-extra" hidden>Tutorial<input name="tutorial" type="url" placeholder="https://..."></label>
-          <label class="wide">Descrição<textarea name="description" rows="3" maxlength="1000"></textarea></label>
-        </div><div class="portal-form-foot"><p>Sugestões ficam pendentes até aprovação.</p><button class="primary">Enviar sugestão →</button></div><div id="catalog-feedback" class="portal-feedback" hidden></div></form>
-      </div>
-      <div class="tab portal-page" id="tab-community-web" data-title="Comunidade">
-        <section class="portal-hero"><div><small class="eyebrow">CONHECIMENTO COMPARTILHADO</small><h2>Comunidade NARA</h2><p>Publique guias, lore, teorias, correções e ideias. Construa o arquivo coletivo.</p></div><div class="portal-seal">✧</div></section>
-        <form id="contribution-form" class="portal-form"><h3>Nova contribuição</h3><div class="portal-fields">
-          <label>Categoria<select name="kind"><option value="guide">Guia / tutorial</option><option value="lore">Lore / teoria</option><option value="correction">Correção</option><option value="idea">Ideia</option><option value="faq">Pergunta frequente</option><option value="challenge">Desafio</option><option value="game_suggestion">Sugestão de jogo</option></select></label>
-          <label>Jogo / universo<input name="game_name" maxlength="100"></label><label class="wide">Título<input name="title" required maxlength="120"></label>
-          <label class="wide">Resumo<textarea name="summary" rows="2" maxlength="500"></textarea></label><label class="wide">Conteúdo<textarea name="content" rows="6" minlength="20" maxlength="12000" required></textarea></label>
-          <label class="wide">Fontes e referências<textarea name="sources" rows="2" maxlength="1500"></textarea></label>
-          <label>Nível de spoiler<select name="spoiler_level"><option value="none">Sem spoilers</option><option value="light">Leve</option><option value="heavy">Spoilers importantes</option></select></label>
-        </div><div class="portal-form-foot"><p>A publicação será revisada antes de entrar no arquivo público.</p><button class="primary">Enviar contribuição →</button></div><div id="contribution-feedback" class="portal-feedback" hidden></div></form>
-        <div class="portal-list-head"><h3>Contribuições publicadas</h3><button class="secondary" id="contribution-refresh">Atualizar ↻</button></div><div id="contribution-list" class="portal-submission-list"></div>
-        <div class="portal-list-head"><h3>Minhas contribuições</h3></div><div id="my-contribution-list" class="portal-submission-list"></div>
-        <div class="portal-list-head"><h3>Meus favoritos</h3></div><div id="community-favorites" class="portal-submission-list"></div>
-      </div>
-      <div class="tab portal-page" id="tab-sanctuary-web" data-title="Santuários">
-        <section class="portal-hero"><div><small class="eyebrow">LUGAR DE HONRA</small><h2>Santuários</h2><p>Visite outros jogadores, deixe mensagens e reconheça suas jornadas.</p></div><div class="portal-seal">⚜</div></section>
-        <div class="portal-form"><div class="portal-fields"><label class="wide">ID Discord do jogador<input id="sanctuary-user-id" inputmode="numeric" placeholder="Cole o ID do jogador"></label></div><div class="portal-form-foot"><p>Você também pode abrir seu próprio santuário.</p><button class="primary" id="sanctuary-open">Visitar santuário →</button></div></div>
-        <div id="sanctuary-view" class="portal-submission-list" style="margin-top:18px"><div class="portal-empty">Escolha um jogador para visitar.</div></div>
-      </div>
-      <div class="tab portal-page" id="tab-nara-web" data-title="NARA IA">
-        <section class="portal-hero"><div><small class="eyebrow">ASSISTENTE DA COMUNIDADE</small><h2>Converse com a NARA</h2><p>Peça ajuda sobre a comunidade, jogos e seus sistemas. A disponibilidade depende da configuração de IA do servidor.</p></div><div class="portal-seal">✦</div></section>
-        <div class="portal-form nara-web-panel"><div id="nara-web-log" class="nara-web-log"><div class="nara-msg bot">Olá. Como posso ajudar na sua jornada?</div></div><form id="nara-web-form" class="nara-web-compose"><textarea name="message" rows="2" maxlength="4000" placeholder="Escreva sua mensagem..." required></textarea><button class="primary">Enviar →</button></form></div>
-        <div class="portal-form" style="margin-top:20px"><div class="portal-form-head"><div><small class="eyebrow">PRIVACIDADE</small><h3>Memória da NARA</h3></div><span id="nara-memory-status" class="pending-pill">Carregando…</span></div><p id="nara-memory-detail" class="muted">Controle se a NARA pode manter continuidade entre conversas.</p><div class="portal-proof-links"><button id="nara-memory-enable">Ativar memória</button><button id="nara-memory-disable">Desativar memória</button><button id="nara-memory-delete">Apagar histórico</button></div></div>
-      </div>
-      <div class="tab portal-page" id="tab-profile-web" data-title="Meu perfil">
-        <section class="portal-hero"><div><small class="eyebrow">IDENTIDADE DO JOGADOR</small><h2>Meu perfil</h2><p>Personalize sua apresentação na comunidade NARA.</p></div><div class="portal-seal">♙</div></section>
-        <form id="portal-profile-form" class="portal-form"><div class="portal-fields">
-          <label>Frase de perfil<input name="tagline" maxlength="100"></label><label>Jogo favorito<input name="fav_game" maxlength="100"></label>
-          <label>Tema<select name="theme"><option>Ouro</option><option>Abismo</option><option>Sangue</option><option>Ametista</option><option>Fogueira</option></select></label>
-          <label>Link social<input name="social" type="url" placeholder="https://..."></label>
-          <label class="wide">Biografia<textarea name="bio" rows="5" maxlength="1000"></textarea></label>
-        </div><div class="portal-form-foot"><p>As alterações serão salvas no perfil compartilhado.</p><button class="primary">Salvar perfil →</button></div><div id="profile-feedback" class="portal-feedback" hidden></div></form>
-      </div>
-      <div class="tab portal-page" id="tab-notifications-web" data-title="Notificações">
-        <section class="portal-hero"><div><small class="eyebrow">CENTRAL DE AVISOS</small><h2>Notificações</h2><p>Acompanhe decisões, respostas, níveis e desafios.</p></div><div class="portal-seal">◉</div></section>
-        <div class="portal-list-head"><h3>Caixa de entrada</h3><button class="secondary" id="notifications-read">Marcar tudo como lido</button></div><div id="notifications-list" class="portal-submission-list"></div>
-        <div class="portal-form" style="margin-top:22px"><h3>Preferências</h3><div id="notification-prefs" class="portal-pref-grid"></div></div>
-      </div>
-      <div class="tab portal-page" id="tab-store-web" data-title="Loja e inventário">
-        <section class="portal-hero"><div><small class="eyebrow">TESOURO DO GUERREIRO</small><h2>Loja & inventário</h2><p>Troque Denários por cosméticos e equipe seus itens de perfil.</p></div><div class="portal-seal">◈</div></section>
-        <div class="portal-list-head"><h3>Itens disponíveis</h3><span id="store-balance" class="pending-pill">Denários: —</span></div><div id="store-items" class="portal-submission-list"></div>
-        <div class="portal-list-head"><h3>Meu inventário</h3></div><div id="store-inventory" class="portal-submission-list"></div>
-      </div>
-      <div class="tab portal-page" id="tab-admin-web" data-title="Administração">
-        <section class="portal-hero"><div><small class="eyebrow">ÁREA RESTRITA</small><h2>Central de moderação</h2><p>Analise solicitações e mantenha a comunidade organizada.</p></div><div class="portal-seal">⚙</div></section>
-        <div class="portal-list-head"><h3>Fila de aprovação</h3><button class="secondary" id="admin-refresh">Atualizar ↻</button></div><div id="admin-queue" class="portal-submission-list"><div class="portal-empty">Acesso restrito à equipe.</div></div>
-        <div class="portal-list-head"><h3>Configurações do servidor</h3><button class="secondary" id="admin-config-refresh">Carregar configurações ↻</button></div>
-        <form id="admin-config-form" class="portal-form"><div id="admin-config-fields" class="portal-fields"><div class="portal-empty">Acesso restrito à equipe.</div></div><div class="portal-form-foot"><p>Somente administradores e moderadores autorizados podem alterar estes valores.</p><button class="primary">Salvar configuração →</button></div><div id="admin-config-feedback" class="portal-feedback" hidden></div></form>
-        <div class="portal-list-head"><h3>Radar de notícias (RSS)</h3><button class="secondary" id="admin-news-refresh">Atualizar feeds ↻</button></div>
-        <form id="admin-news-channel-form" class="portal-form"><div class="portal-fields"><label class="wide">ID do canal que recebe notícias<input name="channel_id" inputmode="numeric" placeholder="ID do canal Discord"></label></div><div class="portal-form-foot"><p>Deixe vazio para desativar a publicação automática.</p><button class="primary">Salvar canal</button></div><div id="admin-news-channel-feedback" class="portal-feedback" hidden></div></form>
-        <form id="admin-news-add-form" class="portal-form"><h4>Adicionar fonte RSS/Atom</h4><div class="portal-fields"><label>Nome da fonte<input name="name" maxlength="80" required placeholder="Ex.: Gematsu"></label><label class="wide">URL HTTPS do feed<input name="url" type="url" required placeholder="https://site.com/feed"></label></div><div class="portal-form-foot"><p>O portal valida o feed e registra os itens atuais sem republicar notícias antigas.</p><button class="primary">Validar e adicionar →</button></div><div id="admin-news-add-feedback" class="portal-feedback" hidden></div></form>
-        <div id="admin-news-feeds" class="portal-submission-list"><div class="portal-empty">Acesso restrito à equipe.</div></div>
-        <div class="portal-list-head"><h3>Cargos selecionáveis</h3><button class="secondary" id="admin-roles-refresh">Atualizar cargos ↻</button></div>
-        <form id="admin-roles-form" class="portal-form"><div class="portal-fields"><label class="wide">Cargos que os membros podem escolher<select id="admin-role-options" name="role_ids" multiple size="8"></select></label></div><div class="portal-form-foot"><p>Até 25 cargos. O bot só pode atribuir cargos abaixo do cargo dele na hierarquia do servidor.</p><button class="primary">Salvar cargos →</button></div><div id="admin-roles-feedback" class="portal-feedback" hidden></div></form>
-        <div class="portal-list-head"><h3>Publicar painéis no Discord</h3></div>
-        <form id="admin-panels-form" class="portal-form"><div class="portal-fields"><label>Tipo de painel<select name="kind"><option value="self_roles">Cargos selecionáveis</option><option value="platinas">Painel de platinas</option><option value="zerados">Painel de jogos zerados</option></select></label><label>Canal Discord<select name="channel_id" id="admin-panel-channels" required></select></label></div><div class="portal-form-foot"><p>Se já existir um painel registrado desse tipo no canal, ele será atualizado; caso contrário, uma nova mensagem será publicada.</p><button class="primary">Publicar / atualizar painel →</button></div><div id="admin-panels-feedback" class="portal-feedback" hidden></div></form>
-      </div>
 </section>
     <footer>NARABOT · GWENT DO COLISEU <span>Jogo principal · conectado ao servidor oficial</span></footer>
   </main>
 </div>
-<script src="/app.js?v=nara-portal-20261123d" defer></script>
+<script src="/app.js" defer></script>
 <script>
 (()=>{const io=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{threshold:.12});
 const sc=()=>document.querySelectorAll('.reveal:not(.in),.gwent-store,.atelier-panel,.gwent-drop-history,.challenge-panel').forEach(el=>{if(!el.dataset.o){el.dataset.o=1;el.classList.add('reveal');io.observe(el)}});sc();
