@@ -9,18 +9,51 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import logging
 import math
 import random
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
+import PIL
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from config import get_data_dir
 
 from .cartas import HABILIDADES, VERSAO_ARTES
 from .arte_gwent_efeitos import desenhar_aura_unidade, desenhar_emblema_especial
 from . import molduras_cartas, templates_cartas
+
+
+def _fingerprint_renderizador() -> str:
+    """Hash automático do código/recursos visuais que realmente compõem as cartas."""
+    root = Path(__file__).resolve().parents[1]
+    componentes = [
+        Path(__file__).resolve(),
+        root / "sistemas" / "cartas.py",
+        root / "sistemas" / "molduras_cartas.py",
+        root / "sistemas" / "arte_gwent_efeitos.py",
+        root / "sistemas" / "templates_cartas.py",
+        root / "fonts" / "DejaVuSans.ttf",
+        root / "fonts" / "DejaVuSans-Bold.ttf",
+        root / "fonts" / "DejaVuSerif.ttf",
+        root / "fonts" / "DejaVuSerif-Bold.ttf",
+    ]
+    digest = hashlib.sha256()
+    digest.update(f"Pillow:{PIL.__version__}".encode("utf-8"))
+    for componente in componentes:
+        digest.update(componente.name.encode("utf-8"))
+        try:
+            digest.update(componente.read_bytes())
+        except OSError:
+            digest.update(b"missing")
+    return digest.hexdigest()[:16]
+
+
+# A versão explícita documenta releases; a impressão digital também invalida
+# automaticamente o cache quando o código/overlay/fonte muda sem bump manual.
+VERSAO_RENDERIZADOR = f"{VERSAO_ARTES}-{_fingerprint_renderizador()}"
 
 # Cor principal da moldura por raridade: as categorias e os tipos continuam
 # visualmente distintos dentro de cada faixa de raridade.
@@ -55,6 +88,101 @@ CORES_FACCAO = {
 ROTULOS_FILEIRA = {"melee": "CORPO A CORPO", "ranged": "LONGA DISTÂNCIA", "siege": "CERCO"}
 LARGURA_PADRAO = 420
 ALTURA_PADRAO = 620
+
+log = logging.getLogger("nara.cartas")
+_CACHE_LOCK_GUARD = threading.Lock()
+_CACHE_LOCKS: dict[str, threading.Lock] = {}
+_CACHE_VALIDATED: dict[str, tuple[int, int]] = {}
+
+
+def _cache_lock_for(path: Path) -> threading.Lock:
+    """Serializa renderizações concorrentes do mesmo arquivo entre threads."""
+    key = str(path)
+    with _CACHE_LOCK_GUARD:
+        lock = _CACHE_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _CACHE_LOCKS[key] = lock
+        if len(_CACHE_LOCKS) > 512:
+            for old_key, old_lock in list(_CACHE_LOCKS.items()):
+                if old_key != key and not old_lock.locked():
+                    _CACHE_LOCKS.pop(old_key, None)
+                if len(_CACHE_LOCKS) <= 384:
+                    break
+        return lock
+
+
+def _cache_png_valido(path: Path) -> bool:
+    """Verifica PNG uma vez por versão física do arquivo e invalida cache truncado."""
+    try:
+        stat = path.stat()
+        assinatura = (int(stat.st_size), int(stat.st_mtime_ns))
+        if stat.st_size < 64:
+            return False
+        chave = str(path)
+        with _CACHE_LOCK_GUARD:
+            if _CACHE_VALIDATED.get(chave) == assinatura:
+                return True
+        with Image.open(path) as imagem:
+            if imagem.format != "PNG" or imagem.width < 1 or imagem.height < 1:
+                return False
+            imagem.verify()
+        with _CACHE_LOCK_GUARD:
+            _CACHE_VALIDATED[chave] = assinatura
+            if len(_CACHE_VALIDATED) > 2048:
+                for antiga in list(_CACHE_VALIDATED)[:512]:
+                    _CACHE_VALIDATED.pop(antiga, None)
+        return True
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return False
+
+
+def _salvar_png_atomico(imagem: Image.Image, path: Path, *, optimize: bool = False) -> None:
+    """Publica PNG completo por rename atômico; nunca deixa arquivo parcial no cache."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporario: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f"{path.stem}.", suffix=".png.tmp", dir=path.parent, delete=False
+        ) as arquivo:
+            temporario = Path(arquivo.name)
+        imagem.save(temporario, format="PNG", optimize=optimize)
+        temporario.replace(path)
+        stat = path.stat()
+        with _CACHE_LOCK_GUARD:
+            _CACHE_VALIDATED[str(path)] = (int(stat.st_size), int(stat.st_mtime_ns))
+    finally:
+        if temporario is not None:
+            temporario.unlink(missing_ok=True)
+
+
+def detectar_mime_imagem(dados: bytes, *, limite_bytes: int = 20 * 1024 * 1024,
+                         limite_pixels: int = 40_000_000) -> str | None:
+    """Detecta formato real pelo decoder; não confia no MIME informado no upload."""
+    if not dados or len(dados) > limite_bytes:
+        return None
+    formatos = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp", "GIF": "image/gif"}
+    try:
+        with Image.open(io.BytesIO(dados)) as imagem:
+            if imagem.width < 32 or imagem.height < 32:
+                return None
+            if imagem.width * imagem.height > limite_pixels:
+                return None
+            mime = formatos.get(str(imagem.format or "").upper())
+            if mime is None:
+                return None
+            imagem.verify()
+        return mime
+    except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return None
+
+
+def validar_imagem_bytes(dados: bytes, *, limite_bytes: int = 20 * 1024 * 1024,
+                         limite_pixels: int = 40_000_000) -> bool:
+    """Valida arte enviada/armazenada sem confiar no MIME informado pelo cliente."""
+    return detectar_mime_imagem(
+        dados, limite_bytes=limite_bytes, limite_pixels=limite_pixels
+    ) is not None
 
 
 def _font(size: int, bold: bool = False, serif: bool = False):
@@ -1412,11 +1540,54 @@ def render_previa_template(raridade: str, *, calibracao: bool = False) -> io.Byt
     return saida
 
 
+def _fingerprint_templates(payload: Any) -> str:
+    """Inclui a versão dos templates dinâmicos do Ateliê na chave do PNG.
+
+    Os templates são atualizados em DATA_DIR sem alterar o código. mtime_ns + tamanho
+    do PNG e o conteúdo dos metadados Discord invalidam o cache assim que um template
+    é substituído, removido ou cadastrado.
+    """
+    if isinstance(payload, dict) and isinstance(payload.get("card"), dict):
+        cards = [payload["card"]]
+    elif isinstance(payload, dict) and isinstance(payload.get("cards"), list):
+        cards = [card for card in payload["cards"] if isinstance(card, dict)]
+    elif isinstance(payload, dict):
+        cards = [payload]
+    else:
+        cards = []
+
+    raridades = sorted({str(card.get("raridade", "Comum")) for card in cards})
+    digest = hashlib.sha256()
+    for raridade in raridades:
+        digest.update(raridade.encode("utf-8"))
+        try:
+            caminhos = (
+                templates_cartas.caminho_cache_template(raridade),
+                templates_cartas.caminho_metadados_template(raridade),
+            )
+        except ValueError:
+            continue
+        for caminho in caminhos:
+            try:
+                info = caminho.stat()
+                digest.update(
+                    f"{caminho.name}:{info.st_size}:{info.st_mtime_ns}".encode("utf-8")
+                )
+                # Os metadados são pequenos; seu conteúdo detecta uma nova referência
+                # Discord mesmo quando o tamanho do JSON não muda.
+                if caminho.suffix == ".json":
+                    digest.update(caminho.read_bytes())
+            except OSError:
+                digest.update(f"{caminho.name}:missing".encode("utf-8"))
+    return digest.hexdigest()[:16]
+
+
 def _cache_path(payload: Any, suffix: str) -> Path:
     root = get_data_dir() / "cartas_cache"
     root.mkdir(parents=True, exist_ok=True)
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
-    digest = hashlib.sha256(f"{VERSAO_ARTES}:{raw}".encode("utf-8")).hexdigest()[:24]
+    versao_cache = f"{VERSAO_RENDERIZADOR}:{_fingerprint_templates(payload)}"
+    digest = hashlib.sha256(f"{versao_cache}:{raw}".encode("utf-8")).hexdigest()[:24]
     return root / f"{digest}.{suffix}"
 
 
@@ -1425,58 +1596,53 @@ def render_carta(
     *,
     tamanho: tuple[int, int] = (LARGURA_PADRAO, ALTURA_PADRAO),
 ) -> Path:
-    """Renderiza no tamanho de exibição e reutiliza o arquivo em cache."""
+    """Renderiza no tamanho de exibição e reutiliza cache persistente validado."""
     largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
-    raridade = str(card.get("raridade", "Comum"))
-    payload = {
-        "card": card,
-        "size": [largura, altura],
-    }
+    payload = {"card": card, "size": [largura, altura]}
     path = _cache_path(payload, "png")
-    if path.exists():
-        return path
-    imagem = _draw_card(card)
-    if imagem.size != (largura, altura):
-        imagem = imagem.resize((largura, altura), Image.Resampling.LANCZOS)
-    # Um nome exclusivo evita colisões quando duas requisições renderizam
-    # a mesma carta em threads diferentes após o uso de asyncio.to_thread().
-    temporario: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            prefix=f"{path.stem}.", suffix=".png.tmp", dir=path.parent, delete=False
-        ) as arquivo:
-            temporario = Path(arquivo.name)
-        imagem.save(temporario, format="PNG", optimize=False)
-        temporario.replace(path)
-    finally:
-        if temporario is not None:
-            temporario.unlink(missing_ok=True)
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+        if path.exists():
+            log.warning("PNG inválido no cache de cartas; regenerando: %s", path.name)
+            path.unlink(missing_ok=True)
+            with _CACHE_LOCK_GUARD:
+                _CACHE_VALIDATED.pop(str(path), None)
+        imagem = _draw_card(card)
+        if imagem.size != (largura, altura):
+            imagem = imagem.resize((largura, altura), Image.Resampling.LANCZOS)
+        _salvar_png_atomico(imagem, path, optimize=False)
     return path
 
 
 def render_pacote(cards: list[dict[str, Any]]) -> Path:
-    payload = {
-        "cards": cards,
-        "layout": "pack-3-v4-vector-rarity-frames",
-    }
+    payload = {"cards": cards, "layout": "pack-3-v4-vector-rarity-frames"}
     path = _cache_path(payload, "png")
-    if path.exists():
-        return path
-    card_w, card_h, gap = 294, 434, 16
-    canvas = Image.new("RGB", (card_w * 3 + gap * 4, card_h + gap * 2), (7, 10, 16))
-    canvas_draw = ImageDraw.Draw(canvas, "RGBA")
-    for inset, alpha in ((0, 90), (5, 45)):
-        canvas_draw.rounded_rectangle((inset, inset, canvas.width - inset - 1, canvas.height - inset - 1),
-                                      radius=22, outline=(208, 166, 83, alpha), width=2)
-    for index, card in enumerate(cards[:3]):
-        art = _draw_card(card).resize((card_w, card_h), Image.Resampling.LANCZOS)
-        canvas.paste(art, (gap + index * (card_w + gap), gap))
-    canvas.save(path, format="PNG", optimize=False)
+    with _cache_lock_for(path):
+        if _cache_png_valido(path):
+            return path
+        if path.exists():
+            log.warning("PNG inválido no cache de pacote; regenerando: %s", path.name)
+            path.unlink(missing_ok=True)
+            with _CACHE_LOCK_GUARD:
+                _CACHE_VALIDATED.pop(str(path), None)
+        card_w, card_h, gap = 294, 434, 16
+        canvas = Image.new("RGB", (card_w * 3 + gap * 4, card_h + gap * 2), (7, 10, 16))
+        canvas_draw = ImageDraw.Draw(canvas, "RGBA")
+        for inset, alpha in ((0, 90), (5, 45)):
+            canvas_draw.rounded_rectangle((inset, inset, canvas.width - inset - 1, canvas.height - inset - 1),
+                                          radius=22, outline=(208, 166, 83, alpha), width=2)
+        for index, card in enumerate(cards[:3]):
+            art = _draw_card(card).resize((card_w, card_h), Image.Resampling.LANCZOS)
+            canvas.paste(art, (gap + index * (card_w + gap), gap))
+        _salvar_png_atomico(canvas, path, optimize=False)
     return path
 
 
 def render_carta_bytes(card: dict[str, Any], illustration_bytes: bytes) -> io.BytesIO:
-    """Monta uma carta personalizada em memória, sem criar cópia local da arte do membro."""
+    """Monta uma carta personalizada; rejeita arte inválida em vez de mostrá-la como oficial."""
+    if not validar_imagem_bytes(illustration_bytes):
+        raise ValueError("A imagem oficial armazenada não é válida ou excede os limites permitidos.")
     imagem = _draw_card(card, illustration_bytes=illustration_bytes)
     saida = io.BytesIO()
     imagem.save(saida, format="PNG", optimize=True)
