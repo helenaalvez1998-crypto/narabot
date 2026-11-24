@@ -1729,10 +1729,11 @@ def render_arte_oficial_cacheada_por_id(
 
 
 def cache_carta_webp_existente(
-    card: dict[str, Any], *, tamanho: tuple[int, int] = (210, 310),
+    card: dict[str, Any], *, tamanho: tuple[int, int] = (210, 310), quality: int = 82,
 ) -> Path | None:
     largura, altura = max(120, int(tamanho[0])), max(180, int(tamanho[1]))
-    payload = {"card": card, "size": [largura, altura], "format": "webp", "quality": 82}
+    quality = max(50, min(95, int(quality)))
+    payload = {"card": card, "size": [largura, altura], "format": "webp", "quality": quality}
     path = _cache_path(payload, "webp")
     with _cache_lock_for(path):
         if _cache_webp_valido(path, (largura, altura)):
