@@ -2047,9 +2047,11 @@ class NaraBot(commands.Bot):
                     body=png, content_type="image/png",
                     headers={"Content-Disposition": "inline", "Cache-Control": "private, max-age=300", "X-Content-Type-Options": "nosniff"},
                 )
-            image_path = render_carta(source)
+            # Pillow faz composição pesada (incluindo GaussianBlur) e não pode
+            # rodar no event loop do Discord/aiohttp.
+            image_bytes = await asyncio.to_thread(lambda: render_carta(source).read_bytes())
             return web.Response(
-                body=image_path.read_bytes(), content_type="image/png",
+                body=image_bytes, content_type="image/png",
                 headers={"Content-Disposition": "inline", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
             )
         except web.HTTPException:
