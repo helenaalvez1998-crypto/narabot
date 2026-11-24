@@ -114,11 +114,12 @@ DIRETRIZES_CATEGORIA = {
         "do not default to a generic armored knight."
     ),
     "arma": (
-        "SUBJECT DIRECTION — WEAPON / RELIC: make one complete, unmistakable weapon or relic "
-        "the protagonist. Show a strong three-quarter view and distinctive construction, "
-        "wear, engravings, balance, material and history. Give it a small environmental "
-        "story (embedded in stone, held by a spectral hand, resting on an altar, etc.). "
-        "Energy effects must explain its power and must not obscure its silhouette."
+        "SUBJECT DIRECTION — WEAPON / ARMS IDENTITY: interpret the CARD NAME first to decide "
+        "whether the named subject is a wielder, craftsperson, guardian, fighter, weapon or relic. "
+        "If the name identifies a person or role (for example, a duelist, smith, bearer or sentinel), "
+        "that person is the primary subject and any weapon is supporting equipment. Only make a "
+        "standalone weapon or relic the protagonist when the name or canonical description actually "
+        "identifies an object. Never let this category label override the named identity."
     ),
     "magia": (
         "SUBJECT DIRECTION — SPELL / MAGIC: depict a specific supernatural event with a "
@@ -394,10 +395,25 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         DIRECAO_ARTE,
         origem,
         "CANONICAL CARD BRIEFING\n" + contexto,
+        (
+            "NAME-LED CREATIVE IDENTITY — HIGHEST CREATIVE PRIORITY: the CARD NAME is the primary "
+            "creative anchor for this illustration, not a decorative label. Interpret its literal meaning, "
+            "imagery, implied subject, role, emotional tone and distinctive concept before designing the scene. "
+            "Determine whether the name denotes a person, creature, group, place, event, weapon, relic or "
+            "abstract force; make that named subject unmistakably recognizable and visually dominant. "
+            "Translate the name into a specific silhouette, facial expression (if applicable), gesture, "
+            "materials, props, environment and story beat. Do not reduce the name to a generic faction member "
+            "or generic fantasy archetype. If the name is metaphorical, express its strongest supported visual "
+            "metaphor without inventing biography or lore. The description and ability refine and constrain "
+            "the interpretation; faction, category, type, rarity and row are secondary art-direction layers. "
+            "When a prewritten scene conflicts with the named identity, adapt that scene to preserve the name's "
+            "literal subject and defining imagery. Never let a generic category or faction template replace "
+            "the identity expressed by the card name."
+        ),
         "CARD-SPECIFIC VISUAL SCENE\n" + (cena or (
             "No fixed scene exists for this generated card ID. Build one original, specific scene strictly from the canonical card name, description, ability rule, faction and type. "
-            "First identify the literal subject implied by the name; then show one concrete action or event that expresses the description. "
-            "Do not substitute a generic warrior portrait. If the description is too sparse, depict the named object or role in a plausible setting and keep unknown details visually neutral."
+            "Start from the literal subject and distinctive imagery of the card name; then show one concrete action or event that expresses the description and ability. "
+            "Do not substitute a generic warrior portrait. If the description is too sparse, depict the named subject in a plausible setting and keep unknown details visually neutral."
         )),
         diretrizes_faccao.get(faccao, "FACTION IDENTITY: not specified. Do not invent faction insignia, uniforms, heraldry or faction-specific lore; use neutral, practical materials and colors.") ,
         diretriz_fileira,
