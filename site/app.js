@@ -72,6 +72,14 @@ const gwentFactionInfo = {
     ['oraculo_tempestade', 'Oráculo da Tempestade', 'Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.']
   ]}
 };
+// Os líderes vêm do servidor (fonte única); a lista fixa acima serve só de reserva se a API não enviar.
+function applyGwentLeaders(byFaction) {
+  if (!byFaction) return;
+  Object.entries(byFaction).forEach(([faction, list]) => {
+    if (!Array.isArray(list) || !list.length || !gwentFactionInfo[faction]) return;
+    gwentFactionInfo[faction].leaders = list.map(l => [l.id, l.name, l.description]);
+  });
+}
 function renderGwentLeaderOptions(selected = '') {
   const faction = $('#gwent-faction')?.value || 'Ordem de Ferro';
   const info = gwentFactionInfo[faction] || gwentFactionInfo['Ordem de Ferro'];
@@ -310,6 +318,7 @@ async function loadGwentDeck() {
     gwentDeckIds = [...gwentSavedIds];
     gwentSavedFaction = data.faction || 'Ordem de Ferro';
     gwentSavedLeader = data.leader_id || 'comandante_fornalha';
+    applyGwentLeaders(data.leaders_by_faction);
     $('#gwent-faction').value = gwentSavedFaction;
     renderGwentLeaderOptions(gwentSavedLeader);
     $('#gwent-deck-status').textContent = gwentSavedIds.length === 12 ? 'Deck carregado.' : 'Monte seu deck Gwent com 12 cartas únicas para liberar a arena.';
