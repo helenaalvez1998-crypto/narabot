@@ -3,7 +3,36 @@ let collection = [];
 let currentUser = null;
 const text = (value, fallback = '—') => value === null || value === undefined || value === '' ? fallback : String(value);
 const number = (value) => new Intl.NumberFormat('pt-BR').format(Number(value || 0));
-const imageUrl = (card) => card.image_url || `/api/gwent/cards/${encodeURIComponent(card.id)}/image`;
+// Manter sincronizado com VERSAO_ARTES em sistemas/cartas.py.
+const CARD_IMAGE_VERSION = 19;
+const imageUrl = (card) => {
+  const raw = card.image_url || `/api/gwent/cards/${encodeURIComponent(card.card_id || String(card.id || '').split('::')[0])}/image`;
+  if (!raw.includes('/api/gwent/cards/')) return raw;
+  const url = new URL(raw, window.location.origin);
+  if (!url.searchParams.has('v')) url.searchParams.set('v', String(CARD_IMAGE_VERSION));
+  return `${url.pathname}${url.search}`;
+};
+const CARD_IMAGE_FALLBACK = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 620"><rect width="420" height="620" rx="20" fill="#17131c"/><rect x="18" y="18" width="384" height="584" rx="16" fill="none" stroke="#9b805a" stroke-width="4"/><path d="M210 190l55 55-55 55-55-55z" fill="none" stroke="#9b805a" stroke-width="8"/><text x="210" y="390" fill="#d8c6a6" font-family="sans-serif" font-size="22" text-anchor="middle">ARTE INDISPONÍVEL</text><text x="210" y="425" fill="#978a9b" font-family="sans-serif" font-size="16" text-anchor="middle">Tente recarregar a página</text></svg>')}`;
+const CARD_IMAGE_RETRY_DELAYS = [700, 1600];
+document.addEventListener('error', (event) => {
+  const image = event.target;
+  if (!(image instanceof HTMLImageElement) || !image.src.includes('/api/gwent/cards/')) return;
+  const attempts = Number(image.dataset.cardRetry || 0);
+  if (attempts < CARD_IMAGE_RETRY_DELAYS.length) {
+    image.dataset.cardRetry = String(attempts + 1);
+    const original = image.dataset.cardOriginalSrc || image.src;
+    image.dataset.cardOriginalSrc = original;
+    window.setTimeout(() => {
+      const retryUrl = new URL(original, window.location.origin);
+      retryUrl.searchParams.set('_retry', String(attempts + 1));
+      image.src = `${retryUrl.pathname}${retryUrl.search}`;
+    }, CARD_IMAGE_RETRY_DELAYS[attempts]);
+    return;
+  }
+  image.dataset.cardImageFallback = 'true';
+  image.src = CARD_IMAGE_FALLBACK;
+  image.alt = 'Imagem da carta indisponível';
+}, true);
 function escapeHTML(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function showNotice(message, kind = 'info') {
   const el = $('#notice'); if (el) { el.textContent = message; el.className = `notice ${kind}`; el.hidden = !message; }
