@@ -1661,3 +1661,8 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--pro-line);fon
 .gwent-target-option:hover,.gwent-target-option:focus-visible{border-color:var(--gold);outline:none}
 .gwent-target-option small{color:var(--muted)}
 .gwent-target-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+
+/* Cartas V18: cantos e sombra acompanham a nova moldura (a raridade em si vem do PNG e do [data-r]) */
+.gwent-unit img,.gwent-board-card img,.card-image,.modal>img{border-radius:5.4% / 3.6%;box-shadow:0 8px 22px rgba(0,0,0,.55)}
+.gwent-unit:hover img,.game-card:hover .card-image{box-shadow:0 14px 30px rgba(0,0,0,.68)}
+@media (prefers-reduced-motion:no-preference){.gwent-unit img,.game-card .card-image{transition:box-shadow .25s ease}}
