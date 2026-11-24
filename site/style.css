@@ -1666,3 +1666,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--pro-line);fon
 .gwent-unit img,.gwent-board-card img,.card-image,.modal>img{border-radius:5.4% / 3.6%;box-shadow:0 8px 22px rgba(0,0,0,.55)}
 .gwent-unit:hover img,.game-card:hover .card-image{box-shadow:0 14px 30px rgba(0,0,0,.68)}
 @media (prefers-reduced-motion:no-preference){.gwent-unit img,.game-card .card-image{transition:box-shadow .25s ease}}
+/* Seleção de cartas na preparação inicial do Gwent */
+.gwent-swap-toggle{margin-top:9px;width:100%;min-height:42px;border:1px solid var(--gold)!important;color:var(--parch)!important;background:rgba(0,0,0,.28)!important;white-space:normal}
+.gwent-swap-toggle.is-selected{color:#101522!important;background:linear-gradient(180deg,#f2d99b,#c7a65f)!important;border-color:#fff0bf!important;box-shadow:0 0 14px rgba(242,217,155,.45)}
+.gwent-swap-count{font-weight:700;color:var(--gold-bright)}
