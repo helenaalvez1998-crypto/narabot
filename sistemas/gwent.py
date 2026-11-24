@@ -544,9 +544,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         state["last_event"] = f"Jogador {uid} se rendeu. Vitória de {opponent_id}."
         return _registrar_evento(state)
 
-    # A preparação inicial é simultânea: cada jogador deve poder escolher
-    # suas trocas independentemente de quem inicia a batalha.
-    if state.get("phase") != "mulligan" and state["turn"] != uid:
+    if state["turn"] != uid:
         return {"error": "Aguarde a jogada do adversário."}
 
     if state.get("phase") == "mulligan":
@@ -895,3 +893,28 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
     elif state["status"] == "active" and other["passed"]:
         state["turn"] = uid
     return _registrar_evento(state)
+
+
+# Recompensas competitivas usadas pelo endpoint de conclusão de partidas.
+def calcular_delta_mmr(rating_a: int, rating_b: int, resultado_a: float, k_factor: int = 32) -> int:
+    """Calcula a variação Elo do jogador A; o jogador B recebe o valor oposto."""
+    rating_a = max(0, int(rating_a))
+    rating_b = max(0, int(rating_b))
+    resultado = float(resultado_a)
+    if resultado not in (0.0, 0.5, 1.0):
+        raise ValueError("resultado_a deve ser 0.0, 0.5 ou 1.0")
+    k = max(1, int(k_factor))
+    esperado_a = 1.0 / (1.0 + 10.0 ** ((rating_b - rating_a) / 400.0))
+    return int(round(k * (resultado - esperado_a)))
+
+
+def calcular_xp_partida(outcome: str, xp_recente: int = 0, limite_diario: int = 30) -> int:
+    """Retorna XP da partida, respeitando o teto diário informado pelo chamador."""
+    recompensas = {"win": 30, "draw": 20, "loss": 10}
+    chave = str(outcome or "").strip().lower()
+    if chave not in recompensas:
+        raise ValueError("outcome deve ser 'win', 'draw' ou 'loss'")
+    limite = max(0, int(limite_diario))
+    acumulado = max(0, int(xp_recente))
+    restante = max(0, limite - acumulado)
+    return min(recompensas[chave], restante)
