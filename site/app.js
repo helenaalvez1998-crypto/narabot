@@ -698,3 +698,235 @@ async function visSave() {
   } catch (e) { msg.textContent = 'Sem conexão com o servidor.'; }
 }
 $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
+
+
+// --- Portal NARA: envios web de platinas e jogos zerados. ---
+(() => {
+  const form = document.getElementById('portal-submit-form');
+  if (!form) return;
+  const kindInput = form.querySelector('[name="kind"]');
+  const title = document.getElementById('portal-form-title');
+  const proofInput = document.getElementById('portal-proofs');
+  const fileList = document.getElementById('portal-file-list');
+  const feedback = document.getElementById('portal-submit-feedback');
+  const list = document.getElementById('portal-submission-list');
+  const labels = {pending:'Aguardando análise', approved:'Aprovado', rejected:'Rejeitado'};
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function setKind(kind) {
+    kindInput.value = kind;
+    title.textContent = kind === 'platina' ? 'Enviar uma platina' : 'Registrar jogo zerado';
+    form.querySelector('[name="date"]').closest('label').childNodes[0].textContent = kind === 'platina' ? 'Data da conquista' : 'Data em que zerou';
+    form.querySelector('.optional-field').hidden = false;
+    proofInput.required = kind === 'platina';
+    document.querySelectorAll('[data-submit-kind]').forEach(b => b.classList.toggle('on', b.dataset.submitKind === kind));
+    document.querySelector('.pending-pill').textContent = 'Revisão da equipe';
+  }
+  document.querySelectorAll('[data-submit-kind]').forEach(b => b.addEventListener('click', () => setKind(b.dataset.submitKind)));
+  proofInput.addEventListener('change', () => {
+    const files = [...proofInput.files];
+    fileList.textContent = files.length ? files.map(f => `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`).join(' · ') : 'Nenhum arquivo selecionado';
+  });
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!currentUser) { showNotice('Entre com sua conta Discord antes de enviar.', 'error'); return; }
+    const files = [...proofInput.files];
+    if (files.length > 5) { feedback.hidden=false; feedback.className='portal-feedback error'; feedback.textContent='Envie no máximo 5 comprovantes.'; return; }
+    if (files.some(f => f.size > 8*1024*1024)) { feedback.hidden=false; feedback.className='portal-feedback error'; feedback.textContent='Cada arquivo deve ter no máximo 8 MB.'; return; }
+    const button = form.querySelector('[type="submit"]');
+    button.disabled = true; button.textContent = 'Enviando…';
+    feedback.hidden = true;
+    try {
+      const body = new FormData(form);
+      const response = await fetch(`/api/portal/submit/${kindInput.value}`, {method:'POST', credentials:'same-origin', body});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível enviar.');
+      feedback.hidden = false; feedback.className = 'portal-feedback';
+      feedback.textContent = `Solicitação #${data.id} enviada. Ela está aguardando aprovação da equipe.`;
+      const submittedKind = kindInput.value; form.reset(); setKind(submittedKind); fileList.textContent='Nenhum arquivo selecionado';
+      await loadPortalSubmissions();
+      showNotice('Seu envio foi registrado para análise.', 'success');
+    } catch (err) {
+      feedback.hidden = false; feedback.className = 'portal-feedback error'; feedback.textContent = err.message;
+    } finally { button.disabled=false; button.innerHTML='Enviar para análise <span>→</span>'; }
+  });
+  async function loadPortalSubmissions() {
+    if (!currentUser) { list.innerHTML='<div class="portal-empty">Entre com Discord para consultar seus envios.</div>'; return; }
+    list.innerHTML='<div class="portal-empty">Carregando histórico…</div>';
+    try {
+      const r=await fetch('/api/portal/mine',{credentials:'same-origin',cache:'no-store'});
+      const d=await r.json(); if(!r.ok) throw new Error(d.error||'Falha ao carregar.');
+      if(!d.items?.length){list.innerHTML='<div class="portal-empty">Você ainda não enviou platinas ou jogos zerados.</div>';return;}
+      list.innerHTML=d.items.map(item=>{
+        const status=labels[item.status]||item.status;
+        const proofs=(item.proofs||[]).map(p=>`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.filename||'Comprovante')}</a>`).join('');
+        return `<article class="portal-submission"><div><h4>${item.kind==='platina'?'💎':item.kind==='run'?'⚔':'🏆'} ${esc(item.game)}</h4><p>${item.kind==='platina'?'Platina':item.kind==='run'?'Run Soulslike':'Jogo zerado'} · ${esc(item.platform)} · ${esc(item.date)}<br>${esc(item.comment||'')}</p>${proofs?`<div class="portal-proof-links">${proofs}</div>`:''}${item.status==='pending'?`<div class="portal-proof-links"><button data-cancel-kind="${esc(item.kind)}" data-cancel-id="${item.id}">Cancelar envio</button></div>`:''}</div><span class="portal-status ${esc(item.status)}">${esc(status)}</span></article>`;
+      }).join('');
+    } catch(e){list.innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+  }
+  document.addEventListener('click',async e=>{const b=e.target.closest('[data-cancel-kind]');if(!b)return;if(!confirm('Cancelar este envio pendente?'))return;try{await fetch(`/api/portal/mine/${b.dataset.cancelKind}/${b.dataset.cancelId}`,{method:'DELETE',credentials:'same-origin'}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Falha ao cancelar');});loadPortalSubmissions();showNotice('Envio cancelado.','success');}catch(err){showNotice(err.message,'error');}});
+  document.getElementById('portal-refresh')?.addEventListener('click',loadPortalSubmissions);
+  document.addEventListener('click',e=>{if(e.target.closest('[data-tab="submissions"]'))loadPortalSubmissions();});
+  document.addEventListener('click',e=>{if(e.target.closest('[data-tab="submit"]')&&!currentUser)showNotice('Entre com Discord para enviar suas conquistas.','info');});
+  window.loadPortalSubmissions=loadPortalSubmissions;
+  setKind('platina');
+})();
+
+
+// --- NARA Portal: módulos complementares e operações compartilhadas. ---
+(() => {
+ const $=s=>document.querySelector(s), esc=s=>escapeHTML(s??'');
+ const api=async(url,opts={})=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Falha na operação.');return d;};
+ const json=(method,data)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ const feedback=(id,msg,bad=false)=>{const e=$(id);if(e){e.hidden=false;e.className='portal-feedback'+(bad?' error':'');e.textContent=msg;}};
+ const statusLabel=s=>({pending:'Pendente',approved:'Aprovado',rejected:'Rejeitado',changes_requested:'Ajustes solicitados'}[s]||s);
+ // Runs: catálogos e submissão com comprovante.
+ async function loadRunOptions(){
+  if(!currentUser)return;
+  try{const d=await api('/api/portal/runs/options');const g=$('#run-game'),c=$('#run-challenge');
+   g.innerHTML='<option value="">Selecione o jogo</option>'+d.games.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+   const fill=()=>{const gid=Number(g.value);c.innerHTML='<option value="">Selecione o desafio</option>'+d.challenges.filter(x=>!x.game_id||Number(x.game_id)===gid).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');};
+   g.onchange=fill;fill();
+  }catch(e){$('#run-game').innerHTML='<option value="">Não foi possível carregar jogos</option>';feedback('#run-feedback',e.message,true);}
+ }
+ $('#run-proofs')?.addEventListener('change',e=>$('#run-file-list').textContent=[...e.target.files].map(f=>f.name).join(' · ')||'Nenhum arquivo selecionado');
+ $('#portal-run-form')?.addEventListener('submit',async e=>{
+  e.preventDefault();if(!currentUser)return showNotice('Entre com Discord para enviar uma run.','error');
+  const form=e.currentTarget,btn=form.querySelector('button[type="submit"],button.primary'),files=[...$('#run-proofs').files];
+  if(!files.length||files.length>5||files.some(f=>f.size>8*1024*1024))return feedback('#run-feedback','Anexe de 1 a 5 arquivos de até 8 MB cada.',true);
+  btn.disabled=true;btn.textContent='Enviando…';
+  try{const d=await api('/api/portal/runs',{method:'POST',body:new FormData(form)});feedback('#run-feedback',`Run #${d.id} enviada e aguardando aprovação.`);form.reset();$('#run-file-list').textContent='Nenhum arquivo selecionado';}
+  catch(err){feedback('#run-feedback',err.message,true);}finally{btn.disabled=false;btn.textContent='Enviar run →';}
+ });
+ // Ports e mods.
+ let catalogKind='ports';
+ async function loadCatalog(){
+  const q=$('#catalog-search')?.value||'';
+  $('#catalog-title').textContent=catalogKind==='ports'?'Ports disponíveis':'Mods disponíveis';
+  try{const d=await api(`/api/portal/catalog?kind=${catalogKind}&q=${encodeURIComponent(q)}`);
+   $('#catalog-list').innerHTML=d.items.length?d.items.map(x=>`<article class="portal-submission"><div><h4>${esc(x.name)}</h4><p>${esc(x.platform||x.game||'')} · ${esc(x.description||'Sem descrição')}</p><div class="portal-proof-links"><a href="${esc(x.link)}" target="_blank" rel="noopener">Abrir download</a>${x.tutorial?`<a href="${esc(x.tutorial)}" target="_blank" rel="noopener">Tutorial</a>`:''}${x.iso?`<a href="${esc(x.iso)}" target="_blank" rel="noopener">ISO</a>`:''}</div></div><span class="portal-status approved">Publicado</span></article>`).join(''):'<div class="portal-empty">Nenhum item encontrado.</div>';
+  }catch(e){$('#catalog-list').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+ }
+ document.querySelectorAll('[data-catalog-kind]').forEach(b=>b.addEventListener('click',()=>{catalogKind=b.dataset.catalogKind;const gf=$('.catalog-game-field');if(gf){gf.hidden=catalogKind==='ports';gf.querySelector('input').required=catalogKind==='mods';}document.querySelectorAll('[data-catalog-kind]').forEach(x=>x.classList.toggle('on',x===b));$('#catalog-item-label').innerHTML=(catalogKind==='ports'?'Nome do port':'Nome do mod')+'<input name="name" required maxlength="120">';$('.catalog-extra').hidden=catalogKind!=='ports';loadCatalog();}));
+ $('#catalog-search')?.addEventListener('input',()=>{clearTimeout(window._catalogTimer);window._catalogTimer=setTimeout(loadCatalog,250);});
+ $('#catalog-suggest-form')?.addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return showNotice('Entre com Discord para sugerir conteúdo.','error');
+  const f=new FormData(e.currentTarget),data=Object.fromEntries(f.entries());try{await api(`/api/portal/catalog/${catalogKind}`,json('POST',data));feedback('#catalog-feedback','Sugestão enviada. Ela ficará pendente até aprovação.');e.currentTarget.reset();}catch(err){feedback('#catalog-feedback',err.message,true);}
+ });
+ // Contribuições comunitárias.
+ async function loadContributions(){
+  try{const d=await api('/api/portal/contributions?status=approved');$('#contribution-list').innerHTML=d.items.length?d.items.map(x=>`<article class="portal-submission"><div><h4>${esc(x.title)}</h4><p>${esc(x.game_name||'Comunidade')} · ${esc(x.kind)}<br>${esc(x.summary||x.content.slice(0,240))}</p><div class="portal-proof-links"><button data-community-action="like" data-id="${x.id}">♡ Curtir</button><button data-community-action="bookmark" data-id="${x.id}">☆ Favoritar</button>${x.kind==='challenge'?`<button data-community-action="challenge" data-id="${x.id}">Participar</button>`:''}</div></div><span class="portal-status approved">Publicado</span></article>`).join(''):'<div class="portal-empty">Ainda não há contribuições publicadas.</div>';
+   if(currentUser){const mine=await api('/api/portal/contributions?mine=1');$('#my-contribution-list').innerHTML=mine.items.length?mine.items.map(x=>`<article class="portal-submission"><div><h4>${esc(x.title)}</h4><p>${esc(x.kind)} · ${esc(x.game_name||'Comunidade')}<br>${esc(x.review_note||'')}</p></div><span class="portal-status">${esc(statusLabel(x.status))}</span></article>`).join(''):'<div class="portal-empty">Você ainda não enviou contribuições.</div>';}
+   if(currentUser){const fav=await api('/api/portal/community/favorites');$('#community-favorites').innerHTML=fav.items.length?fav.items.map(x=>`<article class="portal-submission"><div><h4>${esc(x.target_type)} #${x.target_id}</h4><p>Salvo nos favoritos</p></div></article>`).join(''):'<div class="portal-empty">Nenhum favorito salvo.</div>';}
+  }catch(e){$('#contribution-list').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+ }
+ $('#contribution-form')?.addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return showNotice('Entre com Discord para contribuir.','error');const data=Object.fromEntries(new FormData(e.currentTarget).entries());try{const d=await api('/api/portal/contributions',json('POST',data));feedback('#contribution-feedback',`Contribuição #${d.id} enviada para revisão.`);e.currentTarget.reset();}catch(err){feedback('#contribution-feedback',err.message,true);}});
+ $('#contribution-refresh')?.addEventListener('click',loadContributions);
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-community-action]');if(!b)return;if(!currentUser)return showNotice('Entre com Discord para interagir.','error');try{if(b.dataset.communityAction==='like')await api('/api/portal/community/interact',json('POST',{target_type:'contribution',target_id:Number(b.dataset.id),reaction:'like'}));else if(b.dataset.communityAction==='challenge')await api('/api/portal/community/challenge',json('POST',{contribution_id:Number(b.dataset.id),action:'join'}));else await api('/api/portal/community/bookmark',json('POST',{target_type:'contribution',target_id:Number(b.dataset.id)}));b.textContent=b.dataset.communityAction==='like'?'♥ Curtido':b.dataset.communityAction==='challenge'?'✓ Inscrito':'★ Salvo';}catch(err){showNotice(err.message,'error');}});
+ // Perfil persistente do banco do bot.
+ async function loadPortalProfile(){
+  if(!currentUser)return;try{const d=await api('/api/portal/profile'),p=d.profile||{},f=$('#portal-profile-form');
+   for(const k of ['tagline','fav_game','theme','bio'])if(f.elements[k])f.elements[k].value=p[k]||'';
+   let links={};try{links=JSON.parse(p.links||'{}')}catch(_){}f.elements.social.value=links.social||'';
+  }catch(e){feedback('#profile-feedback',e.message,true);}
+ }
+ $('#portal-profile-form')?.addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return showNotice('Entre com Discord para editar o perfil.','error');const f=e.currentTarget;const data={tagline:f.elements.tagline.value,fav_game:f.elements.fav_game.value,theme:f.elements.theme.value,bio:f.elements.bio.value,links:{social:f.elements.social.value}};try{await api('/api/portal/profile',json('POST',data));feedback('#profile-feedback','Perfil atualizado.');}catch(err){feedback('#profile-feedback',err.message,true);}});
+ // Caixa de notificações e preferências.
+ const prefNames={approvals:'Aprovações',rejections:'Rejeições',levels:'Subida de nível',replies:'Respostas',challenges:'Desafios'};
+ async function loadNotifications(){
+  if(!currentUser){$('#notifications-list').innerHTML='<div class="portal-empty">Entre com Discord para ver notificações.</div>';return;}
+  try{const d=await api('/api/portal/notifications');$('#notifications-list').innerHTML=d.items.length?d.items.map(x=>`<article class="portal-submission"><div><h4>${esc(x.category)}</h4><p>${esc(x.message)}<br>${esc(x.created_at)}</p></div><span class="portal-status">Nova</span></article>`).join(''):'<div class="portal-empty">Você não tem notificações pendentes.</div>';
+   $('#notification-prefs').innerHTML=Object.entries(d.preferences).map(([k,v])=>`<label class="portal-pref"><span>${prefNames[k]||k}</span><input type="checkbox" data-notif-pref="${k}" ${v?'checked':''}></label>`).join('');
+  }catch(e){$('#notifications-list').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+ }
+ $('#notifications-read')?.addEventListener('click',async()=>{try{await api('/api/portal/notifications',json('POST',{action:'read_all'}));loadNotifications();}catch(e){showNotice(e.message,'error');}});
+ $('#notification-prefs')?.addEventListener('change',async e=>{const c=e.target.closest('[data-notif-pref]');if(!c)return;try{await api('/api/portal/notifications',json('POST',{key:c.dataset.notifPref,enabled:c.checked}));}catch(err){showNotice(err.message,'error');}});
+ // Fila de moderação; a mesma lógica de recompensa do bot.
+ async function loadAdminQueue(){
+  if(!currentUser)return;try{const d=await api('/api/portal/admin/queue');$('#admin-queue').innerHTML=d.items.length?d.items.map(x=>`<article class="portal-submission"><div><h4>#${x.id} · ${esc(x.game||x.title||x.name||'Solicitação')}</h4><p>${esc(x.kind)} · usuário ${esc(x.user_id||x.autor_id||'—')} · ${esc(x.platform||x.challenge||x.status||'')}</p>${(x.proof_url||(x.proofs||[]).length)?`<div class="portal-proof-links">${x.proof_url?`<a href="${esc(x.proof_url)}" target="_blank" rel="noopener">Ver comprovante</a>`:''}${(x.proofs||[]).map(p=>`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.filename||'Comprovante')}</a>`).join('')}</div>`:''}<div class="portal-proof-links"><button data-admin-action="approved" data-kind="${esc(x.queue_kind||x.kind)}" data-id="${x.id}">Aprovar</button><button data-admin-action="rejected" data-kind="${esc(x.queue_kind||x.kind)}" data-id="${x.id}">Rejeitar</button>${x.queue_kind==='contribution'?`<button data-admin-action="changes_requested" data-kind="contribution" data-id="${x.id}">Pedir ajustes</button>`:''}</div></div><span class="portal-status">Pendente</span></article>`).join(''):'<div class="portal-empty">Nenhuma solicitação pendente.</div>';}
+  catch(e){$('#admin-queue').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+ }
+ $('#admin-refresh')?.addEventListener('click',loadAdminQueue);
+ async function loadAdminConfig(){try{const d=await api('/api/portal/admin/config');$('#admin-config-fields').innerHTML=d.settings.map(x=>`<label>${esc(x.label)}<input name="${esc(x.key)}" value="${esc(x.value)}"></label>`).join('');}catch(e){$('#admin-config-fields').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}}
+ $('#admin-config-refresh')?.addEventListener('click',loadAdminConfig);
+ $('#admin-config-form')?.addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget;try{for(const [key,value] of new FormData(f).entries())await api('/api/portal/admin/config',json('POST',{key,value}));feedback('#admin-config-feedback','Configurações salvas.');}catch(err){feedback('#admin-config-feedback',err.message,true);}});
+ async function loadAdminNews(){try{const d=await api('/api/portal/admin/news');$('#admin-news-channel-form').elements.channel_id.value=d.channel_id||'';$('#admin-news-feeds').innerHTML=d.feeds.length?d.feeds.map(x=>`<article class="portal-submission"><div><h4>#${x.id} · ${esc(x.nome)}</h4><p><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.url)}</a><br>${x.ativo?'Ativo':'Inativo'} · ${x.inicializado?'Sincronizado':'Aguardando sincronização'}</p></div><button class="secondary" data-news-remove="${x.id}">Remover</button></article>`).join(''):'<div class="portal-empty">Nenhum feed cadastrado.</div>';}catch(e){$('#admin-news-feeds').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}}
+ $('#admin-news-refresh')?.addEventListener('click',loadAdminNews);
+ $('#admin-news-channel-form')?.addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/portal/admin/news',json('POST',{action:'channel',channel_id:e.currentTarget.elements.channel_id.value.trim()}));feedback('#admin-news-channel-feedback','Canal do Radar salvo.');}catch(err){feedback('#admin-news-channel-feedback',err.message,true);}});
+ $('#admin-news-add-form')?.addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget;try{await api('/api/portal/admin/news',json('POST',{action:'add',name:f.elements.name.value,url:f.elements.url.value}));f.reset();feedback('#admin-news-add-feedback','Feed validado e adicionado.');loadAdminNews();}catch(err){feedback('#admin-news-add-feedback',err.message,true);}});
+ async function loadAdminRoles(){
+  try{const d=await api('/api/portal/admin/roles');const sel=$('#admin-role-options');const chosen=new Set(d.roles.map(x=>String(x.id)));sel.innerHTML=d.available.map(x=>`<option value="${x.id}" ${chosen.has(String(x.id))?'selected':''} ${x.managed?'disabled':''}>${esc(x.name)}${x.managed?' (gerenciado)':''}</option>`).join('');}
+  catch(e){$('#admin-role-options').innerHTML='';feedback('#admin-roles-feedback',e.message,true);}
+ }
+ $('#admin-roles-refresh')?.addEventListener('click',loadAdminRoles);
+ $('#admin-roles-form')?.addEventListener('submit',async e=>{e.preventDefault();const ids=[...$('#admin-role-options').selectedOptions].map(x=>x.value);try{await api('/api/portal/admin/roles',json('POST',{action:'save',role_ids:ids}));feedback('#admin-roles-feedback','Cargos selecionáveis salvos.');}catch(err){feedback('#admin-roles-feedback',err.message,true);}});
+ async function loadAdminPanelChannels(){
+  try{const d=await api('/api/portal/admin/panels');$('#admin-panel-channels').innerHTML=d.channels.map(x=>`<option value="${x.id}">#${esc(x.name)}</option>`).join('');}
+  catch(e){$('#admin-panel-channels').innerHTML='';feedback('#admin-panels-feedback',e.message,true);}
+ }
+ $('#admin-panels-form')?.addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget;try{const d=await api('/api/portal/admin/panels',json('POST',{kind:f.elements.kind.value,channel_id:f.elements.channel_id.value}));feedback('#admin-panels-feedback',`Painel ${d.updated?'atualizado':'publicado'} no Discord (mensagem ${d.message_id}).`);}catch(err){feedback('#admin-panels-feedback',err.message,true);}});
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-news-remove]');if(!b)return;if(!confirm('Remover esta fonte RSS?'))return;try{await api('/api/portal/admin/news',json('POST',{action:'remove',id:b.dataset.newsRemove}));b.closest('.portal-submission').remove();}catch(err){showNotice(err.message,'error');}});
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-admin-action]');if(!b)return;const note=b.dataset.adminAction==='rejected'||b.dataset.adminAction==='changes_requested'?prompt('Motivo ou orientação (opcional):')||'':'';try{await api(b.dataset.kind==='ports'||b.dataset.kind==='mods'?`/api/portal/catalog/${b.dataset.kind}/${b.dataset.id}`:`/api/portal/admin/${b.dataset.kind}/${b.dataset.id}`,json('POST',{action:b.dataset.adminAction,note}));b.closest('.portal-submission').remove();showNotice('Decisão registrada.','success');}catch(err){showNotice(err.message,'error');}});
+ // Load on navigation; guard all user-scoped actions by Discord login.
+ document.addEventListener('click',e=>{
+  const tab=e.target.closest('[data-tab]')?.dataset.tab;
+  if(tab==='runs')loadRunOptions();
+  if(tab==='library')loadCatalog();
+  if(tab==='community-web')loadContributions();
+  if(tab==='profile-web')loadPortalProfile();
+  if(tab==='notifications-web')loadNotifications();
+  if(tab==='admin-web'){loadAdminQueue();loadAdminConfig();loadAdminNews();loadAdminRoles();loadAdminPanelChannels();}
+ });
+})();
+
+// Loja de Denários do NARA (mesma economia do bot).
+(() => {
+ const $=s=>document.querySelector(s), esc=s=>escapeHTML(s??'');
+ async function call(url,opts={}){const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Operação não concluída.');return d;}
+ const post=data=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ async function loadStore(){
+  if(!currentUser){$('#store-items').innerHTML='<div class="portal-empty">Entre com Discord para acessar a loja.</div>';return;}
+  try{const d=await call('/api/portal/store');$('#store-balance').textContent=`Denários: ${number(d.balance)}`;
+   $('#store-items').innerHTML=d.items.map(x=>`<article class="portal-submission"><div><h4>${esc(x.emoji)} ${esc(x.name)}</h4><p>${esc(x.description)} · ${x.price} Denários · nível ${x.min_level}+</p></div><div>${x.owned?`<button class="secondary" data-store-action="${x.equipped?'unequip':'equip'}" data-item="${esc(x.id)}">${x.equipped?'Desequipar':'Equipar'}</button>`:`<button class="primary" data-store-action="buy" data-item="${esc(x.id)}">Comprar · ${x.price}</button>`}</div></article>`).join('');
+   $('#store-inventory').innerHTML=d.inventory.length?d.inventory.map(x=>`<article class="portal-submission"><div><h4>${esc(x.item)}</h4><p>${esc(x.tipo)}</p></div><span class="portal-status ${x.equipado?'approved':''}">${x.equipado?'Equipado':'No inventário'}</span></article>`).join(''):'<div class="portal-empty">Seu inventário ainda está vazio.</div>';
+  }catch(e){$('#store-items').innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+ }
+ document.addEventListener('click',async e=>{const b=e.target.closest('[data-store-action]');if(!b)return;if(!currentUser)return showNotice('Entre com Discord para usar a loja.','error');b.disabled=true;try{await call('/api/portal/store/action',post({action:b.dataset.storeAction,item:b.dataset.item}));showNotice('Loja atualizada.','success');loadStore();}catch(err){showNotice(err.message,'error');}finally{b.disabled=false;}});
+ document.addEventListener('click',e=>{if(e.target.closest('[data-tab="store-web"]'))loadStore();});
+})();
+
+// Santuários: visita, livro de visitas, honras e seguir.
+(() => {
+ const $=s=>document.querySelector(s), esc=s=>escapeHTML(s??'');
+ const api=async(url,opts={})=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Operação não concluída.');return d;};
+ const post=data=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ async function openSanctuary(id){
+  if(!currentUser)return showNotice('Entre com Discord para visitar santuários.','error');
+  const box=$('#sanctuary-view');box.innerHTML='<div class="portal-empty">Abrindo santuário…</div>';
+  try{const d=await api(`/api/portal/sanctuaries/${encodeURIComponent(id)}`),p=d.profile,s=d.summary,h=d.honors||{};
+   box.innerHTML=`<article class="portal-form"><div class="portal-form-head"><div><small class="eyebrow">SANTUÁRIO DO GUERREIRO</small><h3>${esc(p.tagline||'Santuário')}</h3><p>${esc(p.fav_game||'Jogo favorito não informado')}</p></div><span class="pending-pill">${d.followers} seguidores</span></div><p>${esc(p.bio||'Este jogador ainda não escreveu sua biografia.')}</p><div class="me-stats"><div><b>${number(s.platinas||0)}</b><small>Platinas</small></div><div><b>${number(s.zerados||0)}</b><small>Zerados</small></div><div><b>${number(s.xp||0)}</b><small>XP</small></div><div><b>${number(Object.values(h).reduce((a,b)=>a+b,0))}</b><small>Honras</small></div></div>${!d.is_owner?`<div class="portal-proof-links"><button data-sanctuary-follow="${id}">Seguir jogador</button><button data-honor="respect" data-user="${id}">Conceder respeito</button><button data-honor="determination" data-user="${id}">Determinação</button><button data-honor="greatness" data-user="${id}">Grandeza</button></div>`:''}</article>
+   <div class="portal-form"><h3>Livro de visitas</h3>${d.messages.map(m=>`<article class="portal-submission"><div><p>${esc(m.message)}</p><small>${esc(m.created_at)}</small></div>${d.is_owner?`<button data-guestbook-delete="${m.id}" data-owner="${id}">Apagar</button>`:''}</article>`).join('')||'<p class="muted">Ainda não há mensagens.</p>'}${!d.is_owner?`<form id="guestbook-form" data-owner="${id}"><label>Deixe uma mensagem<textarea name="message" rows="3" maxlength="300" required></textarea></label><button class="primary">Enviar mensagem</button></form>`:''}</div>`;
+  }catch(e){box.innerHTML=`<div class="portal-empty">${esc(e.message)}</div>`;}
+ }
+ $('#sanctuary-open')?.addEventListener('click',()=>{const id=$('#sanctuary-user-id').value.trim()||String(currentUser?.id||'');if(!id)return showNotice('Informe o ID Discord.','error');openSanctuary(id);});
+ document.addEventListener('submit',async e=>{if(e.target.id!=='guestbook-form')return;e.preventDefault();try{await api(`/api/portal/sanctuaries/${e.target.dataset.owner}/guestbook`,post({message:e.target.elements.message.value}));openSanctuary(e.target.dataset.owner);}catch(err){showNotice(err.message,'error');}});
+ document.addEventListener('click',async e=>{
+  const f=e.target.closest('[data-sanctuary-follow]');if(f){try{await api('/api/portal/community/follow',post({user_id:Number(f.dataset.sanctuaryFollow)}));showNotice('Preferência de acompanhamento atualizada.','success');}catch(err){showNotice(err.message,'error');}}
+  const h=e.target.closest('[data-honor]');if(h){try{await api('/api/portal/sanctuaries/honor',post({user_id:Number(h.dataset.user),honor_key:h.dataset.honor}));showNotice('Honra registrada.','success');}catch(err){showNotice(err.message,'error');}}
+  const del=e.target.closest('[data-guestbook-delete]');if(del){try{await api(`/api/portal/sanctuaries/${del.dataset.owner}/guestbook?id=${del.dataset.guestbookDelete}`,{method:'DELETE'});openSanctuary(del.dataset.owner);}catch(err){showNotice(err.message,'error');}}
+ });
+ document.addEventListener('click',e=>{if(e.target.closest('[data-tab="sanctuary-web"]')&&currentUser){$('#sanctuary-user-id').value=String(currentUser.id);openSanctuary(currentUser.id);}});
+})();
+
+// NARA IA no portal: reutiliza o mesmo motor, limites e memória do bot.
+(() => {
+ const $=s=>document.querySelector(s);
+ const api=async(url,opts={})=>{const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...opts});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Não foi possível concluir.');return d;};
+ const post=data=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ function bubble(text,who){const p=document.createElement('div');p.className='nara-msg '+who;p.textContent=text;$('#nara-web-log').appendChild(p);$('#nara-web-log').scrollTop=$('#nara-web-log').scrollHeight;return p;}
+ $('#nara-web-form')?.addEventListener('submit',async e=>{e.preventDefault();if(!currentUser)return showNotice('Entre com Discord para conversar com a NARA.','error');const f=e.currentTarget,q=f.elements.message.value.trim();if(!q)return;f.elements.message.value='';bubble(q,'me');const wait=bubble('A NARA está pensando…','bot');const btn=f.querySelector('button');btn.disabled=true;try{const d=await api('/api/portal/nara/chat',post({message:q}));wait.textContent=d.reply||'Sem resposta.';}catch(err){wait.textContent=err.message;}finally{btn.disabled=false;}});
+ async function loadMemory(){if(!currentUser)return;try{const d=await api('/api/portal/nara/memory');$('#nara-memory-status').textContent=d.enabled?'Memória ativada':'Memória desativada';$('#nara-memory-detail').textContent=`${d.messages} mensagens armazenadas. O histórico segue os prazos de retenção configurados pela NARA.`;}catch(e){$('#nara-memory-status').textContent='Indisponível';$('#nara-memory-detail').textContent=e.message;}}
+ async function memoryAction(action){if(!currentUser)return showNotice('Entre com Discord para alterar a memória.','error');if(action==='delete'&&!confirm('Apagar o histórico de memória da NARA associado à sua conta?'))return;try{await api('/api/portal/nara/memory',post({action}));showNotice('Preferência de memória atualizada.','success');loadMemory();}catch(e){showNotice(e.message,'error');}}
+ $('#nara-memory-enable')?.addEventListener('click',()=>memoryAction('enable'));
+ $('#nara-memory-disable')?.addEventListener('click',()=>memoryAction('disable'));
+ $('#nara-memory-delete')?.addEventListener('click',()=>memoryAction('delete'));
+ document.addEventListener('click',e=>{if(e.target.closest('[data-tab="nara-web"]'))loadMemory();});
+})();
