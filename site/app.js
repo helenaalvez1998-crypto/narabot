@@ -368,11 +368,44 @@ async function createGwentMatch() {
 }
 
 function gwentCardView(card) {
-  return `<article class="gwent-board-card"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${number(Number(card.poder) + Number(card.bonus || 0))} poder · ${escapeHTML(card.row_label)}</small></article>`;
+  return `<article class="gwent-board-card"><img src="${escapeHTML(imageUrl(card))}" alt=""><b>${escapeHTML(card.nome)}</b><small>${number(Number(card.poder) + Number(card.bonus || 0))} poder · ${escapeHTML(card.row_label)}</small>${Number(card.escudo || 0) > 0 ? '<span class="gwent-shield" title="Escudo: ignora a primeira remoção sofrida.">Escudo</span>' : ''}</article>`;
+}
+
+let gwentAlvos = {};
+const gwentRowLabel = (key) => (gwentRows.find(([k]) => k === key) || [key, key])[1];
+function gwentOpcoesDoAlvo(cardId, row) {
+  const info = gwentAlvos[cardId];
+  if (!info) return null;
+  const opcoes = (info.opcoes || []).filter(o => info.filtro_fileira === 'mesma' ? o.row === row
+    : info.filtro_fileira === 'diferente' ? o.row !== row : true);
+  return {...info, opcoes};
+}
+function closeGwentTargetPicker() { document.getElementById('gwent-target-modal')?.remove(); }
+function openGwentTargetPicker(cardId, row, info) {
+  closeGwentTargetPicker();
+  const modal = document.createElement('div');
+  modal.id = 'gwent-target-modal'; modal.className = 'gwent-target-modal';
+  modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
+  modal.innerHTML = `<div class="gwent-target-box"><h3>${escapeHTML(info.rotulo || 'Escolha o alvo')}</h3><div class="gwent-target-list">${
+    info.opcoes.map(o => `<button type="button" class="gwent-target-option" data-gwent-target="${escapeHTML(o.id)}"><b>${escapeHTML(o.nome)}</b><small>${number(o.poder + o.bonus)} poder · ${escapeHTML(gwentRowLabel(o.row))}${o.escudo > 0 ? ' · Escudo' : ''}</small></button>`).join('')
+  }</div><div class="gwent-target-actions"><button type="button" class="secondary" data-gwent-target="">Automático</button><button type="button" class="secondary" data-gwent-target-cancel>Cancelar</button></div></div>`;
+  modal.addEventListener('click', ev => {
+    if (ev.target === modal || ev.target.closest('[data-gwent-target-cancel]')) return closeGwentTargetPicker();
+    const choice = ev.target.closest('[data-gwent-target]');
+    if (!choice) return;
+    closeGwentTargetPicker();
+    sendGwentAction('play', cardId, row, [], choice.dataset.gwentTarget || '');
+  });
+  document.addEventListener('keydown', function onEsc(ev) {
+    if (ev.key === 'Escape') { closeGwentTargetPicker(); document.removeEventListener('keydown', onEsc); }
+  });
+  document.body.appendChild(modal);
+  modal.querySelector('button')?.focus();
 }
 
 function renderGwentArena(data) {
   const arena = $('#gwent-arena'); arena.hidden = false;
+  gwentAlvos = data.alvos || {}; if (!data.is_your_turn) closeGwentTargetPicker();
   const score = data.score || {}; const ids = Object.keys(score);
   const my = data.your_id; const enemy = ids.find(id => id !== my);
   const mine = score[my] || {board:[], score:0, crowns:0, hand:0, passed:false};
@@ -442,10 +475,10 @@ async function respondGwentMatch(matchId, action) {
     }
   } catch (error) { showNotice(error.message, 'error'); }
 }
-async function sendGwentAction(action, card_id = '', row = '', card_ids = []) {
+async function sendGwentAction(action, card_id = '', row = '', card_ids = [], target_id = '') {
   if (!currentGwentMatch) return;
   try {
-    const r = await fetch(`/api/gwent/matches/${currentGwentMatch}/action`, {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, card_id, row, card_ids})});
+    const r = await fetch(`/api/gwent/matches/${currentGwentMatch}/action`, {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, card_id, row, card_ids, target_id})});
     const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Jogada recusada.');
     await refreshGwentMatch();
   } catch(e) { showNotice(e.message, 'error'); }
@@ -523,7 +556,12 @@ document.addEventListener('click', async event => {
     gwentDeckIds.push(add.dataset.gwentAdd); renderGwentBuilder();
   }
   if (remove) { gwentDeckIds = gwentDeckIds.filter(id => id !== remove.dataset.gwentRemove); renderGwentBuilder(); }
-  if (play) { const row = document.querySelector(`[data-gwent-row="${CSS.escape(play.dataset.gwentPlay)}"]`)?.value || ''; sendGwentAction('play', play.dataset.gwentPlay, row); }
+  if (play) {
+    const cardId = play.dataset.gwentPlay;
+    const row = document.querySelector(`[data-gwent-row="${CSS.escape(cardId)}"]`)?.value || '';
+    const info = gwentOpcoesDoAlvo(cardId, row);
+    if (info && info.opcoes.length) openGwentTargetPicker(cardId, row, info); else sendGwentAction('play', cardId, row);
+  }
   if (open) openGwentMatch(open.dataset.gwentOpen);
   if (respond) respondGwentMatch(respond.dataset.matchId, respond.dataset.gwentRespond);
   if (event.target.closest('[data-gwent-mulligan]')) {

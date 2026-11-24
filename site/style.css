@@ -1650,3 +1650,14 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--pro-line);fon
 .pf-bar .pt-actions{margin:0}.pf-dirty{margin-right:auto;font:700 12px Inter;color:#ffd98a;animation:sxTw 1.2s ease-in-out infinite alternate}#pf-save{box-shadow:0 0 22px color-mix(in srgb,var(--gold) 60%,transparent)}
 @keyframes pfSaved{0%{box-shadow:0 0 0 0 var(--tc)}40%{box-shadow:0 0 0 14px transparent,0 0 80px var(--tc)}}
 @media(max-width:900px){.pf-grid{grid-template-columns:1fr}.pf-side{position:static}.pf-lgrid{grid-template-columns:1fr}.pf-sec{padding:16px}.pf-bar{justify-content:stretch}.pf-bar .pt-actions{width:100%}.pf-bar .pt-actions button{flex:1}}
+
+/* Gwent: escudo em campo e seletor de alvo */
+.gwent-shield{display:inline-block;margin-top:4px;padding:1px 6px;border:1px solid var(--gold);border-radius:999px;color:var(--gold);font-size:.62rem;letter-spacing:.04em;text-transform:uppercase}
+.gwent-target-modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,6,10,.78)}
+.gwent-target-box{width:min(460px,100%);max-height:85vh;overflow:auto;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;color:var(--text)}
+.gwent-target-box h3{margin:0 0 12px;font-size:1rem}
+.gwent-target-list{display:grid;gap:8px}
+.gwent-target-option{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);text-align:left;cursor:pointer}
+.gwent-target-option:hover,.gwent-target-option:focus-visible{border-color:var(--gold);outline:none}
+.gwent-target-option small{color:var(--muted)}
+.gwent-target-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
