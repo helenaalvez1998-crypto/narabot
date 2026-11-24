@@ -1506,49 +1506,116 @@ def carta_patente(nivel: int, nome: str) -> Carta:
 
 CARTAS_PATENTE = [carta_patente(i, nome) for i, nome in PATENTES]
 
+# ============================================================
+# CAMADA DE COMPATIBILIDADE COM O BOT / BANCO EXISTENTE
+# Mantém a reformulação do catálogo e restaura a API consumida
+# por database.py, bot.py e pelos sistemas de Gwent.
+# ============================================================
+
+# IDs únicos sem descartar cartas. O catálogo recebido contém 1.315 registros-base,
+# incluindo oito modelos repetidos 155 vezes cada. Cada registro é preservado como
+# carta independente; o primeiro mantém o ID legado e as cópias recebem sufixos.
+_ids_usados = set()
+_contagem_ids = {}
+for _carta in _CARTAS_BASE:
+    _id_original = str(_carta.id)
+    _contagem_ids[_id_original] = _contagem_ids.get(_id_original, 0) + 1
+    if _id_original not in _ids_usados:
+        _ids_usados.add(_id_original)
+        continue
+    _numero = _contagem_ids[_id_original]
+    _novo_id = f"{_id_original}_{_numero:03d}"
+    while _novo_id in _ids_usados:
+        _numero += 1
+        _novo_id = f"{_id_original}_{_numero:03d}"
+    _carta.id = _novo_id
+    _ids_usados.add(_novo_id)
+
+CARTAS_POR_ID = {c.id: c for c in _CARTAS_BASE}
+CARTAS_PRIMORDIAIS = [c for c in _CARTAS_BASE if c.raridade == "Primordial"]
+CARTAS_PACOTE = [c for c in _CARTAS_BASE if c.raridade not in {"Singular", "Patente"}]
+
+VERSAO_ARTES = 21
+
+# Valores econômicos usados pelo inventário e pelas rotinas de exemplar.
+ALMAS_DUPLICATA = {
+    "Comum": 5, "Incomum": 8, "Rara": 15, "Épica": 40,
+    "Lendária": 100, "Mítica": 180, "Primordial": 250,
+    "Singular": 0, "Patente": 0,
+}
+BONUS_EVOLUCAO_FRAGMENTOS = {
+    "Comum": 20, "Incomum": 30, "Rara": 40, "Épica": 80,
+    "Lendária": 160,
+}
+CUSTO_APRIMORAMENTO_ALMAS = {
+    "Comum": 10, "Incomum": 15, "Rara": 20, "Épica": 40,
+    "Lendária": 80, "Mítica": 150, "Primordial": 250,
+}
+
+# As cartas Primordiais continuam sendo modelos especiais, fora do pool comum.
+CARTAS_PRIMORDIAIS = [c for c in _CARTAS_BASE if c.raridade == "Primordial"]
+CARTAS_POR_ID = {c.id: c for c in _CARTAS_BASE}
+CARTAS_PACOTE = [c for c in _CARTAS_BASE if c.raridade not in {"Singular", "Patente"}]
+
+def limite_poder_modelo(carta: "Carta") -> int:
+    if str(getattr(carta, "categoria", "")).casefold() in {"especial", "patente"}:
+        return max(0, int(getattr(carta, "poder", 0)))
+    return min(35, max(5, int(getattr(carta, "poder", 1)) + 10))
+
+def faixa_poder_exemplar(carta: "Carta", raridade: str) -> tuple[int, int]:
+    if str(getattr(carta, "categoria", "")).casefold() in {"especial", "patente"}:
+        return (0, 0)
+    faixa = FAIXA_PODER.get(str(raridade), FAIXA_PODER.get("Comum", (1, 5)))
+    minimo, maximo = int(faixa[0]), int(faixa[1])
+    maximo = min(maximo, limite_poder_modelo(carta))
+    return min(minimo, maximo), maximo
+
+def slug_jogo(nome: str) -> str:
+    normalizado = unicodedata.normalize("NFKD", str(nome or ""))
+    ascii_nome = "".join(ch for ch in normalizado if not unicodedata.combining(ch)).lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", ascii_nome).strip("_") or "jogo_sem_nome"
+    suffix = hashlib.sha256(str(nome or "").casefold().encode("utf-8")).hexdigest()[:6]
+    return f"{slug[:62]}_{suffix}"
+
+def _hash_int(valor: str) -> int:
+    return int.from_bytes(hashlib.sha256(valor.encode("utf-8")).digest()[:8], "big")
+
+def carta_jogo(nome_jogo: str, marco: str) -> Carta:
+    marco = "platina" if str(marco).lower() == "platina" else "zerado"
+    slug = slug_jogo(nome_jogo)
+    n = _hash_int(f"{slug}:{marco}:gwent-reward-v2")
+    tipo = TIPOS[n % len(TIPOS)]
+    habilidades = tuple(HABILIDADES.keys())
+    habilidade = habilidades[(n // 7) % len(habilidades)]
+    raridade = "Épica" if marco == "platina" else "Rara"
+    minimo, maximo = FAIXA_PODER[raridade]
+    poder = minimo + ((n // 11) % (maximo - minimo + 1))
+    nomes = {
+        "Força": ("Campeão da Fornalha", "Vanguarda de Ferro", "Juramentado da Coroa"),
+        "Destreza": ("Lâmina Errante", "Batedor do Véu", "Dançarina das Cinzas"),
+        "Magia": ("Oráculo do Eclipse", "Invocador Astral", "Guardião das Runas"),
+    }
+    epitetos = ("da Aurora", "do Último Bastião", "das Sete Chamas", "do Véu Partido", "da Vigília")
+    titulo = nomes[tipo][(n // 13) % 3] + " " + epitetos[(n // 19) % len(epitetos)]
+    return Carta(
+        id=f"jogo_{slug}_{marco}", nome=titulo[:95], categoria="Chefe",
+        tipo=tipo, poder=int(poder), raridade=raridade,
+        custo=CUSTO_RARIDADE[raridade], habilidade=habilidade,
+        descricao=("Recompensa de domínio: unidade de elite do Gwent." if marco == "platina"
+                   else "Recompensa de conquista: unidade veterana do Gwent."),
+        jogo_origem="",
+    )
+
+def get_carta(card_id: str) -> Carta | None:
+    return CARTAS_POR_ID.get(str(card_id))
+
+def carta_de_jogo_por_id(card_id: str, nome_jogo: str) -> Carta:
+    carta = carta_jogo(nome_jogo, "platina" if str(card_id).endswith("_platina") else "zerado")
+    if carta.id != str(card_id):
+        raise ValueError("ID de carta de jogo não corresponde ao título armazenado.")
+    return carta
+
+
 # Adicionar patentes ao catálogo completo
 _CARTAS_BASE.extend(CARTAS_PATENTE)
 CARTAS_POR_ID.update({c.id: c for c in CARTAS_PATENTE})
-
-print(f"Cartas totais no catálogo: {len(_CARTAS_BASE)}")
-print(f"Por raridade:")
-from collections import Counter
-raridades = Counter(c.raridade for c in _CARTAS_BASE)
-for r in RARIDADES:
-    print(f"  {r}: {raridades.get(r, 0)}")
-print("\nPatentes adicionadas com sucesso!")
-
-
-# ============================================================
-# FUNÇÕES AUXILIARES NECESSÁRIAS PELO SISTEMA
-# ============================================================
-
-def get_carta(carta_id: str):
-    """Retorna uma carta pelo seu ID."""
-    return CARTAS_POR_ID.get(carta_id)
-
-
-def carta_de_jogo_por_id():
-    """Retorna dict de todas as cartas de jogo por ID."""
-    return {c.id: c for c in CARTAS_POR_ID.values() if c.categoria != "Patente"}
-
-
-def carta_jogo(carta_id: str):
-    """Retorna uma carta de jogo pelo ID."""
-    return CARTAS_POR_ID.get(carta_id)
-
-
-def faixa_poder_exemplar(carta, raridade_forcada: str | None = None):
-    """Retorna faixa de poder para uma raridade ou para a raridade da carta."""
-    raridade = raridade_forcada or getattr(carta, "raridade", None) or (carta.get("raridade") if isinstance(carta, dict) else None)
-    return FAIXA_PODER.get(raridade, (1, 5))
-
-
-# Cartas primordiais (para compatibilidade com código existente)
-CARTAS_PRIMORDIAIS = [c for c in CARTAS_POR_ID.values() if c.raridade == "Primordial"]
-
-# Constantes necessárias
-VERSAO_ARTES = "21"
-CUSTO_APRIMORAMENTO_ALMAS = {"Comum": 50, "Incomum": 100, "Rara": 250, "Épica": 500, "Lendária": 1000, "Mítica": 2500, "Primordial": 5000, "Singular": 10000, "Patente": 0}
-BONUS_EVOLUCAO_FRAGMENTOS = {"Comum": 20, "Incomum": 30, "Rara": 40, "Épica": 80, "Lendária": 160, "Mítica": 320, "Primordial": 640, "Singular": 1280, "Patente": 0}
-ALMAS_DUPLICATA = {"Comum": 5, "Incomum": 8, "Rara": 15, "Épica": 40, "Lendária": 100, "Mítica": 180, "Primordial": 250, "Singular": 0, "Patente": 0}
