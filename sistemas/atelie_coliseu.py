@@ -357,6 +357,129 @@ def _valor_prompt(valor: Any, limite: int) -> str:
     return texto.replace("<", "(").replace(">", ")").replace("`", "'")[:limite]
 
 
+def _perfil_facial_carta(card_id: str, nome: str) -> str:
+    """Gera casting determinístico de rosto, corpo, cabelo, pele e estado físico."""
+    import hashlib
+
+    chave = f"{card_id}|{nome}".encode("utf-8")
+
+    def escolher(opcoes: tuple[str, ...], campo: str) -> str:
+        digest = hashlib.sha256(chave + b"|" + campo.encode("utf-8")).digest()
+        return opcoes[int.from_bytes(digest[:8], "big") % len(opcoes)]
+
+    apresentacao = escolher(("masculine facial presentation", "feminine facial presentation",
+        "androgynous facial presentation", "rugged masculine facial presentation",
+        "soft feminine facial presentation", "mature androgynous facial presentation"), "presentation")
+    idade = escolher(("young adult, approximately 20–27", "adult in the late twenties",
+        "adult in the early thirties", "adult in the late thirties",
+        "middle-aged adult, approximately 40–49", "mature adult in the fifties",
+        "older adult in the sixties", "weathered older adult over sixty"), "age")
+    rosto = escolher(("long narrow face with a tapered chin and high cheekbones",
+        "broad square face with a strong, wide jaw", "oval face with balanced proportions and a softly defined jaw",
+        "round face with full cheeks and a compact chin", "angular diamond-shaped face with prominent cheekbones",
+        "wide cheekbones, broad forehead and a narrow lower face", "rectangular weathered face with a pronounced jaw",
+        "heart-shaped face with a broad forehead and delicate chin", "short broad face with a heavy brow and sturdy jaw",
+        "slender face with a long nose bridge and narrow cheekbones", "asymmetrical natural features and a slightly uneven jawline",
+        "high forehead, deep-set eyes and a sharply defined chin"), "face")
+    olhos = escolher(("deep-set close-set eyes with a watchful gaze", "wide-set eyes and a calm, open expression",
+        "narrow focused eyes beneath a heavy brow", "hooded eyes with a guarded, measured gaze",
+        "large but naturally proportioned eyes and a searching expression", "heavy-lidded eyes with a tired, experienced gaze",
+        "slightly downturned eyes and a reserved expression", "sharp almond-shaped eyes with a direct gaze"), "eyes")
+    cabelo_estilo = escolher(("closely cropped coarse hair", "shoulder-length wavy hair", "tight natural curls kept practical",
+        "long hair in a single functional braid", "receding hairline with short hair", "wind-tangled medium-length hair",
+        "shaved head with natural scalp texture", "thick coiled hair", "straight hair tied back at the nape",
+        "short uneven hair with a natural hairline", "long loose hair", "cropped hair with visible silver streaks",
+        "partially shaved hair with a practical tied section", "short layered hair with a rough natural finish",
+        "dense curls gathered into a low knot", "thin shoulder-length hair with a high hairline"), "hair_style")
+    cabelo_cor = escolher(("black hair", "dark brown hair", "chestnut brown hair", "warm auburn hair",
+        "copper-red hair", "dark ginger hair", "ash brown hair", "sandy blond hair", "dark blond hair",
+        "pale blond hair", "silver-grey hair", "white hair", "salt-and-pepper hair",
+        "deep brown hair with natural sun-lightened ends", "black hair with a few grey strands"), "hair_color")
+    barba = escolher(("clean-shaven", "one-day stubble", "short uneven stubble", "neatly trimmed short beard",
+        "full dense beard", "long braided beard", "short forked beard", "heavy moustache",
+        "thin moustache with a narrow goatee", "full moustache with rough cheek stubble",
+        "patchy beard growth", "sideburns with a clean chin", "closely shaved beard shadow",
+        "no visible facial hair"), "beard")
+    pele = escolher(("very fair cool-toned skin", "fair skin with pink undertones", "light neutral beige skin",
+        "light olive skin", "warm olive-brown skin", "medium tan skin", "golden-brown skin",
+        "medium brown skin with warm undertones", "deep brown skin with neutral undertones",
+        "dark skin with cool undertones", "rich deep umber skin", "ruddy weather-exposed skin",
+        "freckled fair skin", "sun-darkened tan skin with uneven exposure"), "skin_tone")
+    pele_textura = escolher(("natural pores and subtle uneven skin tone", "fine expression lines and realistic pores",
+        "slightly weathered skin with dry areas around the cheeks", "healthy skin with restrained natural highlights",
+        "sun-exposed skin with small freckles and subtle pigmentation", "mature skin with fine wrinkles around eyes and mouth",
+        "wind-reddened cheeks and a naturally textured complexion", "subtle blemishes and realistic skin texture, not airbrushed"),
+        "skin_texture")
+    cicatriz = escolher(("no visible scars", "one thin healed scar crossing the left cheek",
+        "a short pale scar through one eyebrow", "a small healed cut on the lower lip",
+        "a faint scar along the jawline", "two subtle old scars on the temple",
+        "a healed nose bridge fracture with a slight natural deviation", "a small burn scar near the neck",
+        "a narrow scar on the chin", "several faint old marks on the forehead",
+        "a healed cut near one ear", "subtle pitted scars from an old illness"), "scarring")
+    limpeza = escolher(("freshly washed and well-groomed, with clean skin and tidy hair",
+        "clean and orderly, wearing maintained clothing and polished practical gear",
+        "light road dust on the cheekbones, hands and clothing",
+        "sweat-darkened hairline and a slight sheen of perspiration on the brow and neck",
+        "sweaty after exertion, with damp hair, flushed skin and darkened fabric at the collar",
+        "mud flecks on boots, lower clothing and forearms from field travel",
+        "soot smudges across the cheek, fingers and collar from forge work",
+        "rain-soaked hair and clothing, with water droplets on the skin",
+        "battle-worn with dust, sweat and grime, but no graphic blood",
+        "ash lightly settled on the shoulders and face",
+        "weather-beaten and wind-chapped, with dry lips and reddened skin",
+        "carefully groomed despite travel, with only minor wear on clothing"), "cleanliness")
+    fisico = escolher(("short, compact and powerfully built, with a low center of gravity",
+        "tall and lean, with long limbs and a narrow torso", "broad-shouldered and heavily muscled, with thick forearms",
+        "slender and wiry, with sinewy muscle rather than bulk", "stocky and barrel-chested, with sturdy legs",
+        "athletic and balanced, with functional muscle and natural proportions",
+        "tall, broad-framed and thick-set, carrying substantial weight",
+        "small-framed and light, with narrow shoulders and quick-looking limbs",
+        "strong lower body and compact torso, built for endurance and stability",
+        "long-limbed and rangy, with a narrow waist and relaxed shoulders",
+        "mature, sturdy physique with softened muscle and believable age",
+        "lean upper body with powerful shoulders and forearms",
+        "heavy muscular build with a thick neck and broad back",
+        "average-height, average-build body with believable, unidealized proportions"), "physique")
+    altura = escolher(("noticeably short stature", "below-average height", "average height",
+        "slightly above-average height", "tall stature", "exceptionally tall stature"), "height")
+    proporcoes = escolher(("relatively long arms and broad hands", "shorter powerful limbs and a deep torso",
+        "long legs and a compact upper body", "broad chest with a naturally tapered waist",
+        "soft midsection and sturdy hips, without idealized definition", "narrow shoulders and long, fine-boned limbs",
+        "thick neck, broad back and weight-bearing legs", "balanced torso and limbs with subtle individual asymmetry",
+        "sloped shoulders and a slightly forward-set neck", "wide hips and strong thighs supporting a compact torso",
+        "long torso and shorter legs, with a grounded stance", "defined shoulders and forearms with an otherwise lean frame"),
+        "proportions")
+    postura = escolher(("upright disciplined posture with relaxed shoulders",
+        "slightly forward-leaning posture suggesting alertness", "grounded stance with weight settled through the hips",
+        "subtle asymmetry from an old injury, without exaggerated deformity",
+        "guarded posture with shoulders held close to the body",
+        "open chest and steady stance, without heroic exaggeration",
+        "slight habitual stoop consistent with age and burden",
+        "loose, economical posture suggesting practiced movement"), "posture")
+    maos = escolher(("large scarred working hands", "long fine-boned fingers", "broad palms and thick fingers",
+        "small nimble hands", "calloused hands with blunt nails", "strong hands with visible tendon structure",
+        "weathered hands with age spots", "hands with short clean nails"), "hands")
+
+    return (
+        "CARD-SPECIFIC CHARACTER CASTING — unique face, hair, skin, grooming and full-body identity: "
+        + "; ".join((apresentacao, idade, rosto, olhos, cabelo_estilo, cabelo_cor, barba, pele,
+                     pele_textura, cicatriz, limpeza, fisico, altura, proporcoes, postura, maos))
+        + ". These details form one distinct fictional individual, not a reused stock character. "
+        "Vary hair style AND hair color independently; vary beard type, skin tone, natural skin "
+        "texture, scars and cleanliness as well as face and body shape. Do not make every character "
+        "young, clean, handsome, muscular or freshly groomed. Preserve realistic anatomy, plausible "
+        "muscle attachment, natural joints, believable weight distribution and individual asymmetry. "
+        "Keep this card's casting stable across regenerations. Canonical scene details and explicit "
+        "character facts override generated casting. Keep dirt and sweat appropriate to the scene: "
+        "a court mage may be clean, a blacksmith may have soot, a traveler may have road dust, and "
+        "a fighter may be sweaty after exertion. Do not add grime, scars or sweat without visual "
+        "reason when the character is explicitly pristine. If the subject is masked, faceless, "
+        "non-human, an object or a scene without a visible human body, do not invent a human face "
+        "or physique; describe the actual subject's own surface and silhouette instead."
+    )
+
+
+
 def gerar_prompt_carta(carta: dict[str, Any]) -> str:
     """Gera briefing individual a partir do catálogo canônico do Coliseu."""
     from sistemas.cartas import HABILIDADES
@@ -479,6 +602,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
             "Start from the literal subject and distinctive imagery of the card name; then show one concrete action or event that expresses the description and ability. "
             "Do not substitute a generic warrior portrait. If the description is too sparse, depict the named subject in a plausible setting and keep unknown details visually neutral."
         )),
+        _perfil_facial_carta(card_id, nome),
         diretrizes_faccao.get(faccao, "FACTION IDENTITY: not specified. Do not invent faction insignia, uniforms, heraldry or faction-specific lore; use neutral, practical materials and colors.") ,
         diretriz_fileira,
         diretriz,
