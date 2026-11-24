@@ -1,0 +1,111 @@
+"""Catálogo e regras puras do Cartas do Coliseu — REFORMULAÇÃO COMPLETA.
+
+Todas as artes usam símbolos e geometria original; nenhum recurso visual de jogos
+proprietários é incorporado ao catálogo.
+"""
+from __future__ import annotations
+import hashlib
+import re
+import unicodedata
+from dataclasses import asdict, dataclass
+from typing import Any
+
+# ============================================================
+# SISTEMA DE RARIDADES
+# ============================================================
+RARIDADES = ("Comum", "Incomum", "Rara", "Épica", "Lendária", "Mítica", "Primordial", "Singular", "Patente")
+PESOS_RARIDADE = {"Comum": 55.0, "Incomum": 25.0, "Rara": 15.0, "Épica": 5.0, "Lendária": 1.0, "Mítica": 0.3, "Primordial": 0.1, "Singular": 0.0, "Patente": 0.01}
+CUSTO_RARIDADE = {"Comum": 1, "Incomum": 2, "Rara": 3, "Épica": 4, "Lendária": 5, "Mítica": 6, "Primordial": 7, "Singular": 0, "Patente": 0}
+FAIXA_PODER = {"Comum": (1, 5), "Incomum": (2, 6), "Rara": (3, 8), "Épica": (5, 12), "Lendária": (8, 18), "Mítica": (10, 25), "Primordial": (15, 35), "Singular": (0, 0), "Patente": (0, 0)}
+RARIDADE_POR_PONTOS = [(100.0, "Comum"), (80.0, "Incomum"), (70.0, "Rara"), (50.0, "Épica"), (20.0, "Lendária"), (5.0, "Mítica")]
+RARIDADE_POR_MARCO = [(50, "Lendária"), (25, "Épica"), (15, "Rara"), (5, "Incomum")]
+PONTOS_POR_MARCO = (5, 15, 25, 50, 100)
+TITULOS_MARCO = ("Recruta do Coliseu", "Veterano das Batalhas", "Mestre do Baralho", "Campeão das Arenas", "Lenda do Coliseu", "Avatar do Coliseu", "Voz Ancestral", "Rei do Coliseu", "Rei+Mestre do Coliseu", "Rei+Imortal+Mestre do Coliseu")
+TIPOS = ("Força", "Destreza", "Magia")
+CATEGORIAS = ("Infantaria", "Arma", "Magia", "Relíquia", "Chefe", "Especial")
+HABILIDADES_COMUNS = ("nenhuma", "linha_inteira", "buff_proximo", "retorno", "dano_area", "escudo", "inspiracao", "veneno")
+
+# ============================================================
+# FACÇÕES — ELDEN RING THEME
+# ============================================================
+FACCOES = {"Força": "Ordem Áurea", "Destreza": "Império Nocturno", "Magia": "Conclave da Ruína"}
+TIPOS_FACCAO = {"Força": "Ordem Áurea", "Destreza": "Império Nocturno", "Magia": "Conclave da Ruína"}
+
+# ============================================================
+# TAGS DE SINERGIA
+# ============================================================
+SYNERGY_TAGS = {
+    "cinzas": {"nome": "Cinzas", "texto": "Cartas que ressurgem", "categoria": "Renascer", "tags": {"cinzas"}},
+    "fornalha": {"nome": "Fornalha", "texto": "Fortalece aliados", "categoria": "Buff", "tags": {"fornalha"}},
+    "estandarte": {"nome": "Estandarte", "texto": "Inspira tropas", "categoria": "Liderança", "tags": {"estandarte"}},
+    "muralha": {"nome": "Muralha", "texto": "Defesa", "categoria": "Defesa", "tags": {"muralha"}},
+    "banquete": {"nome": "Banquete", "texto": "Recupera", "categoria": "Cura", "tags": {"banquete"}},
+    "veu_sombrio": {"nome": "Véu Sombrio", "texto": "Passagem", "categoria": "Passagem", "tags": {"veu_sombrio"}},
+    "caravana": {"nome": "Caravana", "texto": "Recursos", "categoria": "Economia", "tags": {"caravana"}},
+    "emboscada": {"nome": "Emboscada", "texto": "Ataque surpresa", "categoria": "Ataque", "tags": {"emboscada"}},
+    "nevoa": {"nome": "Névoa", "texto": "Ocultação", "categoria": "Ocultação", "tags": {"nevoa"}},
+    "lua_dois": {"nome": "Duas Luas", "texto": "Combo", "categoria": "Combo", "tags": {"lua_dois"}},
+    "runico": {"nome": "Rúnico", "texto": "Arcano", "categoria": "Arcano", "tags": {"runico"}},
+    "eclipse_voraz": {"nome": "Eclipse Voraz", "texto": "Consumo", "categoria": "Consumo", "tags": {"eclipse_voraz"}},
+    "prisma": {"nome": "Prisma", "texto": "Transformação", "categoria": "Transformação", "tags": {"prisma"}},
+    "gravidade": {"nome": "Gravidade", "texto": "Controle", "categoria": "Controle", "tags": {"gravidade"}},
+    "sonhos": {"nome": "Sonhos", "texto": "Condicional", "categoria": "Condicional", "tags": {"sonhos"}},
+}
+
+# ============================================================
+# HABILIDADES
+# ============================================================
+HABILIDADES = {
+    "nenhuma": {"nome": "Nenhuma", "texto": "Sem habilidade.", "categoria": "Básica"},
+    "linha_inteira": {"nome": "Linha Inteira", "texto": "Afeta fileira.", "categoria": "Área"},
+    "buff_proximo": {"nome": "Buff Próximo", "texto": "Fortalece próximos.", "categoria": "Suporte"},
+    "retorno": {"nome": "Retorno", "texto": "Retorna ao baralho.", "categoria": "Reciclagem"},
+    "dano_area": {"nome": "Dano em Área", "texto": "Dano múltiplo.", "categoria": "Ataque"},
+    "escudo": {"nome": "Escudo", "texto": "Protege.", "categoria": "Defesa"},
+    "inspiracao": {"nome": "Inspiração", "texto": "Aumenta moral.", "categoria": "Suporte"},
+    "veneno": {"nome": "Veneno", "texto": "Dano contínuo.", "categoria": "Ataque"},
+    "guardiao_fileira": {"nome": "Guardião da Fileira", "texto": "Protege fileira.", "categoria": "Defesa"},
+    "cacador_solitario": {"nome": "Caçador Solitário", "texto": "Bônus se sozinho.", "categoria": "Condicional"},
+    "muralha": {"nome": "Muralha", "texto": "Aumenta defesa.", "categoria": "Defesa"},
+    "banquete": {"nome": "Banquete", "texto": "Recupera.", "categoria": "Cura"},
+    "fome_abismo": {"nome": "Fome do Abismo", "texto": "Consome.", "categoria": "Consumo"},
+    "paradoxo_eterno": {"nome": "Paradoxo Eterno", "texto": "Inverte.", "categoria": "Controle"},
+    "estandarte": {"nome": "Estandarte", "texto": "Fortalece.", "categoria": "Buff"},
+    "resistencia_climatica": {"nome": "Resistência Climática", "texto": "Ignora clima.", "categoria": "Defesa"},
+    "eco_arcano": {"nome": "Eco Arcano", "texto": "Repete.", "categoria": "Combo"},
+    "dupla_fornalha": {"nome": "Dupla Fornalha", "texto": "Fortalece 2.", "categoria": "Buff"},
+    "irmandade_veu": {"nome": "Irmandade do Véu", "texto": "Sinergia.", "categoria": "Combo"},
+    "circulo_arcano": {"nome": "Círculo Arcano", "texto": "Amplifica.", "categoria": "Combo"},
+    "prisma": {"nome": "Prisma", "texto": "Muda tipo.", "categoria": "Transformação"},
+    "gravidade": {"nome": "Gravidade", "texto": "Puxa.", "categoria": "Controle"},
+    "sonhos": {"nome": "Sonhos", "texto": "Condicional.", "categoria": "Condicional"},
+    "primavera_eterna": {"nome": "Primavera Eterna", "texto": "Fortalece início.", "categoria": "Buff"},
+}
+
+# ============================================================
+# DATACLASS CARTA
+# ============================================================
+@dataclass(frozen=True)
+class Carta:
+    id: str
+    nome: str
+    categoria: str
+    tipo: str
+    poder: int
+    raridade: str
+    custo: int
+    habilidade: str
+    descricao: str = ""
+    jogo_origem: str = ""
+
+    def para_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        faccoes = {"Força": "Ordem Áurea", "Destreza": "Império Nocturno", "Magia": "Conclave da Ruína"}
+        fileiras = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
+        especial = str(self.categoria or "").casefold() == "especial"
+        faccao = faccoes.get(self.tipo, "Ordem Áurea")
+        fileira = fileiras.get(self.tipo, "melee")
+        data.update({"categoria": "Especial" if especial else "Unidade", "faccao": faccao, "fileira": fileira, "categoria_arte": "Especial" if especial else "Unidade", "categoria_origem": "Especial" if especial else "Unidade", "jogo_origem": ""})
+        return data
+
+# ============================================================
