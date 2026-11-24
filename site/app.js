@@ -153,6 +153,9 @@ let gwentLastRenderSignature = '';
 let gwentRefreshPromise = null;
 let gwentRefreshEpoch = 0;
 let gwentActionInFlight = false;
+let gwentInitialSnapshotLoaded = false;
+let gwentSeenRoundCount = 0;
+let gwentPreviouslyFinished = false;
 
 const gwentRows = [
   ['melee', 'Corpo a corpo'], ['ranged', 'Longa distância'], ['siege', 'Cerco']
@@ -602,7 +605,7 @@ function renderGwentArena(data) {
   const prep = data.phase === 'mulligan';
   const hand = Array.isArray(data.hand) ? data.hand : [];
 
-  const board = (side) => gwentRows.map(([key,label]) => {
+  const board = (side, mirrored = false) => (mirrored ? [...gwentRows].reverse() : gwentRows).map(([key,label]) => {
     const cards = (side.board || []).filter(card => card.row === key);
     const rowPower = cards.reduce((total, card) => total + Math.max(
       1,
@@ -644,6 +647,17 @@ function renderGwentArena(data) {
   const factionInfo = (gwentFactionInfo[factionName] || {}).description || 'Sinergias de facção ativas.';
   const leaderDescription = data.leader_description || factionInfo;
   const actionDisabled = !data.is_your_turn || data.status !== 'active' || prep;
+  const myTurn = data.status === 'active' && !prep && !!data.is_your_turn && !mine.passed;
+  const enemyTurn = data.status === 'active' && !prep && !data.is_your_turn && !theirs.passed;
+  const turnClass = prep ? 'prep' : data.status === 'finished' ? 'finished' : mine.passed ? 'passed' : myTurn ? 'mine' : 'enemy';
+  const turnHeadline = prep ? (data.mulligan_done ? 'PREPARAÇÃO CONCLUÍDA' : 'PREPARE SUA MÃO')
+    : data.status === 'finished' ? 'PARTIDA ENCERRADA'
+    : mine.passed ? 'VOCÊ JÁ PASSOU'
+    : myTurn ? 'SUA VEZ DE JOGAR' : 'VEZ DO ADVERSÁRIO';
+  const turnSubline = prep ? 'Troque até duas cartas ou mantenha sua mão.'
+    : data.status === 'finished' ? 'Confira o resultado da partida.'
+    : mine.passed ? 'Aguarde o adversário concluir a rodada.'
+    : myTurn ? 'Escolha uma carta, a fileira e pressione Jogar.' : 'Seus controles estão pausados até o adversário agir.';
 
   replaceGwentArenaMarkup(arena, `<div class="gwent-arena-head">
       <div class="gwent-arena-title"><small class="eyebrow">GWENT DO COLISEU · RODADA ${number(data.round)} / 3</small><h2>Arena <span>${escapeHTML(phaseLabel)}</span></h2><p class="gwent-log">${escapeHTML(data.last_event || `${opponentName} · ${data.opponent?.faction || 'Facção não informada'}`)}</p></div>
@@ -654,12 +668,14 @@ function renderGwentArena(data) {
         <article><small>VOCÊ</small><strong>${number(mine.score)}</strong><span>${number(mine.crowns)} coroas · ${number(mine.hand)} na mão${mine.passed ? ' · passou' : ''}</span></article>
         <article><small>${escapeHTML(opponentName)}</small><strong>${number(theirs.score)}</strong><span>${number(theirs.crowns)} coroas · ${number(theirs.hand)} na mão${theirs.passed ? ' · passou' : ''}</span></article>
       </div>
+      <div class="gwent-turn-indicator ${turnClass}" role="status" aria-live="polite"><strong>${turnHeadline}</strong><small>${turnSubline}</small></div>
       <div class="gwent-faction" title="${escapeHTML(leaderDescription)}"><b>${escapeHTML(factionName)}</b><span>Líder: ${escapeHTML(data.leader_name || 'Líder')}</span></div>
       ${prepPanel}${rewardPanel}
     </div>
-    <div class="gwent-battlefield">
-      <section class="gwent-board-side gwent-board-mine"><h3>Seu campo</h3>${board(mine)}</section>
-      <section class="gwent-board-side gwent-board-enemy"><h3>Campo de ${escapeHTML(opponentName)}</h3>${board(theirs)}</section>
+    <div class="gwent-battlefield" aria-label="Campo de batalha">
+      <section class="gwent-board-side gwent-board-enemy ${enemyTurn ? 'is-active' : ''} ${theirs.passed ? 'is-passed' : ''}"><h3><span>CAMPO DE ${escapeHTML(opponentName)}</span>${enemyTurn ? '<b>JOGANDO AGORA</b>' : theirs.passed ? '<b>PASSOU</b>' : ''}</h3>${board(theirs, true)}</section>
+      <div class="gwent-battle-line" aria-hidden="true"><span>LINHA DE CONFRONTO</span></div>
+      <section class="gwent-board-side gwent-board-mine ${myTurn ? 'is-active' : ''} ${mine.passed ? 'is-passed' : ''}"><h3><span>SEU CAMPO</span>${myTurn ? '<b>SUA VEZ</b>' : mine.passed ? '<b>PASSOU</b>' : ''}</h3>${board(mine, false)}</section>
     </div>
     <div class="gwent-actions">
       <button class="secondary" data-gwent-pass ${actionDisabled || mine.passed ? 'disabled' : ''}>Passar rodada</button>
@@ -672,6 +688,40 @@ function renderGwentArena(data) {
       <div class="gwent-hand-head"><h3>Sua mão <span>${number(hand.length)} cartas</span></h3><small>${data.is_your_turn && !prep && !mine.passed ? 'Selecione uma carta para jogar' : prep ? 'Marque até duas cartas para trocar' : 'Aguardando a ação do adversário'}</small></div>
       <div class="gwent-hand">${handMarkup}</div>
     </section>`);
+}
+
+function showGwentResultOverlay(data, roundResult = null) {
+  document.getElementById('gwent-round-result')?.remove();
+  const myId = String(data.your_id || '');
+  const opponentName = data.opponent?.name || 'Adversário';
+  const final = data.status === 'finished';
+  const finalWinner = data.winner_id == null ? null : String(data.winner_id);
+  const roundOutcome = roundResult?.result || 'draw';
+  // O resultado final é decidido pelo total de coroas, não pelo vencedor da última rodada.
+  const outcome = final
+    ? (finalWinner == null ? 'draw' : finalWinner === myId ? 'win' : 'loss')
+    : roundOutcome;
+  const headline = final
+    ? (outcome === 'win' ? 'VOCÊ VENCEU A PARTIDA' : outcome === 'loss' ? 'VOCÊ PERDEU A PARTIDA' : 'PARTIDA EMPATADA')
+    : (outcome === 'win' ? `VOCÊ VENCEU A RODADA ${number(roundResult?.round)}`
+      : outcome === 'loss' ? `VOCÊ PERDEU A RODADA ${number(roundResult?.round)}` : `RODADA ${number(roundResult?.round)} EMPATADA`);
+  const subline = roundResult
+    ? `Você ${number(roundResult.your_score)} × ${number(roundResult.opponent_score)} ${escapeHTML(opponentName)}`
+    : (data.last_event || 'Resultado final registrado.');
+  const scoreLine = roundResult
+    ? `<div class="gwent-result-score"><span>SUA PONTUAÇÃO</span><strong>${number(roundResult.your_score)}</strong><i>×</i><strong>${number(roundResult.opponent_score)}</strong><span>${escapeHTML(opponentName)}</span></div>`
+    : `<div class="gwent-result-crowns"><span>SUAS COROAS <b>${number(data.crowns?.[myId] || 0)}</b></span><span>COROAS DO ADVERSÁRIO <b>${number(data.crowns?.[String(data.opponent?.id || '')] || 0)}</b></span></div>`;
+  const reward = final && data.reward
+    ? `<div class="gwent-result-rewards">Recompensas: +${number(data.reward.reward_xp)} XP · +${number(data.reward.reward_denarios)} Denários · ${number(data.reward.mmr_delta)} MMR</div>` : '';
+  const overlay = document.createElement('div');
+  overlay.id = 'gwent-round-result';
+  overlay.className = `gwent-result-overlay ${outcome}`;
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'gwent-result-title');
+  overlay.innerHTML = `<section class="gwent-result-card"><small class="eyebrow">${final ? 'RESULTADO FINAL' : 'FIM DA RODADA'}</small><h2 id="gwent-result-title">${headline}</h2><p>${subline}</p>${scoreLine}${reward}<div class="gwent-result-actions">${final ? '<button type="button" class="primary" data-gwent-exit>VOLTAR AO LOBBY</button>' : '<button type="button" class="primary" data-gwent-result-close>CONTINUAR</button>'}</div></section>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('button')?.focus({preventScroll:true});
 }
 
 async function parseGwentApiResponse(response) {
@@ -717,6 +767,25 @@ async function refreshGwentMatch() {
         renderGwentArena(data);
         gwentLastRenderSignature = signature;
       }
+
+      const completedRounds = Array.isArray(data.rounds) ? data.rounds : [];
+      if (!gwentInitialSnapshotLoaded) {
+        // Ao abrir uma partida em andamento, não reproduz resultados antigos.
+        // Ao abrir uma partida finalizada pelo histórico, mostra o placar final.
+        gwentInitialSnapshotLoaded = true;
+        gwentSeenRoundCount = completedRounds.length;
+        if (data.status === 'finished') showGwentResultOverlay(data, completedRounds.at(-1) || null);
+      } else {
+        const newRounds = completedRounds.slice(gwentSeenRoundCount);
+        if (newRounds.length) {
+          gwentSeenRoundCount = completedRounds.length;
+          showGwentResultOverlay(data, newRounds[newRounds.length - 1]);
+        } else if (data.status === 'finished' && !gwentPreviouslyFinished) {
+          // Rendição ou encerramento administrativo não acrescenta uma rodada.
+          showGwentResultOverlay(data, null);
+        }
+      }
+      gwentPreviouslyFinished = data.status === 'finished';
       gwentMatchFinished = data.status === 'finished';
       if (gwentMatchFinished && gwentPoll) { clearInterval(gwentPoll); gwentPoll = null; }
       return true;
@@ -742,6 +811,10 @@ async function openGwentMatch(id) {
   currentGwentMatch = Number(id);
   gwentMatchFinished = false;
   gwentLastRenderSignature = '';
+  gwentInitialSnapshotLoaded = false;
+  gwentSeenRoundCount = 0;
+  gwentPreviouslyFinished = false;
+  document.getElementById('gwent-round-result')?.remove();
   const canOpen = await refreshGwentMatch();
   if (!canOpen) { currentGwentMatch = null; document.body.classList.remove('gwent-match-active'); document.documentElement.classList.remove('gwent-match-active'); return; }
   if (!gwentMatchFinished) {
@@ -838,8 +911,14 @@ document.addEventListener('click', async event => {
   const add = event.target.closest('[data-gwent-add]'); const remove = event.target.closest('[data-gwent-remove]');
   const play = event.target.closest('[data-gwent-play]'); const open = event.target.closest('[data-gwent-open]');
   const respond = event.target.closest('[data-gwent-respond]');
+  const closeRoundResult = event.target.closest('[data-gwent-result-close]');
+  if (closeRoundResult) {
+    document.getElementById('gwent-round-result')?.remove();
+    return;
+  }
   const exitArena = event.target.closest('[data-gwent-exit]');
   if (exitArena) {
+    document.getElementById('gwent-round-result')?.remove();
     document.body.classList.remove('gwent-match-active');
     document.documentElement.classList.remove('gwent-match-active');
     currentGwentMatch = null;
