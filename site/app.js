@@ -531,11 +531,22 @@ function renderGwentArena(data) {
     ${eventPanel}<h3>Sua mão</h3><div class="gwent-hand">${(data.hand || []).map(c => `<article class="gwent-unit">${cardImageMarkup(c)}<b>${escapeHTML(c.nome)}</b><small>${c.especial ? 'Carta especial' : `${number(c.poder)} poder · ${escapeHTML(c.row_label)}`}</small><small title="${escapeHTML(c.habilidade_texto || '')}">${escapeHTML(c.habilidade_nome || 'Unidade')} · ${escapeHTML(c.habilidade_texto || 'Sem efeito adicional')}</small>${prep ? `<label><input type="checkbox" data-gwent-swap value="${escapeHTML(c.id)}" ${data.mulligan_done || !(data.draw_count > 0) ? 'disabled' : ''}> Trocar</label>` : `<select data-gwent-row="${escapeHTML(c.id)}"><option value="${c.row}">${escapeHTML(c.row_label)}</option>${gwentRows.filter(([r])=>r!==c.row).map(([r,l])=>`<option value="${r}">${l}</option>`).join('')}</select><button data-gwent-play="${escapeHTML(c.id)}" ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>${c.especial ? 'Usar especial' : 'Jogar unidade'}</button>`}</article>`).join('') || '<div class="empty-state">Sua mão está vazia.</div>'}</div>`;
 }
 
+
+async function parseGwentApiResponse(response) {
+  const raw = await response.text();
+  try {
+    return raw ? JSON.parse(raw.replace(/^\\uFEFF/, '').trim()) : {};
+  } catch (error) {
+    const preview = raw.replace(/\\s+/g, ' ').slice(0, 220);
+    throw new Error(`Resposta inválida da API Gwent (HTTP ${response.status}): ${preview || 'corpo vazio'}`);
+  }
+}
+
 async function refreshGwentMatch() {
   if (!currentGwentMatch) return false;
   try {
     const response = await fetch(`/api/gwent/matches/${currentGwentMatch}`, {credentials:'same-origin', cache:'no-store'});
-    const data = await response.json();
+    const data = await parseGwentApiResponse(response);
     if (!response.ok) throw new Error(data.error || 'Não foi possível abrir a partida.');
     if (data.status === 'pending') {
       showNotice('Este convite ainda aguarda resposta. Consulte a lista de desafios para aceitar ou cancelar.', 'info');
@@ -583,7 +594,7 @@ async function sendGwentAction(action, card_id = '', row = '', card_ids = [], ta
   if (!currentGwentMatch) return;
   try {
     const r = await fetch(`/api/gwent/matches/${currentGwentMatch}/action`, {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action, card_id, row, card_ids, target_id})});
-    const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Jogada recusada.');
+    const data = await parseGwentApiResponse(r); if (!r.ok) throw new Error(data.error || 'Jogada recusada.');
     await refreshGwentMatch();
   } catch(e) { showNotice(e.message, 'error'); }
 }
