@@ -959,6 +959,16 @@ class NaraBot(commands.Bot):
         guild = self.get_guild(guild_id) if guild_id else None
         if guild is None:
             return web.json_response({"error": "Servidor do NARABOT indisponível."}, status=503)
+        # A lista baseada apenas em guild.members pode ficar incompleta quando
+        # o cache do Discord ainda não recebeu todos os membros (ou após reinício).
+        # Atualiza o cache pela API antes de montar a lista exibida no site.
+        try:
+            async for _member in guild.fetch_members(limit=None):
+                pass
+        except Exception:
+            # Mantém a lista em cache como fallback se o Discord estiver indisponível.
+            pass
+
         now = time.time()
         # Heartbeats expirados não são tratados como usuários online no site.
         self._web_presence = {uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75}
