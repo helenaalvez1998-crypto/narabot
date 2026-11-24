@@ -26,7 +26,7 @@ ia/               Gemini com failover entre até 3 chaves, ferramentas e confirm
 nara/             respostas locais, FAQ, personalidade e Central de Ajuda
 prompts/ dados/   prompts da Nara e base de FAQ (lidos em runtime)
 fonts/           fonte usada nas imagens
-site/             site principal do Gwent (login Discord, coleção, deck, drops, evolução e arena)
+site/             portal NARA + Gwent (login Discord, biblioteca, comunidade, administração e arena)
 ```
 
 ## Comandos
@@ -106,3 +106,4 @@ Rotas adicionais: `GET /api/gwent/atelier/prompt`, `POST /api/gwent/atelier/subm
 Faça backup de `data/` e do banco antes de atualizar. Desligue o bot, extraia o pacote sobre a pasta `narabot-main`, preserve `.env`, banco de dados e dados existentes, e reinicie com `python bot.py`. O pacote não executa migrações destrutivas. Depois, atualize o navegador com `Ctrl + F5`.
 
 A validação desta atualização cobre compilação Python, sintaxe JavaScript, schema SQLite, migração de inventário legado, drops idempotentes, variantes do mesmo modelo por raridade, seleção persistente de exemplares no deck, evolução por fragmentos e concessão individual de Singular/Primordial. Os testes automatizados ficam em `tests/` e rodam com `python -m unittest discover -v`. A validação final em produção ainda depende de executar o bot com as dependências instaladas no seu servidor Discord e testar duas contas reais simultaneamente.
+\n\n## Portal NARA — administração web\n\nA área Administração permite gerir fila, configurações e Radar RSS. Na Fase 4 também permite configurar até 25 cargos selecionáveis e publicar/atualizar os painéis de cargos, Platinas e Jogos Zerados. Para cargos selecionáveis, o bot precisa de `Gerenciar Cargos` e deve estar acima dos cargos configurados. Consulte `PORTAL_NARA_FASE4.md` para detalhes e limites.\n

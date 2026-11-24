@@ -63,7 +63,7 @@ EXTENSOES = (
     "cogs.colizeu", "cogs.cargos", "cogs.progressao", "cogs.youtube",
     "cogs.ofertas", "cogs.zerados", "cogs.santuario", "cogs.soulslike",
     "cogs.transmissoes", "cogs.nara_ia", "cogs.painel_rotativo",
-    "cogs.painel_membros", "cogs.catalogo_integrado", "cogs.game_news", "cogs.painel_jogo",
+    "cogs.painel_membros", "cogs.catalogo_integrado", "cogs.game_news", "cogs.painel_jogo", "cogs.portal_role_panel",
 )
 
 COMANDOS_PRINCIPAIS = frozenset({"nara", "jogo", "adm"})
@@ -732,7 +732,7 @@ class NaraBot(commands.Bot):
                 "database": "connected",
             })
 
-        app = web.Application(client_max_size=9 * 1024 * 1024)
+        app = web.Application(client_max_size=42 * 1024 * 1024)
         app.router.add_get("/", pagina_inicial)
         app.router.add_get("/style.css", estilo_site)
         app.router.add_get("/app.js", script_site)
@@ -769,6 +769,8 @@ class NaraBot(commands.Bot):
         app.router.add_post("/auth/logout", self._oauth_logout)
         from site_hub import registrar_rotas as _registrar_hub
         _registrar_hub(self, app)
+        from site_portal import registrar_rotas as _registrar_portal
+        _registrar_portal(self, app)
         runner = web.AppRunner(app, access_log=None)
         try:
             await runner.setup()
