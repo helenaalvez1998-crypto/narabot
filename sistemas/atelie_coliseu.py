@@ -111,14 +111,47 @@ background and create a grim epic mood; they must never hide the central action.
 Magic should illuminate nearby surfaces and affect the physical environment,
 not appear as arbitrary glowing UI symbols.
 
-DETAIL AND FINISH
-Professional collectible-card concept illustration with layered visual
-information, convincing perspective, strong value grouping, expressive faces
-and hands, nuanced material rendering, atmospheric depth and a carefully
-controlled focal hierarchy. Every detail must support character, place, action
-or mood. Preserve clarity when reduced to card size; do not mistake visual noise
-for detail. The image should feel authored by an experienced fantasy
-illustrator, not assembled from generic fantasy motifs.
+IMAGE CLEANLINESS, TEXTURE AND REALISM CONTROL
+Deliver a clean, high-quality image with low visual noise. Avoid visible digital
+noise, film grain, speckling, dithering, compression artifacts, banding, jagged
+edges, pixelation and muddy texture. Do not simulate grit by covering the image
+with grain. Keep gradients, shadows and atmospheric transitions smooth and
+natural while retaining the painterly finish.
+
+Use natural, medium-scale surface detail. Textures must describe the material
+and its form, not become a field of artificial micro-detail. Avoid excessive
+pores, individually etched fibers everywhere, noisy scratches, oversampled
+engraving, random stippling and sharpened halos. Let skin, hair, fabric, leather,
+metal and stone read through coherent shape, lighting and a restrained number
+of convincing details. Do not add texture uniformly to every surface.
+
+Maintain anatomical consistency: facial proportions, eye placement, jaw,
+features, hands, fingers, joints and limb lengths must remain coherent. A face
+must read as one believable individual, not a collection of mismatched features.
+Avoid asymmetry caused by generation errors, duplicated features, fused fingers,
+extra digits, malformed hands, crossed eyes and inconsistent anatomy. Keep
+expressions natural and emotionally legible rather than exaggerated.
+
+Materials must look realistic without excessive sharpness. Use controlled
+acutance, natural edge transitions and realistic focus. Avoid oversharpening,
+crunchy local contrast, artificial clarity, HDR halos and brittle outlines.
+Fine detail should never compete with the main silhouette or focal action.
+
+THUMBNAIL LEGIBILITY — COLLECTIBLE CARD SCALE
+Design for immediate readability when the artwork is reduced to a small card.
+Use one dominant subject, a distinctive silhouette, clear separation from the
+background, a simple foreground-to-background hierarchy and strong but natural
+value grouping. Preserve the face, hands and defining object as readable shapes.
+Prefer a few large, meaningful forms over many tiny props, runes, ornaments or
+background figures. Keep important identity cues visible at thumbnail size;
+secondary details may soften or disappear. Do not use micro-detail as a
+substitute for clear composition.
+
+Professional collectible-card concept illustration with convincing perspective,
+strong value grouping, expressive faces and hands, nuanced material rendering,
+atmospheric depth and a carefully controlled focal hierarchy. Every detail must
+support character, place, action or mood. The image should feel authored by an
+experienced fantasy illustrator, not assembled from generic fantasy motifs.
 
 CARD ART ONLY — STRICT OUTPUT RULES
 Create only the standalone illustration, not a finished card. Do NOT draw a
@@ -389,7 +422,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
     diretrizes_faccao = {
         "Ordem de Ferro": "FACTION IDENTITY: disciplined iron-clad soldiers, fortress heraldry, forged steel, ember-orange accents, military formations and grounded martial realism. Use practical armor construction, repaired straps, rivets and credible weight.",
         "Errantes do Véu": "FACTION IDENTITY: agile wanderers, veiled scouts, wind-worn cloaks, teal spectral light, curved blades, misty passes and motion. Favor layered travel garments, asymmetrical silhouettes and environmental concealment.",
-        "Conclave Arcano": "FACTION IDENTITY: arcane scholars and battle-mages, runic geometry, violet astral light, ancient observatories and controlled magic. Favor functional scholar-warrior clothing, crafted instruments and physically coherent magical effects.",
+        "Conclave Arcano": "FACTION IDENTITY — PRESERVE THE CONCLAVE ARCANO SIGNATURE: arcane scholars and battle-mages; refined runic geometry; violet, amethyst and deep-indigo astral light; ancient observatories, arcane libraries and crafted magical instruments; disciplined, controlled magic. Preserve this recognizable palette and scholarly-arcane identity even when the overall image is rendered with naturalistic realism. Use violet/indigo as intentional light and material accents, not as a flat full-image filter. Favor functional scholar-warrior garments, precise crafted details and physically coherent magical effects. Do not turn the faction into generic medieval soldiers, generic witches, sci-fi technology or neon cyberpunk. Keep runes few, large enough to read as shapes at card scale, and integrated into real objects rather than floating UI.",
     }
     origem = (
         "CANON AND SOURCE POLICY: the complete card facts are explicitly listed in this prompt; the image model has no access to the NARABOT database, website, renderer or external files. "
@@ -406,6 +439,13 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "siege": "TACTICAL ROW (SIEGE): this is a gameplay placement label only. It does NOT force artillery, machinery or long-distance spellcasting. Preserve the literal subject and equipment established by the card name and scene.",
     }
     diretriz_fileira = fileiras.get(fileira, "TACTICAL ROW: no row information supplied. Do not infer equipment or combat role from missing data.")
+    diretriz_limpeza = (
+        "IMAGE QUALITY PRIORITY: clean rendering with low noise and no visible grain, speckling, pixelation, compression artifacts or jagged edges. "
+        "Use natural material textures without artificial micro-detail, excessive pores, random scratches or noisy stippling. "
+        "Keep faces and anatomy internally consistent, with correct facial proportions, eyes, hands, fingers and joints. "
+        "Render realistic materials with controlled sharpness; no oversharpening, crunchy clarity, HDR halos or brittle outlines. "
+        "Ensure the main silhouette, face and defining object remain immediately readable at small collectible-card size."
+    )
 
     contexto = (
         f'CARD ID: {card_id or "not supplied"}.\nCARD NAME: "{nome}".\nCATEGORY: {categoria_raw}.\n'
@@ -443,7 +483,16 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         diretriz_fileira,
         diretriz,
         raridade_prompt,
+        diretriz_limpeza,
     ]
+    if faccao == "Conclave Arcano":
+        blocos.append(
+            "CONCLAVE ARCANO COLOR AND IDENTITY LOCK: preserve violet, amethyst and deep-indigo arcane identity; "
+            "keep scholarly instruments, refined runic geometry and controlled astral magic recognizable. "
+            "Realism improvements must refine anatomy, materials, lighting and image cleanliness without bleaching, "
+            "replacing or flattening the Conclave palette. Keep the magical source physically integrated with nearby "
+            "surfaces and maintain a clear focal silhouette at thumbnail scale."
+        )
     if habilidade_prompt:
         blocos.append(f"ABILITY VISUAL STORYTELLING: {habilidade_prompt} This is a visual metaphor only; do not add text or symbols that resemble UI.")
     if habilidade_id in HABILIDADE_TEXTO_VISUAL:
@@ -459,6 +508,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         "REALISM CHECK: verify believable anatomy, natural facial proportions, physically plausible materials, accurate perspective, grounded contact shadows, consistent lighting, "
         "credible weight and construction, and atmospheric depth. Prefer fewer accurate details over many invented decorative details.\n\n"
         "NEGATIVE CONSTRAINTS: no generic fantasy stock character, no random dragon/skull/castle unless the card data calls for it, no unrelated companions, no extra weapons, no exaggerated anatomy, no waxy skin, no plastic materials, no glossy CGI finish, no anime styling, "
+        "no film grain, digital noise, pixelation, compression artifacts, dithering, speckling, artificial micro-texture, excessive pores, random scratch noise, oversharpening, clarity halos, HDR crunch or tiny unreadable ornaments, "
         "no contradictory faction colors, no ability symbols that look like interface icons, no split panels, no collage, no illegible runes, no text, no logo, no watermark, "
         "no card frame, no card border, no title, no stats, no rarity gem and no UI.\n\n"
         "FINAL OUTPUT: original standalone landscape 5:4 illustration only. The NARABOT renderer adds its own frame, name, stats and ability separately; do not draw or simulate those elements. "
