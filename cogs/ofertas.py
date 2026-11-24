@@ -47,7 +47,7 @@ from ia.provedores import gerar_texto_com_failover
 
 log = logging.getLogger("ofertas")
 
-# CheapShark: sem filtro percentual; apenas validação de promoção real.
+# CheapShark: exige redução real, desconto >=50% e qualidade mínima.
 
 HAS_LAYOUT_VIEW = hasattr(discord.ui, "LayoutView") and hasattr(discord.ui, "MediaGallery")
 
@@ -1108,7 +1108,7 @@ class Ofertas(commands.Cog):
             cheapshark_eligible = len(cheapshark)
             log.info(
                 "CheapShark: lojas=%s | ofertas recebidas=%s | "
-                "promoções válidas=%s (sem mínimo percentual)",
+                "promoções válidas=%s (desconto mínimo interno: 50%%)",
                 len(self.cheapshark_stores),
                 len(cheapshark),
                 cheapshark_eligible,
