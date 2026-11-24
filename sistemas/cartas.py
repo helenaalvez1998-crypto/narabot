@@ -1549,4 +1549,5 @@ CARTAS_PRIMORDIAIS = [c for c in CARTAS_POR_ID.values() if c.raridade == "Primor
 # Constantes necessárias
 VERSAO_ARTES = "21"
 CUSTO_APRIMORAMENTO_ALMAS = {"Comum": 50, "Incomum": 100, "Rara": 250, "Épica": 500, "Lendária": 1000, "Mítica": 2500, "Primordial": 5000, "Singular": 10000, "Patente": 0}
-BONUS_EVOLUCAO_FRAGMENTOS = {"Comum": 1, "Incomum": 2, "Rara": 5, "Épica": 10, "Lendária": 20, "Mítica": 50, "Primordial": 100, "Singular": 500}
+BONUS_EVOLUCAO_FRAGMENTOS = {"Comum": 20, "Incomum": 30, "Rara": 40, "Épica": 80, "Lendária": 160, "Mítica": 320, "Primordial": 640, "Singular": 1280, "Patente": 0}
+ALMAS_DUPLICATA = {"Comum": 5, "Incomum": 8, "Rara": 15, "Épica": 40, "Lendária": 100, "Mítica": 180, "Primordial": 250, "Singular": 0, "Patente": 0}
