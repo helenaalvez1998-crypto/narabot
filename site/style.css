@@ -1531,7 +1531,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--pro-line);fon
 @media(min-width:1101px){.hud nav .nav{padding:0 12px}.hud nav .nav span{letter-spacing:.09em}}
 
 /* ===== NARABOT · SANTUÁRIO (templo) ===== */
-.sx{--tc:#d9ae62;--tc2:color-mix(in srgb,var(--tc) 55%,#fff);--tcd:color-mix(in srgb,var(--tc) 28%,#05060d);position:relative}
+.sx:not([class*="pt-th-"]){--tc:#d9ae62}.sx{--tc2:color-mix(in srgb,var(--tc) 55%,#fff);--tcd:color-mix(in srgb,var(--tc) 28%,#05060d);position:relative}
 .sx-hero{position:relative;overflow:hidden;isolation:isolate;min-height:640px;border-radius:24px;border:1px solid color-mix(in srgb,var(--tc) 60%,transparent);background:#05060d;box-shadow:0 0 0 1px #000,0 30px 80px -20px color-mix(in srgb,var(--tc) 40%,#000),inset 0 0 120px color-mix(in srgb,var(--tc) 14%,transparent);margin-bottom:34px;--mx:0;--my:0}
 .sx-sky{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 28%,color-mix(in srgb,var(--tc) 38%,transparent),transparent 70%),radial-gradient(ellipse 120% 60% at 50% 100%,color-mix(in srgb,var(--tc) 30%,#05060d),transparent 70%),linear-gradient(#04050b,color-mix(in srgb,var(--tcd) 80%,#070914) 80%);transform:translate(calc(var(--mx)*-8px),calc(var(--my)*-6px))}
 .sx-rays{position:absolute;left:50%;top:-30%;width:180%;aspect-ratio:1;translate:-50% 0;background:repeating-conic-gradient(from 0deg at 50% 50%,color-mix(in srgb,var(--tc2) 20%,transparent) 0 4deg,transparent 4deg 15deg);-webkit-mask:radial-gradient(circle,#000 0,transparent 55%);mask:radial-gradient(circle,#000 0,transparent 55%);animation:sxSpin 90s linear infinite;mix-blend-mode:screen;opacity:.55}
@@ -1591,3 +1591,28 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--pro-line);fon
 @keyframes sxFlame{0%{transform:scale(1,1) rotate(-2deg)}50%{transform:scale(.94,1.08) rotate(1.5deg)}100%{transform:scale(1.05,.94) rotate(-1deg)}}
 @media(max-width:700px){.sx-hero{min-height:600px;border-radius:18px}.sx-core{padding:34px 14px 120px}.sx-av{width:140px;height:140px}.sx-av-in{width:98px;height:98px;font-size:46px}.sx-rank{letter-spacing:.3em}.sx-altars{grid-template-columns:1fr!important}.sx-title{letter-spacing:.16em;font-size:13px}}
 @media(prefers-reduced-motion:reduce){.sx *,.sx *::before,.sx *::after{animation:none!important;transition:none!important}.sx-js .sx-rv{opacity:1;transform:none}}
+/* ===== SANTUÁRIO v2 · estilo Discord ===== */
+.sx-av-in{position:relative;overflow:hidden}.sx-av-in img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.sx-av{cursor:pointer}.sx-av.pop .sx-av-in{animation:sxPop .6s cubic-bezier(.2,1.6,.4,1)}
+.sx-pres{position:absolute;left:18px;bottom:16px;width:22px;height:22px;border-radius:50%;border:4px solid #070914;background:#747f8d;box-shadow:0 0 12px rgba(0,0,0,.6)}
+.sx-pres.on{background:#23a55a;box-shadow:0 0 14px #23a55a}.sx-pres.idle{background:#f0b232;box-shadow:0 0 14px #f0b232}.sx-pres.dnd{background:#f23f43;box-shadow:0 0 14px #f23f43}
+.sx-chip.pres::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;background:#747f8d}.sx-chip.pres.on::before{background:#23a55a}.sx-chip.pres.idle::before{background:#f0b232}.sx-chip.pres.dnd::before{background:#f23f43}
+.sx-act{display:flex;align-items:center;gap:12px;margin-top:14px;padding:10px 16px 10px 10px;border-radius:12px;background:rgba(5,6,14,.78);border:1px solid color-mix(in srgb,var(--tc) 55%,transparent);backdrop-filter:blur(8px);text-align:left;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.sx-act-ic{width:46px;height:46px;display:grid;place-items:center;border-radius:10px;font-size:24px;background:linear-gradient(135deg,var(--tc),var(--tcd))}.sx-act small{display:block;font:800 9px Inter;letter-spacing:.18em;color:var(--tc2)}.sx-act b{font:700 15px Inter;color:#fff}
+.sx-eq{display:flex;align-items:flex-end;gap:2px;height:18px;margin-left:8px}.sx-eq i{width:3px;background:#23a55a;border-radius:2px;animation:sxEq 1s ease-in-out infinite alternate}.sx-eq i:nth-child(2){animation-delay:-.3s}.sx-eq i:nth-child(3){animation-delay:-.6s}.sx-eq i:nth-child(4){animation-delay:-.15s}
+.sx-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px}.sx-btns .sx-follow{margin:0!important}.sx-sharebtn{margin:0!important;border-color:var(--tc)!important;background:rgba(5,6,14,.7)!important}
+.sx-badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px 12px}
+.sx-badge2{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:6px;outline:0}
+.sx-badge2 .hex{width:84px;height:96px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(160deg,#2a2f46,#10131f);font-size:34px;transition:transform .3s}
+.sx-badge2.ok .hex{background:linear-gradient(160deg,var(--tc2),var(--tc) 55%,var(--tcd));filter:drop-shadow(0 0 14px var(--tc));animation:sxGlint 4s ease-in-out infinite}
+.sx-badge2 .hex span{display:grid;place-items:center;width:calc(100% - 8px);height:calc(100% - 8px);clip-path:inherit;background:radial-gradient(circle at 40% 30%,color-mix(in srgb,var(--tc) 30%,#171b30),#070914)}
+.sx-badge2:not(.ok) .hex span{filter:grayscale(1);opacity:.55}.sx-badge2:hover .hex,.sx-badge2:focus .hex{transform:scale(1.14) rotate(-4deg)}
+.sx-badge2 b{font:700 12px Inter;color:#f1e9d8}.sx-badge2:not(.ok) b{color:#8a90a6}.sx-badge2 small{font:500 11px Inter;color:var(--tc2)}.sx-badge2:not(.ok) small{color:#6f768c}
+.sx-doorp{transform-box:fill-box;transform-origin:50% 100%;animation:sxDoor 2s cubic-bezier(.2,.8,.2,1) .15s both}
+.sx-altar.lit .sx-fl{animation:sxFlare .7s ease-out}.sx-altar.lit{box-shadow:0 0 60px var(--tc)!important}
+@keyframes sxPop{0%{transform:scale(1)}40%{transform:scale(1.2) rotate(6deg)}100%{transform:scale(1)}}
+@keyframes sxEq{from{height:3px}to{height:18px}}
+@keyframes sxGlint{50%{filter:drop-shadow(0 0 24px var(--tc2)) brightness(1.2)}}
+@keyframes sxDoor{from{transform:scale(.55,.1);opacity:0}to{transform:none;opacity:1}}
+@keyframes sxFlare{0%{transform:scale(1)}30%{transform:scale(2.2,2.6);filter:brightness(2)}100%{transform:scale(1)}}
+@media(max-width:700px){.sx-badges{grid-template-columns:repeat(3,1fr)}.sx-badge2 .hex{width:70px;height:80px;font-size:28px}.sx-act{width:92%}}

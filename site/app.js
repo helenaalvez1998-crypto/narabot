@@ -851,7 +851,7 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
       <rect x="120" y="452" width="960" height="18"/><rect x="80" y="470" width="1040" height="20"/><rect x="40" y="490" width="1120" height="30"/></g>
       <g stroke="var(--tc)" stroke-opacity=".5" stroke-width="3" fill="none">${tri}</g>
       <circle class="sx-oculus" cx="600" cy="82" r="18" fill="var(--tc2)"/>
-      <path d="M440 452V268Q440 188 600 188Q760 188 760 268V452Z" fill="url(#sxDoor)" stroke="var(--tc2)" stroke-width="2"/>
+      <path class="sx-doorp" d="M440 452V268Q440 188 600 188Q760 188 760 268V452Z" fill="url(#sxDoor)" stroke="var(--tc2)" stroke-width="2"/>
       <path d="M462 452V272Q462 208 600 208Q738 208 738 272V452" fill="none" stroke="var(--tc2)" stroke-opacity=".5" stroke-width="1.5"/></svg>`;
   };
   const flameHTML = (c) => {
@@ -879,53 +879,96 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
       hero.style.setProperty('--mx', ((e.clientX - r.left) / r.width - .5).toFixed(3));
       hero.style.setProperty('--my', ((e.clientY - r.top) / r.height - .5).toFixed(3));
     });
+    const share = sc.querySelector('#sx-share');
+    if (share) share.onclick = async () => { try { await navigator.clipboard.writeText(share.dataset.t); showNotice('Cartão copiado! Cole no Discord.', 'success'); } catch (e) { showNotice('Não foi possível copiar.', 'error'); } };
+    const av = sc.querySelector('.sx-av');
+    sc.querySelectorAll('.pt-honor:not(:disabled)').forEach(b => b.addEventListener('click', () => b.classList.add('lit'), true));
     const cv = sc.querySelector('.sx-embers'); if (!cv || reduce) return;
+    const mode = (sc.className.match(/pt-th-(\w+)/) || [])[1] || 'Ouro';
+    const CFG = {Ouro: {n: 55, d: -1, sz: [.6, 2.8], sp: [.6, 2.2], k: 'dot'}, Prata: {n: 70, d: 1, sz: [.8, 2.6], sp: [.3, 1], k: 'dot'}, Safira: {n: 28, d: -1, sz: [3, 9], sp: [.4, 1.1], k: 'ring'}, Esmeralda: {n: 38, d: 0, sz: [1.4, 3.2], sp: [.2, .5], k: 'fly'}, Rubi: {n: 80, d: -1, sz: [.8, 3.4], sp: [1.2, 3.2], k: 'dot'}, Ametista: {n: 34, d: 0, sz: [3, 8], sp: [0, 0], k: 'star'}};
+    const C = CFG[mode] || CFG.Ouro, rnd = (a, b) => a + Math.random() * (b - a);
     const ctx = cv.getContext('2d'), col = getComputedStyle(sc).getPropertyValue('--tc2').trim() || '#f3d69b';
-    let W = 0, H = 0, dpr = 1; const ps = [];
-    const mk = (init) => ({x: Math.random(), y: init ? Math.random() : 1.05, r: .6 + Math.random() * 2.2, v: .0006 + Math.random() * .0016, s: Math.random() * 6.28, a: .35 + Math.random() * .65});
-    for (let i = 0; i < 55; i++) ps.push(mk(true));
+    let W = 0, H = 0, dpr = 1; const bursts = [];
+    const mk = (init) => ({x: Math.random(), y: init ? Math.random() : (C.d > 0 ? -.05 : 1.05), r: rnd(...C.sz), v: rnd(...C.sp) * .0007, s: rnd(0, 6.28), a: rnd(.35, 1)});
+    const ps = [...Array(C.n)].map(() => mk(true));
+    const burst = () => {
+      const a = av.getBoundingClientRect(), c = cv.getBoundingClientRect(); if (!c.width) return;
+      const x = (a.left + a.width / 2 - c.left) / c.width, y = (a.top + a.height / 2 - c.top) / c.height;
+      for (let i = 0; i < 70; i++) { const g = rnd(0, 6.28), v = rnd(.002, .011); bursts.push({x, y, vx: Math.cos(g) * v, vy: Math.sin(g) * v * 1.3 - .004, l: 1, r: rnd(1, 3.2)}); }
+    };
+    if (av) av.onclick = () => { av.classList.remove('pop'); void av.offsetWidth; av.classList.add('pop'); burst(); };
+    sc._burst = burst;
     const loop = () => {
       if (!cv.isConnected) return;
       if (!document.hidden && cv.clientWidth) {
         dpr = Math.min(2, window.devicePixelRatio || 1);
         if (W !== Math.round(cv.clientWidth * dpr)) { W = cv.width = Math.round(cv.clientWidth * dpr); H = cv.height = Math.round(cv.clientHeight * dpr); }
-        ctx.clearRect(0, 0, W, H); ctx.fillStyle = col;
+        ctx.clearRect(0, 0, W, H); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = dpr;
         ps.forEach((p, i) => {
-          p.y -= p.v; p.s += .02; if (p.y < -.05) ps[i] = mk(false);
-          const x = (p.x + Math.sin(p.s) * .012) * W, y = p.y * H, fade = Math.max(0, Math.min(1, p.y * 1.6));
-          ctx.globalAlpha = p.a * fade * (.6 + .4 * Math.sin(p.s * 3));
-          ctx.beginPath(); ctx.arc(x, y, p.r * dpr, 0, 6.283); ctx.fill();
+          p.s += C.k === 'star' ? .035 : .02;
+          if (C.d) { p.y += C.d * p.v; p.x += Math.sin(p.s) * .0004; if (p.y < -.06 || p.y > 1.06) ps[i] = mk(false); }
+          else if (C.k === 'fly') { p.x += Math.cos(p.s * .6 + i) * .0006; p.y += Math.sin(p.s * .5 + i) * .0005; if (p.x < 0 || p.x > 1) p.x = (p.x + 1) % 1; if (p.y < .05 || p.y > .95) p.s += 3; }
+          else if (Math.sin(p.s) < -.98) { p.x = Math.random(); p.y = Math.random() * .8; }
+          const x = p.x * W, y = p.y * H, r = p.r * dpr, tw = (Math.sin(p.s * (C.k === 'fly' ? 2 : 3)) + 1) / 2;
+          if (C.k === 'dot') { ctx.globalAlpha = p.a * Math.max(0, Math.min(1, C.d < 0 ? p.y * 1.6 : (1.1 - p.y))) * (.6 + .4 * tw); ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); }
+          else if (C.k === 'ring') { ctx.globalAlpha = .55 * p.a * Math.min(1, p.y * 2); ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.stroke(); }
+          else if (C.k === 'fly') { const g = ctx.createRadialGradient(x, y, 0, x, y, r * 5); g.addColorStop(0, col); g.addColorStop(1, 'transparent'); ctx.globalAlpha = .25 + .75 * tw; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 5, 0, 6.283); ctx.fill(); ctx.fillStyle = col; }
+          else { ctx.globalAlpha = tw * p.a; ctx.beginPath(); ctx.moveTo(x, y - r * dpr); ctx.lineTo(x + r * .22 * dpr, y); ctx.lineTo(x, y + r * dpr); ctx.lineTo(x - r * .22 * dpr, y); ctx.closePath(); ctx.moveTo(x - r * dpr, y); ctx.lineTo(x, y + r * .22 * dpr); ctx.lineTo(x + r * dpr, y); ctx.lineTo(x, y - r * .22 * dpr); ctx.closePath(); ctx.fill(); }
         });
-        ctx.globalAlpha = 1;
+        for (let i = bursts.length - 1; i >= 0; i--) {
+          const b = bursts[i]; b.x += b.vx; b.y += b.vy; b.vy += .00018; b.l -= .014;
+          if (b.l <= 0) { bursts.splice(i, 1); continue; }
+          ctx.globalAlpha = b.l; ctx.fillStyle = '#fff6d6'; ctx.beginPath(); ctx.arc(b.x * W, b.y * H, b.r * dpr * b.l, 0, 6.283); ctx.fill();
+        }
+        ctx.globalAlpha = 1; ctx.fillStyle = col;
       }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
   }
   const sxTitle = (t) => `<h4 class="sx-title"><i></i><span>${t}</span><i></i></h4>`;
+  const PRES = {online: ['on', 'Online no Discord'], idle: ['idle', 'Ausente'], dnd: ['dnd', 'Não perturbe'], offline: ['off', 'Offline'], on: ['on', 'Online no site']};
+  const BADGES = [
+    ['🥉', 'Primeira Platina', 'Conquiste 1 platina', (s) => s.platinas >= 1],
+    ['🏆', 'Caçador de Platinas', 'Conquiste 10 platinas', (s) => s.platinas >= 10],
+    ['💎', 'Lenda das Platinas', 'Conquiste 50 platinas', (s) => s.platinas >= 50],
+    ['🎯', 'Zerador Implacável', 'Zere 25 jogos', (s) => s.zerados >= 25],
+    ['💀', 'Alma Soulslike', 'Registre 10 runs', (s) => s.runs >= 10],
+    ['🔍', 'Olhar Crítico', 'Nota média 8+ com 5 jogos zerados', (s) => s.zerados >= 5 && s.media_nota >= 8],
+    ['⭐', 'Estrela do Servidor', 'Tenha 25 seguidores', (s, d) => d.followers >= 25],
+    ['🔥', 'Honrado pelos Pares', 'Receba 20 honrarias', (s, d) => Object.values(d.honors || {}).reduce((a, b) => a + (+b || 0), 0) >= 20],
+    ['🕯', 'Casa Cheia', 'Receba 5 recados no mural', (s, d) => (d.messages || []).length >= 5]
+  ];
   const renderSanctuary = (d, p, s, own, nm, links, sel) => {
-    const rk = rankOf(s);
+    const rk = rankOf(s), pl = (players || []).find(x => String(x.id) === String(viewing)) || {};
+    const pr = PRES[pl.web_online ? 'on' : pl.discord_presence] || PRES.offline;
+    const num = {platinas: +s.platinas || 0, zerados: +s.zerados || 0, runs: +s.runs || 0, media_nota: +s.media_nota || 0};
     const runes = [['🏆', 'Platinas', s.platinas], ['🎯', 'Zerados', s.zerados], ['⚔', 'Runs', s.runs], ['⭐', 'Nota média', s.media_nota != null ? Number(s.media_nota) : null], ['👥', 'Seguidores', d.followers]]
       .map(([ic, k, v]) => `<div class="sx-rune"><em>${ic}</em><b ${v == null && k === 'Nota média' ? '' : `data-n="${+v || 0}" data-dec="${k === 'Nota média' ? 1 : 0}"`}>${v == null && k === 'Nota média' ? '—' : 0}</b><small>${k}</small></div>`).join('');
+    const got = BADGES.map(([ic, t, h, f]) => [ic, t, h, !!f(num, d)]);
+    const badges = got.map(([ic, t, h, ok]) => `<div class="sx-badge2 ${ok ? 'ok' : ''}" tabindex="0"><div class="hex"><span>${ok ? ic : '🔒'}</span></div><b>${E(t)}</b><small>${ok ? 'Conquistada' : E(h)}</small></div>`).join('');
     const hon = Object.entries(HON).map(([k, [i, l]]) => { const c = (d.honors || {})[k] || 0; return `<button class="pt-honor sx-altar" data-k="${k}" ${own ? 'disabled' : ''} type="button">${flameHTML(c)}<span class="sx-ic">${i}</span><b>${c}</b><small>${l}</small></button>`; }).join('');
     const lk = Object.entries(links).filter(([, v]) => /^https?:\/\//.test(v)).map(([k, v]) => `<a class="sx-portal" href="${E(v)}" target="_blank" rel="noopener noreferrer">${E(k)} <span>↗</span></a>`).join('');
     const msgs = (d.messages || []).map(m => `<div class="pt-msg sx-offer"><i class="sx-candle"></i><div class="sx-oh"><b>${E(nameOf(m.author_id))}</b><small>${fdate(m.created_at)}</small></div><p>${E(m.message)}</p>${own ? `<button class="text-btn" data-del="${m.id}" type="button">apagar</button>` : ''}</div>`).join('') || '<p class="muted sx-none">Nenhuma oferenda ainda. As velas aguardam o primeiro visitante.</p>';
+    const card = `🏛️ **Santuário de ${nm}** — ${rk.cur[2]} ${rk.cur[1]}\n🏆 ${num.platinas} platinas · 🎯 ${num.zerados} zerados · ⚔ ${num.runs} runs${s.media_nota != null ? ` · ⭐ ${num.media_nota.toFixed(1)}` : ''}\n🎖 ${got.filter(g => g[3]).length}/${got.length} insígnias${p.fav_game ? ` · 🎮 ${p.fav_game}` : ''}\n> ${p.tagline || 'Entre no meu santuário!'}\n${location.origin}${location.pathname}`;
     return sel + `<div class="sx pt-th-${E(p.theme || 'Ouro')}">
     <section class="sx-hero">
       <div class="sx-sky"></div><div class="sx-rays"></div><div class="sx-stars"></div>
       ${templeSVG()}<canvas class="sx-embers"></canvas>
       <div class="sx-core">
         <small class="sx-eyebrow">${own ? '✦ SEU SANTUÁRIO ✦' : '✦ SANTUÁRIO ✦'}</small>
-        <div class="sx-av"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="r1" cx="100" cy="100" r="96"/><circle class="r2" cx="100" cy="100" r="86"/></svg><div class="sx-av-in">${E(nm[0] || '?').toUpperCase()}</div><span class="sx-badge">${rk.cur[2]}</span></div>
+        <div class="sx-av" title="Clique!"><svg viewBox="0 0 200 200" aria-hidden="true"><circle class="r1" cx="100" cy="100" r="96"/><circle class="r2" cx="100" cy="100" r="86"/></svg><div class="sx-av-in"><span>${E(nm[0] || '?').toUpperCase()}</span>${pl.avatar ? `<img src="${E(pl.avatar)}" alt="" onerror="this.remove()">` : ''}</div><span class="sx-badge">${rk.cur[2]}</span><i class="sx-pres ${pr[0]}" title="${pr[1]}"></i></div>
         <div class="sx-rank">${E(rk.cur[1])}</div>
         <h3 class="sx-name">${E(nm)}</h3>
         <p class="sx-tag">“${E(p.tagline || 'Este jogador ainda não escreveu uma frase.')}”</p>
-        <div class="sx-chips">${p.fav_game ? `<span class="sx-chip">🎮 ${E(p.fav_game)}</span>` : ''}<span class="sx-chip">${rk.pts} pontos de glória</span></div>
+        <div class="sx-chips"><span class="sx-chip pres ${pr[0]}">${pr[1]}</span><span class="sx-chip">${rk.pts} pontos de glória</span><span class="sx-chip">🎖 ${got.filter(g => g[3]).length}/${got.length} insígnias</span></div>
+        ${p.fav_game ? `<div class="sx-act"><div class="sx-act-ic">🎮</div><div><small>JOGO FAVORITO</small><b>${E(p.fav_game)}</b></div><span class="sx-eq"><i></i><i></i><i></i><i></i></span></div>` : ''}
         <div class="sx-lvl" title="${rk.nx ? `Faltam ${rk.nx[0] - rk.pts} pontos para ${E(rk.nx[1])}` : 'Nível máximo'}"><div><i style="width:${rk.pct}%"></i></div><small>${rk.nx ? `Próximo título: ${E(rk.nx[1])}` : 'Título máximo alcançado'}</small></div>
-        ${own ? '' : '<button class="primary sx-follow" id="sc-follow" type="button">Seguir</button>'}
+        <div class="sx-btns">${own ? '' : '<button class="primary sx-follow" id="sc-follow" type="button">Seguir</button>'}<button class="secondary sx-sharebtn" id="sx-share" type="button" data-t="${E(card)}">📋 Copiar para o Discord</button></div>
       </div>
     </section>
     <div class="sx-rv">${sxTitle('Runas de Conquista')}<div class="sx-runes">${runes}</div></div>
+    <div class="sx-rv">${sxTitle('Salão de Insígnias')}<div class="sx-badges">${badges}</div></div>
     <div class="sx-rv">${sxTitle('Altares de Honra')}<div class="sx-altars pt-honors">${hon}</div>${own ? '' : '<small class="muted sx-hint">Acenda uma chama: você pode honrar este jogador uma vez por semana.</small>'}</div>
     <div class="sx-rv">${sxTitle('Inscrições')}<div class="sx-tablet"><p class="sx-bio">${E(p.bio || 'Nenhuma inscrição foi gravada nesta pedra.')}</p>${lk ? `<div class="sx-portals">${lk}</div>` : ''}</div></div>
     <div class="sx-rv">${sxTitle('Mural de Oferendas')}<div class="sx-offers pt-msgs">${msgs}</div>${own ? '' : `<div class="pt-form sx-leave"><label class="wide">Deixe uma oferenda<textarea id="gb-text" rows="2" maxlength="300" placeholder="Até 300 caracteres. Um recado por dia."></textarea></label><button class="primary" id="gb-send" type="button">Acender uma vela</button></div>`}</div>
