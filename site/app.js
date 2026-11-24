@@ -684,7 +684,7 @@ document.addEventListener('click', async event => {
 function showGwentPage() {
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('show', el.id === 'gwent'));
 }
-async function loadPlayers() {
+async function loadGwentPlayers() {
   if (!currentUser) return;
   try {
     await fetch('/api/presence/heartbeat', {method:'POST', credentials:'same-origin'});
@@ -702,8 +702,8 @@ async function loadPlayers() {
 loadAccount().then(async () => {
   showGwentPage();
   if (!currentUser) return;
-  await Promise.all([loadGwentDeck(), loadGwentMatches(), loadPlayers(), loadDropHistory(), loadAtelier(), loadGwentStore()]);
-  window.setInterval(loadPlayers, 30000);
+  await Promise.all([loadGwentDeck(), loadGwentMatches(), loadGwentPlayers(), loadDropHistory(), loadAtelier(), loadGwentStore()]);
+  window.setInterval(loadGwentPlayers, 30000);
   gwentListPoll = window.setInterval(loadGwentMatches, 12000);
   const requested = new URLSearchParams(window.location.search).get('gwent');
   if (requested && /^\d+$/.test(requested)) openGwentMatch(requested);
