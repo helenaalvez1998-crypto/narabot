@@ -230,6 +230,9 @@ def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state:
     return str(data["name"])
 
 
+# Bônus da primeira unidade da facção a cada rodada (ajuste fino de equilíbrio por facção).
+FACTION_BOOST = {"Ordem de Ferro": 1, "Errantes do Véu": 2, "Conclave Arcano": 1}
+
 DEFAULT_LEADERS = {
     "Ordem de Ferro": "comandante_fornalha",
     "Errantes do Véu": "mestre_veu",
@@ -866,9 +869,9 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                 state["last_event"] += " O Fio Astral foi consumido (+1)."
             # Combos temáticos entre cartas específicas, além das sinergias de fileira acima.
             combo_ativado = _aplicar_combo_de_cartas(player, card)
-            # Bônus de facção: uma vez por rodada, primeira unidade da facção recebe +1.
+            # Bônus de facção: uma vez por rodada, primeira unidade da facção recebe FACTION_BOOST (Véu: +2, demais: +1).
             if card.get("tipo") in FACTIONS and FACTIONS[card["tipo"]] == player["faction"] and not player["faction_boost_used"]:
-                card["bonus"] += 1
+                card["bonus"] += FACTION_BOOST.get(player["faction"], 1)
                 player["faction_boost_used"] = True
             player["hand"].remove(found)
             player["board"].append(card)
