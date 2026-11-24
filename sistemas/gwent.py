@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 ROWS = ("melee", "ranged", "siege")
+AI_PLAYER_ID = -1  # Identidade técnica reservada à NARA; nunca recebe ranking/recompensas.
 ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
 FACTIONS = {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}
@@ -946,6 +947,172 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         _auto_pass_empty_hands(state)
     return _registrar_evento(state)
 
+
+
+def _ai_hand_strength(player: dict) -> float:
+    """Valor aproximado dos recursos ainda na mão, usado para conservar cartas fortes."""
+    total = 0.0
+    for card in player.get("hand", []):
+        if card.get("especial") or str(card.get("categoria", "")).casefold() == "especial":
+            total += 4.0
+        else:
+            total += max(1, int(card.get("poder", 1)))
+    return total
+
+
+def _ai_candidate_value(before: dict, after: dict, ai_uid: str, human_uid: str,
+                        action: str, card: dict | None = None) -> float:
+    """Avalia uma jogada com base no efeito real calculado pelo motor de regras."""
+    before_score = placar(before)
+    after_score = placar(after)
+    before_ai = before_score.get(ai_uid, {})
+    after_ai = after_score.get(ai_uid, {})
+    before_human = before_score.get(human_uid, {})
+    after_human = after_score.get(human_uid, {})
+
+    ai_gain = int(after_ai.get("score", 0)) - int(before_ai.get("score", 0))
+    human_loss = int(before_human.get("score", 0)) - int(after_human.get("score", 0))
+    value = float(ai_gain) + 1.20 * float(human_loss)
+
+    ai_before = before.get("players", {}).get(ai_uid, {})
+    ai_after = after.get("players", {}).get(ai_uid, {})
+    human_before = before.get("players", {}).get(human_uid, {})
+    human_after = after.get("players", {}).get(human_uid, {})
+
+    # Cartas não gastas continuam sendo recursos para as próximas rodadas.
+    value += 0.18 * (_ai_hand_strength(ai_after) - _ai_hand_strength(ai_before))
+    # Escudos têm valor defensivo, mesmo quando ainda não alteram a pontuação.
+    ai_shields_before = sum(int(unit.get("escudo", 0)) for unit in ai_before.get("board", []))
+    ai_shields_after = sum(int(unit.get("escudo", 0)) for unit in ai_after.get("board", []))
+    human_shields_before = sum(int(unit.get("escudo", 0)) for unit in human_before.get("board", []))
+    human_shields_after = sum(int(unit.get("escudo", 0)) for unit in human_after.get("board", []))
+    value += 0.8 * ((ai_shields_after - ai_shields_before) - (human_shields_after - human_shields_before))
+
+    # Valoriza encerrar uma rodada favorável e penaliza entregar uma coroa.
+    ai_crowns_before = int(before.get("crowns", {}).get(ai_uid, 0))
+    ai_crowns_after = int(after.get("crowns", {}).get(ai_uid, 0))
+    human_crowns_before = int(before.get("crowns", {}).get(human_uid, 0))
+    human_crowns_after = int(after.get("crowns", {}).get(human_uid, 0))
+    value += 12.0 * ((ai_crowns_after - ai_crowns_before) - (human_crowns_after - human_crowns_before))
+
+    if action == "play" and card:
+        # O desconto de recurso favorece usar primeiro cartas de menor poder quando
+        # duas opções produzem resultado de campo semelhante.
+        cost = 0.18 if (card.get("especial") or str(card.get("categoria", "")).casefold() == "especial") else 0.08 * max(1, int(card.get("poder", 1)))
+        value -= cost
+    return value
+
+
+def executar_turno_ia(state: dict, ai_user_id: int = AI_PLAYER_ID) -> dict:
+    """Executa as ações da NARA enquanto ela conservar o turno.
+
+    A IA usa o mesmo motor `aplicar_jogada` das pessoas. Assim, validações,
+    habilidades, clima, líderes, pontuação e resolução de rodada são idênticos.
+    O deck da IA é preparado pelo endpoint de criação da partida.
+    """
+    current = deepcopy(state)
+    ai_uid = str(ai_user_id)
+    if current.get("status") != "active" or ai_uid not in current.get("players", {}):
+        return current
+
+    # Limite defensivo: no máximo 13 jogadas por chamada (12 cartas + líder/clima/passe).
+    for _ in range(16):
+        if current.get("status") != "active" or str(current.get("turn")) != ai_uid:
+            break
+        players = current.get("players", {})
+        ai = players.get(ai_uid, {})
+        human_uid = next((uid for uid in players if uid != ai_uid), None)
+        if human_uid is None:
+            break
+
+        if current.get("phase") == "mulligan":
+            if ai.get("mulligan_done", False):
+                break
+            result = aplicar_jogada(current, ai_user_id, action="keep")
+            if "error" in result:
+                break
+            current = result["state"]
+            continue
+
+        if current.get("phase", "battle") != "battle" or ai.get("passed", False):
+            break
+        human = players.get(human_uid, {})
+        if not ai.get("hand"):
+            result = aplicar_jogada(current, ai_user_id, action="pass")
+            if "error" in result:
+                break
+            current = result["state"]
+            continue
+
+        scores = placar(current)
+        ai_score = int(scores.get(ai_uid, {}).get("score", 0))
+        human_score = int(scores.get(human_uid, {}).get("score", 0))
+        margin = ai_score - human_score
+        human_potential = sum(
+            (6 if c.get("especial") or str(c.get("categoria", "")).casefold() == "especial"
+             else max(1, int(c.get("poder", 1))))
+            for c in human.get("hand", [])
+        )
+
+        # Se o adversário já passou e a NARA está na frente, fecha a rodada.
+        # Se a vantagem supera o potencial restante da mão humana, conserva recursos.
+        should_pass = bool(human.get("passed") and margin > 0)
+        should_pass = should_pass or (margin > human_potential + 1)
+        if should_pass:
+            result = aplicar_jogada(current, ai_user_id, action="pass")
+            if "error" in result:
+                break
+            current = result["state"]
+            continue
+
+        candidates: list[tuple[float, dict]] = []
+
+        def consider(action: str, row: str | None = None, card: dict | None = None) -> None:
+            result = aplicar_jogada(
+                current, ai_user_id,
+                card_id=str(card.get("id", "")) if card else "",
+                action=action, row=row,
+            )
+            if "error" in result or not isinstance(result.get("state"), dict):
+                return
+            after = result["state"]
+            score = _ai_candidate_value(current, after, ai_uid, human_uid, action, card)
+            candidates.append((score, {"state": after, "action": action, "row": row, "card": card}))
+
+        # Testa cada carta nas três fileiras; o próprio motor descarta combinações inválidas.
+        for card in list(ai.get("hand", [])):
+            for row in ROWS:
+                consider("play", row, card)
+
+        # Líder e clima não consomem carta: a IA só os usa quando há ganho concreto.
+        if not ai.get("leader_used", False):
+            for row in ROWS:
+                consider("leader", row)
+        if not ai.get("weather_used", False):
+            for row in ROWS:
+                consider("weather", row)
+
+        best = max(candidates, key=lambda item: item[0], default=None)
+        if best is None or best[0] <= 0.05:
+            result = aplicar_jogada(current, ai_user_id, action="pass")
+            if "error" in result:
+                break
+            current = result["state"]
+            continue
+
+        current = best[1]["state"]
+        # Se a outra pessoa ainda não passou, a vez volta para ela.
+        # Se ela já passou, a IA mantém a vez e reavalia sua próxima ação.
+        if current.get("status") != "active" or str(current.get("turn")) != ai_uid:
+            break
+
+    # Fail-safe: a IA não pode deixar a partida presa no próprio turno por
+    # atingir o limite defensivo do loop.
+    if current.get("status") == "active" and str(current.get("turn")) == ai_uid:
+        fallback = aplicar_jogada(current, ai_user_id, action="pass")
+        if "error" not in fallback:
+            current = fallback["state"]
+    return current
 
 def calcular_delta_mmr(rating_a: int, rating_b: int, resultado_a: float, k_factor: int = 32) -> int:
     """Calcula a variação Elo do jogador A; o jogador B recebe o valor oposto."""
