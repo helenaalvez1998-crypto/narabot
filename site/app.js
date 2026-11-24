@@ -559,7 +559,6 @@ function gwentCardView(card, isEntering = false) {
 }
 
 let gwentAlvos = {};
-let gwentWeatherEffects = [];
 let gwentBoardCardsById = new Map();
 const gwentRowLabel = (key) => (gwentRows.find(([k]) => k === key) || [key, key])[1];
 function gwentOpcoesDoAlvo(cardId, row) {
@@ -708,14 +707,8 @@ function renderGwentArena(data) {
       Number(card.poder || 0) + Number(card.bonus || 0) - Number((data.weather && data.weather[key]) || 0)
     ), 0);
     const hasEnteringCard = cards.some(card => !cardsAlreadyOnBoard.has(String(card.id)));
-    const climateModifier = Number((data.weather && data.weather[key]) || 0);
-    const climateBadge = climateModifier > 0
-      ? `<small class="gwent-row-weather">CLIMA −${number(climateModifier)} / UNIDADE</small>`
-      : climateModifier < 0
-        ? `<small class="gwent-row-weather is-bonus">CLIMA +${number(Math.abs(climateModifier))} / UNIDADE</small>`
-        : '';
-    return `<div class="gwent-row ${hasEnteringCard ? 'has-entering' : ''} ${climateModifier ? 'has-weather' : ''}" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.min(480, Math.max(112, Math.round(window.innerHeight * 0.23) - Math.max(0, cards.length - 1) * 36))}px">
-      <h4><span>${escapeHTML(label)}</span>${climateBadge}<b>${number(rowPower)}</b></h4>
+    return `<div class="gwent-row ${hasEnteringCard ? 'has-entering' : ''}" data-row="${escapeHTML(key)}" data-card-count="${cards.length}" style="--row-card-count:${Math.max(1, cards.length)};--row-card-height:${Math.max(112, 238 - Math.max(0, cards.length - 1) * 18)}px">
+      <h4><span>${escapeHTML(label)}</span><b>${number(rowPower)}</b></h4>
       <div class="gwent-board-cards">${cards.map(card => gwentCardView(card, !cardsAlreadyOnBoard.has(String(card.id)))).join('')}</div>
     </div>`;
   }).join('');
@@ -754,16 +747,8 @@ function renderGwentArena(data) {
   }).join('') || '<div class="gwent-empty-hand">Sua mão está vazia.</div>';
 
   const factionName = data.faction || mine.faction || '—';
-  const factionData = gwentFactionInfo[factionName] || {};
-  const factionInfo = factionData.description || 'Sinergias de facção ativas.';
-  const activeLeaderId = data.leader_id || gwentSavedLeader || '';
-  const activeLeaderConfig = (factionData.leaders || []).find(([id]) => String(id) === String(activeLeaderId));
-  const activeLeaderName = data.leader_name || activeLeaderConfig?.[1] || (activeLeaderId ? String(activeLeaderId).replaceAll('_', ' ') : 'Líder não identificado');
-  const leaderDescription = data.leader_description || activeLeaderConfig?.[2] || 'A descrição deste líder não foi enviada pela partida.';
-  gwentWeatherEffects = gwentRows.map(([key, label]) => {
-    const modifier = Number((data.weather && data.weather[key]) || 0);
-    return {key, label, modifier};
-  }).filter(item => Number.isFinite(item.modifier) && item.modifier !== 0);
+  const factionInfo = (gwentFactionInfo[factionName] || {}).description || 'Sinergias de facção ativas.';
+  const leaderDescription = data.leader_description || factionInfo;
   const actionDisabled = !data.is_your_turn || data.status !== 'active' || prep;
   const myTurn = data.status === 'active' && !prep && !!data.is_your_turn && !mine.passed;
   const enemyTurn = data.status === 'active' && !prep && !data.is_your_turn && !theirs.passed;
@@ -794,11 +779,7 @@ function renderGwentArena(data) {
         <article><small>${escapeHTML(opponentName)}</small><strong>${number(theirs.score)}</strong><span>${number(theirs.crowns)} coroas · ${number(theirs.hand)} na mão${theirs.passed ? ' · passou' : ''}</span></article>
       </div>
       <div class="gwent-turn-indicator ${turnClass}" role="status" aria-live="polite"><strong>${turnHeadline}</strong><small>${turnSubline}</small></div>
-      <div class="gwent-faction gwent-leader-info" title="${escapeHTML(leaderDescription)}">
-        <small>SEU LÍDER · ${escapeHTML(factionName)}</small>
-        <b>${escapeHTML(activeLeaderName)}</b>
-        <span>${escapeHTML(leaderDescription)}</span>
-      </div>
+      <div class="gwent-faction" title="${escapeHTML(leaderDescription)}"><b>${escapeHTML(factionName)}</b><span>Líder: ${escapeHTML(data.leader_name || 'Líder')}</span></div>
       ${rewardPanel}
     </div>
     <div class="gwent-battlefield" aria-label="Campo de batalha">
@@ -812,12 +793,11 @@ function renderGwentArena(data) {
         <button class="gwent-pass-button" data-gwent-pass ${actionDisabled || mine.passed ? 'disabled' : ''}>PASSAR RODADA</button>
       </div>
       <div class="gwent-action-tools">
-        <label class="gwent-leader-picker"><span>FILEIRA DA AÇÃO</span><select id="gwent-leader-row" aria-label="Fileira para líder ou clima" ${actionDisabled ? 'disabled' : ''}>
+        <label class="gwent-leader-picker"><span>FILEIRA DO LÍDER</span><select id="gwent-leader-row" aria-label="Fileira do líder" ${actionDisabled ? 'disabled' : ''}>
           <option value="melee">Corpo a corpo</option><option value="ranged">Longa distância</option><option value="siege">Cerco</option>
-        </select><small>Líder e clima usam esta fileira</small></label>
-        <button class="gwent-leader-button" data-gwent-leader title="${escapeHTML(activeLeaderName)}: ${escapeHTML(leaderDescription)}" ${actionDisabled || data.leader_used ? 'disabled' : ''}>USAR LÍDER</button>
-        <button class="gwent-weather-button" data-gwent-weather title="Aplicar o efeito climático à fileira selecionada. Consulte ⓘ para ver os efeitos ativos." ${actionDisabled || data.weather_used ? 'disabled' : ''}>CLIMA</button>
-        <button type="button" class="gwent-weather-info-button" data-gwent-weather-info aria-label="Ver o que o clima faz" title="Ver efeito do clima">i</button>
+        </select></label>
+        <button class="gwent-leader-button" data-gwent-leader ${actionDisabled || data.leader_used ? 'disabled' : ''}>USAR LÍDER</button>
+        <button class="gwent-weather-button" data-gwent-weather ${actionDisabled || data.weather_used ? 'disabled' : ''}>CLIMA</button>
         <button class="gwent-surrender-button" data-gwent-surrender ${data.status !== 'active' ? 'disabled' : ''}>DESISTIR</button>
       </div>
     </div>
@@ -1085,53 +1065,6 @@ function showGwentHandHoverPreview(cardId) {
   showGwentImageHoverPreview(imageUrl(card), card.nome || 'Carta');
 }
 
-
-function closeGwentWeatherInfoModal() {
-  document.getElementById('gwent-weather-info-modal')?.remove();
-}
-
-function openGwentWeatherInfoModal() {
-  closeGwentWeatherInfoModal();
-  const modal = document.createElement('div');
-  modal.id = 'gwent-weather-info-modal';
-  modal.className = 'gwent-weather-info-modal';
-  modal.setAttribute('role', 'dialog');
-  modal.setAttribute('aria-modal', 'true');
-  modal.setAttribute('aria-labelledby', 'gwent-weather-info-title');
-
-  const rows = gwentWeatherEffects.length
-    ? gwentWeatherEffects.map(item => {
-        const effect = item.modifier > 0
-          ? `−${number(item.modifier)} poder por unidade`
-          : `+${number(Math.abs(item.modifier))} poder por unidade`;
-        return `<li><span>${escapeHTML(item.label)}</span><strong>${effect}</strong></li>`;
-      }).join('')
-    : '<li class="is-empty"><span>Nenhum efeito climático ativo</span><strong>Sem modificadores</strong></li>';
-
-  modal.innerHTML = `
-    <section class="gwent-weather-info-dialog">
-      <button type="button" class="gwent-weather-info-close" data-weather-info-close aria-label="Fechar">×</button>
-      <small class="eyebrow">GWENT DO COLISEU · REGRAS DA PARTIDA</small>
-      <h2 id="gwent-weather-info-title">Clima de batalha</h2>
-      <p class="gwent-weather-intro">O botão <strong>CLIMA</strong> envia o efeito climático para a fileira escolhida em <strong>FILEIRA DA AÇÃO</strong>.</p>
-      <div class="gwent-weather-rule">
-        <span>COMO O EFEITO É CALCULADO</span>
-        <p>O modificador climático é subtraído do poder de cada unidade naquela fileira. O poder de cada unidade nunca fica abaixo de <strong>1</strong>.</p>
-      </div>
-      <div class="gwent-weather-current">
-        <span>EFEITOS CLIMÁTICOS INFORMADOS PELA PARTIDA</span>
-        <ul>${rows}</ul>
-      </div>
-      <p class="gwent-weather-footnote">A partida informa aqui os modificadores numéricos por fileira. O nome e a arte de uma carta climática específica não são enviados pelo estado atual da partida.</p>
-      <button type="button" class="gwent-weather-info-ok" data-weather-info-close>ENTENDI</button>
-    </section>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', event => {
-    if (event.target === modal || event.target.closest('[data-weather-info-close]')) closeGwentWeatherInfoModal();
-  });
-  modal.querySelector('[data-weather-info-close]')?.focus();
-}
-
 function closeGwentBoardCardModal() {
   document.getElementById('gwent-board-card-modal')?.remove();
 }
@@ -1293,7 +1226,7 @@ document.addEventListener('mouseout', event => {
   if (boardCard && !boardCard.contains(event.relatedTarget)) closeGwentHandHoverPreview();
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { closeGwentWeatherInfoModal(); closeGwentPlayCardModal(); closeGwentBoardCardModal(); closeGwentHandHoverPreview(); }
+  if (event.key === 'Escape') { closeGwentPlayCardModal(); closeGwentBoardCardModal(); closeGwentHandHoverPreview(); }
 });
 
 document.addEventListener('keydown', event => {
@@ -1311,11 +1244,6 @@ document.addEventListener('keydown', event => {
 });
 
 document.addEventListener('click', async event => {
-  const weatherInfo = event.target.closest('[data-gwent-weather-info]');
-  if (weatherInfo) {
-    openGwentWeatherInfoModal();
-    return;
-  }
   const boardCard = event.target.closest('.gwent-board-card[data-card-id]');
   if (boardCard) {
     openGwentBoardCardModal(boardCard.dataset.cardId);
