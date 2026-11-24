@@ -772,6 +772,7 @@ class NaraBot(commands.Bot):
         app.router.add_post("/api/gwent/deck", self._api_gwent_deck_save)
         app.router.add_get("/api/gwent/matches", self._api_gwent_matches)
         app.router.add_post("/api/gwent/matches", self._api_gwent_match_create)
+        app.router.add_post("/api/gwent/matches/solo", self._api_gwent_match_create_solo)
         app.router.add_post("/api/gwent/matches/{match_id}/respond", self._api_gwent_match_respond)
         app.router.add_get("/api/gwent/matches/{match_id}", self._api_gwent_match_detail)
         app.router.add_post("/api/gwent/matches/{match_id}/action", self._api_gwent_match_action)
@@ -1179,7 +1180,7 @@ class NaraBot(commands.Bot):
             leaderboard.append({"user_id": str(item["user_id"]), "name": member.display_name if member else f"Jogador {str(item['user_id'])[-4:]}",
                                 "mmr": int(item["mmr"]), "wins": int(item["wins"])})
         return web.json_response({"ranking": rank, "leaderboard": leaderboard,
-            "matches": [{"id": int(r["id"]), "creator_id": str(r["creator_id"]), "opponent_id": str(r["opponent_id"]), "status": r["status"], "created_at": r["created_at"]} for r in rows]})
+            "matches": [{"id": int(r["id"]), "creator_id": str(r["creator_id"]), "opponent_id": str(r["opponent_id"]), "is_ai_match": int(r["opponent_id"]) == -1, "status": r["status"], "created_at": r["created_at"]} for r in rows]})
 
     async def _api_gwent_match_create(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
@@ -1253,6 +1254,85 @@ class NaraBot(commands.Bot):
         except Exception:
             log.info("Não foi possível enviar DM do convite Gwent #%s.", match_id)
         return web.json_response({"ok": True, "match_id": match_id, "status": "pending"}, status=201)
+
+    async def _api_gwent_match_create_solo(self, request: web.Request) -> web.Response:
+        """Cria uma partida de treino contra a NARA sem depender de outro membro."""
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+
+        deck = await self._gwent_deck_snapshots(user_id)
+        if not deck or len(deck) != 12:
+            return web.json_response({"error": "Salve primeiro um deck Gwent válido com 12 cartas."}, status=409)
+
+        import copy
+        import json
+        import random
+        from sistemas.gwent import AI_PLAYER_ID, DEFAULT_LEADERS, aplicar_jogada, novo_estado
+
+        saved = await self.db._one(
+            "SELECT faction,leader_id FROM cartas_gwent_decks WHERE user_id=?", (user_id,)
+        )
+        human_config = {
+            "faction": str(saved["faction"] or "") if saved else "",
+            "leader_id": str(saved["leader_id"] or "") if saved else "",
+        }
+        faction = human_config["faction"]
+        ai_config = {
+            "faction": faction,
+            # O modo treino é espelhado: mesma facção e líder evitam vantagem
+            # artificial de coleção; a IA recebe outra ordem de compra.
+            "leader_id": human_config["leader_id"] or DEFAULT_LEADERS.get(faction, ""),
+        }
+        ai_deck = copy.deepcopy(deck)
+
+        async with self.db.transaction() as tx:
+            active = await tx._one(
+                """SELECT COUNT(*) AS n FROM cartas_gwent_matches
+                   WHERE status IN ('active','pending') AND (creator_id=? OR opponent_id=?)""",
+                (user_id, user_id),
+            )
+            if int(active["n"] or 0) >= 3:
+                return web.json_response(
+                    {"error": "Você já possui três partidas ou convites em andamento."}, status=409
+                )
+
+            # Garante as duas referências exigidas pela FK da tabela de partidas.
+            # O registro negativo é uma identidade técnica reservada: nunca recebe
+            # ranking, XP, moeda ou recompensa competitiva.
+            await tx.conn.execute("INSERT OR IGNORE INTO users(user_id) VALUES (?)", (user_id,))
+            await tx.conn.execute("INSERT OR IGNORE INTO users(user_id) VALUES (?)", (AI_PLAYER_ID,))
+            cursor = await tx.conn.execute(
+                "INSERT INTO cartas_gwent_matches(creator_id,opponent_id,status,state_json) VALUES (?,?, 'active','{}')",
+                (user_id, AI_PLAYER_ID),
+            )
+            match_id = int(cursor.lastrowid)
+
+            random.Random((match_id << 16) ^ int(user_id)).shuffle(ai_deck)
+            decks = {str(user_id): copy.deepcopy(deck), str(AI_PLAYER_ID): ai_deck}
+            configs = {str(user_id): human_config, str(AI_PLAYER_ID): ai_config}
+            state = novo_estado(match_id, user_id, AI_PLAYER_ID, decks, configs)
+            state["is_ai_match"] = True
+            state["ai_difficulty"] = "normal"
+
+            # A NARA conclui a preparação antes do usuário. A troca inicial humana
+            # continua independente e a partida só entra em batalha após a escolha dele.
+            setup = aplicar_jogada(state, AI_PLAYER_ID, action="keep")
+            if "error" in setup:
+                raise RuntimeError(f"Falha ao preparar a NARA: {setup['error']}")
+            state = setup["state"]
+            await tx.conn.execute(
+                "UPDATE cartas_gwent_matches SET state_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (json.dumps(state, ensure_ascii=False), match_id),
+            )
+
+        return web.json_response({
+            "ok": True, "match_id": match_id, "status": "active",
+            "opponent": "NARA", "mode": "solo", "difficulty": "normal",
+            "rewards": False,
+        }, status=201)
 
     async def _api_gwent_match_respond(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
@@ -1369,7 +1449,9 @@ class NaraBot(commands.Bot):
         opponent_id = next((uid for uid in state["players"] if uid != str(user_id)), "")
         opponent = state["players"].get(opponent_id, {})
         guild = self.get_guild(int(getattr(config, "GUILD_ID", 0) or 0))
-        opponent_member = guild.get_member(int(opponent_id)) if guild and str(opponent_id).isdigit() else None
+        is_ai_match = bool(state.get("is_ai_match") or opponent_id == "-1")
+        opponent_member = guild.get_member(int(opponent_id)) if guild and str(opponent_id).isdigit() and not is_ai_match else None
+        opponent_name = "NARA · Adversária IA" if is_ai_match else (opponent_member.display_name if opponent_member else f"Jogador {opponent_id[-4:]}")
         from sistemas.gwent import LEADERS, opcoes_de_alvo
         leader_id = own.get("leader_id", "")
         # O histórico interno guarda score_a/score_b na ordem em que os jogadores
@@ -1392,6 +1474,7 @@ class NaraBot(commands.Bot):
             })
         public = {
             "match_id": match_id, "status": state["status"], "phase": state.get("phase", "battle"),
+            "is_ai_match": is_ai_match, "ai_difficulty": state.get("ai_difficulty", ""),
             "round": state["round"], "turn": state["turn"], "crowns": state["crowns"],
             "winner_id": state["winner_id"], "last_event": state["last_event"],
             "score": placar(state), "hand": own["hand"], "leader_used": own["leader_used"],
@@ -1406,7 +1489,7 @@ class NaraBot(commands.Bot):
             "leader_description": LEADERS.get(leader_id, {}).get("description", ""),
             "opponent": {
                 "id": opponent_id,
-                "name": opponent_member.display_name if opponent_member else f"Jogador {opponent_id[-4:]}",
+                "name": opponent_name,
                 "faction": opponent.get("faction", ""),
                 "leader_name": opponent.get("leader_name", "Líder"),
             },
@@ -1434,7 +1517,7 @@ class NaraBot(commands.Bot):
             if not match_row or user_id not in (int(match_row["creator_id"]), int(match_row["opponent_id"])):
                 return web.json_response({"error": "Partida não encontrada."}, status=404)
             state = json.loads(match_row["state_json"])
-            from sistemas.gwent import aplicar_jogada
+            from sistemas.gwent import AI_PLAYER_ID, aplicar_jogada, executar_turno_ia
             action = str(body.get("action", "play"))[:24]
             card_id = str(body.get("card_id", ""))[:120]
             target_row = str(body.get("row", ""))[:16]
@@ -1450,18 +1533,30 @@ class NaraBot(commands.Bot):
             if "error" in result:
                 return web.json_response({"error": result["error"]}, status=409)
             state = result["state"]
+            # Em partidas solo, a NARA responde no servidor antes de persistir o
+            # snapshot. O navegador nunca pode enviar ações em nome do jogador IA.
+            if state.get("is_ai_match") and state["status"] == "active" and str(state.get("turn")) == str(AI_PLAYER_ID):
+                try:
+                    state = executar_turno_ia(state, AI_PLAYER_ID)
+                except Exception:
+                    log.exception("Falha na jogada da IA Gwent da partida #%s.", match_id)
+                    fallback = aplicar_jogada(state, AI_PLAYER_ID, action="pass")
+                    if "error" not in fallback:
+                        state = fallback["state"]
+
             await tx.conn.execute(
                 "UPDATE cartas_gwent_matches SET status=?,state_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (state["status"], json.dumps(state, ensure_ascii=False), match_id),
             )
             try:
                 novo_turno = str(state.get("turn") or "")
-                if state["status"] == "active" and novo_turno and novo_turno != turno_antes and novo_turno != str(user_id):
+                if (not state.get("is_ai_match") and state["status"] == "active" and novo_turno
+                        and novo_turno != turno_antes and novo_turno != str(user_id)):
                     asyncio.get_running_loop().create_task(self._avisar_vez_gwent(match_id, int(novo_turno), user_id))
             except Exception:
                 log.debug("Falha ao agendar aviso de vez Gwent.", exc_info=True)
 
-            if state["status"] == "finished":
+            if state["status"] == "finished" and not state.get("is_ai_match"):
                 winner = state.get("winner_id")
                 participants = (int(match_row["creator_id"]), int(match_row["opponent_id"]))
                 for participant in participants:
