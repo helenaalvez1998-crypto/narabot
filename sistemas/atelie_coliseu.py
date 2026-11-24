@@ -29,16 +29,40 @@ those principles. Do not reproduce any existing GWENT card, Witcher character,
 recognizable costume, composition, creature design, location, heraldry, or
 individual artist's signature mannerisms.
 
-PAINTING LANGUAGE
-Create a hand-painted, high-end fantasy illustration with confident painterly
-brushwork and controlled realism. Render faces, hands, anatomy, fabric, leather,
-wood, iron, steel, bronze, stone, mud, water and weather with convincing weight
-and tactile surface character. Keep focal forms sharply readable while allowing
-secondary forms and distant scenery to resolve more softly. Use nuanced edges:
-crisp accents on the focal subject, lost edges in smoke, fog and shadow, and
-visible painterly transitions in atmosphere. Avoid the polished plastic finish
-of generic 3D renders, anime facial proportions, cel shading, comic outlines,
-chibi forms, glossy mobile-game aesthetics and excessive digital airbrushing.
+PAINTING LANGUAGE — HIGH REALISM, CONTROLLED BRUSHWORK
+Create a premium, realistic dark-fantasy illustration that looks observed from
+life and then carefully painted by a master concept artist. Realism takes
+priority over decorative stylization. Use natural human and animal proportions,
+credible anatomy, believable facial structure, anatomically correct hands,
+realistic eyes and restrained expressions. Skin must have subtle tonal variation,
+natural pores and age-appropriate texture; hair must form believable locks and
+masses rather than plastic strands. Cloth must show weave, seams, folds, tension
+and gravity. Leather must show grain, creases and worn edges. Metal must obey
+its material properties, with physically plausible reflections, scratches,
+oxidation, dents and edge wear. Wood, stone, bone, mud, water, smoke and fire
+must each have distinct, convincing physical texture and behavior.
+
+Use painterly brushwork as a finishing language, not as an excuse for vague
+forms: preserve accurate perspective, coherent anatomy, believable object scale,
+real contact shadows, grounded feet, correct weight distribution and consistent
+light direction. Render the focal subject with high material fidelity and clear
+form; let distant elements soften naturally through atmospheric perspective.
+Use nuanced edges and restrained detail. Avoid waxy skin, airbrushed faces,
+plastic armor, rubbery anatomy, over-sharpening, artificial HDR, excessive bloom,
+video-game CGI sheen, anime proportions, cel shading, comic outlines, chibi forms
+and ornamental effects that undermine physical credibility.
+
+REAL-WORLD PHYSICS AND CAMERA
+Every object must obey gravity, mass, balance and plausible construction. Armor
+must articulate at joints; straps must attach to something and carry tension;
+weapons must have credible grips, thickness, balance and scale. Cloth and hair
+must respond consistently to wind and movement. Water, rain, snow, ash, sparks
+and smoke must move according to the scene's forces. Use a coherent lens-like
+perspective, natural depth of field and cinematic exposure; avoid impossible
+wide-angle distortion unless the scene specifically requires it. Lighting must
+have a clear source, realistic falloff, believable bounce light and shadows that
+agree across the entire scene. The result should feel materially convincing,
+not like a glossy game render or a stylized poster.
 
 NARRATIVE FIRST — ONE FRAME, ONE STORY
 The illustration must communicate a specific instant with a before-and-after
@@ -124,7 +148,7 @@ DIRETRIZES_CATEGORIA = {
     "magia": (
         "SUBJECT DIRECTION — SPELL / MAGIC: depict a specific supernatural event with a "
         "visible source, direction of movement and physical consequence in the environment. "
-        "Use elegant anime-like energy trails and painterly light interaction. Avoid generic "
+        "Use restrained, physically integrated supernatural light and painterly interaction with nearby surfaces. Avoid generic "
         "glowing orb, random runes or floating symbols as the entire subject."
     ),
     "covenant": (
@@ -431,8 +455,10 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
     blocos.append(
         "ARTIST EXECUTION CHECKLIST: show one dominant subject and one readable story beat; specify visible anatomy, clothing, armor, weapon or artifact construction; "
         "make the environment reinforce the card's actual role; keep foreground, subject plane and background distinct; use motivated key light and restrained rim light; "
-        "keep face, hands, weapon and important silhouette inside safe margins. Every object must have a reason to be in the scene.\n\n"
-        "NEGATIVE CONSTRAINTS: no generic fantasy stock character, no random dragon/skull/castle unless the card data calls for it, no unrelated companions, no extra weapons, "
+        "keep face, hands, weapon and important silhouette inside safe margins. Every object must have a reason to be in the scene. "
+        "REALISM CHECK: verify believable anatomy, natural facial proportions, physically plausible materials, accurate perspective, grounded contact shadows, consistent lighting, "
+        "credible weight and construction, and atmospheric depth. Prefer fewer accurate details over many invented decorative details.\n\n"
+        "NEGATIVE CONSTRAINTS: no generic fantasy stock character, no random dragon/skull/castle unless the card data calls for it, no unrelated companions, no extra weapons, no exaggerated anatomy, no waxy skin, no plastic materials, no glossy CGI finish, no anime styling, "
         "no contradictory faction colors, no ability symbols that look like interface icons, no split panels, no collage, no illegible runes, no text, no logo, no watermark, "
         "no card frame, no card border, no title, no stats, no rarity gem and no UI.\n\n"
         "FINAL OUTPUT: original standalone landscape 5:4 illustration only. The NARABOT renderer adds its own frame, name, stats and ability separately; do not draw or simulate those elements. "
