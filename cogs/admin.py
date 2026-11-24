@@ -1272,8 +1272,9 @@ def _retorno_categoria_admin(bot, categoria: str, user_id: int):
         acoes_visiveis = [a for a in dados["acoes"] if is_admin or a[0] not in ACOES_SO_ADMIN]
         embed.add_field(name="Ferramentas disponíveis", value=f"{len(acoes_visiveis)} opção(ões) nesta área", inline=True)
         embed.set_footer(text="NARA • Use ‘Voltar ao início’ para trocar de categoria")
-        await interaction.response.edit_message(
-            embed=embed, view=AdminCategoriaView(bot, categoria, user_id, is_admin))
+        view = AdminCategoriaView(bot, categoria, user_id, is_admin)
+        view._admin_message = interaction.message
+        await interaction.response.edit_message(embed=embed, view=view)
     return voltar
 
 
@@ -1567,7 +1568,10 @@ class AdminAcaoButton(discord.ui.Button):
             estilo = discord.ButtonStyle.success
         else:
             estilo = discord.ButtonStyle.secondary
-        super().__init__(label=label, emoji=emoji, style=estilo, row=row)
+        super().__init__(
+            label=label, emoji=emoji, style=estilo, row=row,
+            custom_id=f"adm:cat:{int(user_id)}:{categoria}:{action}",
+        )
         self.action = action
         self.categoria = categoria
         self.user_id = user_id
@@ -1577,17 +1581,32 @@ class AdminAcaoButton(discord.ui.Button):
 
 
 class AdminVoltarButton(discord.ui.Button):
-    def __init__(self, bot):
-        super().__init__(label="Voltar ao início", emoji="🏠", style=discord.ButtonStyle.secondary, row=4)
+    def __init__(self, bot, categoria: str | None = None, user_id: int | None = None):
+        kwargs = {"row": 4}
+        if categoria is not None and user_id is not None:
+            kwargs["custom_id"] = f"adm:catback:{int(user_id)}:{categoria}"
+        super().__init__(
+            label="Voltar ao início", emoji="🏠", style=discord.ButtonStyle.secondary, **kwargs,
+        )
         self.bot = bot
+        self.categoria = categoria
+        self.user_id = int(user_id) if user_id is not None else None
 
     async def callback(self, interaction: discord.Interaction):
+        if self.user_id is not None and int(interaction.user.id) != self.user_id:
+            return await interaction.response.send_message(
+                "Este painel pertence a outra sessão administrativa.", ephemeral=True
+            )
+        if self.categoria in CATEGORIAS_SO_ADMIN and not await _eh_admin_painel(self.bot, interaction.user):
+            return await interaction.response.send_message(MSG_SO_ADMIN, ephemeral=True)
         await _mostrar_painel_principal(interaction, self.bot)
 
 
 class AdminCategoriaView(discord.ui.View):
     def __init__(self, bot, categoria: str, user_id: int, is_admin: bool = True):
-        super().__init__(timeout=600)
+        # Esta é uma view privada de sessão, não uma view global persistente.
+        # Prazo maior evita que uma sessão aberta fique inativa durante uma configuração longa.
+        super().__init__(timeout=1800)
         self.bot = bot
         self.categoria = categoria
         self.user_id = user_id
@@ -1606,7 +1625,7 @@ class AdminCategoriaView(discord.ui.View):
                     categoria=categoria, user_id=user_id,
                 )
             )
-        self.add_item(AdminVoltarButton(bot))
+        self.add_item(AdminVoltarButton(bot, categoria, user_id))
 
     async def on_timeout(self) -> None:
         for item in self.children:
@@ -1645,13 +1664,17 @@ class AdminCategoriaButton(discord.ui.Button):
     def __init__(self, bot, categoria: str, label: str, emoji: str, row: int, user_id: int | None = None):
         super().__init__(
             label=label, emoji=emoji, style=discord.ButtonStyle.primary, row=row,
-            custom_id=f"adm:categoria:{categoria}",
+            custom_id=f"adm:categoria:{int(user_id) if user_id is not None else 'global'}:{categoria}",
         )
         self.bot = bot
         self.categoria = categoria
         self.user_id = user_id
 
     async def callback(self, interaction: discord.Interaction):
+        if self.user_id is not None and int(interaction.user.id) != int(self.user_id):
+            return await interaction.response.send_message(
+                "Este painel pertence a outra sessão administrativa.", ephemeral=True
+            )
         admin = await _eh_admin_painel(self.bot, interaction.user)
         if self.categoria in CATEGORIAS_SO_ADMIN and not admin:
             return await interaction.response.send_message(MSG_SO_ADMIN, ephemeral=True)
@@ -2728,8 +2751,10 @@ class Admin(commands.Cog):
         self.bot = bot
 
     async def cog_load(self):
-        # Registre apenas views persistentes: timeout=None e custom_id em todos os itens.
-        self.bot.add_view(AdminMainView(self.bot))
+        # /adm cria um painel efêmero e vinculado ao usuário. Não registre uma
+        # AdminMainView global com os mesmos custom_id da view de sessão: isso cria
+        # uma rota de fallback que pode reapresentar o menu principal em vez da
+        # categoria atualmente aberta.
         self.bot.add_view(VoltarInicioView(self.bot))
         # ResetConfirmView usa timeout=60 e é criada quando a confirmação é aberta;
         # não deve ser registrada como view persistente durante a inicialização.
