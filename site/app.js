@@ -695,7 +695,7 @@ document.addEventListener('click', async event => {
 function showGwentPage() {
   document.querySelectorAll('.page').forEach(el => el.classList.toggle('show', el.id === 'gwent'));
 }
-async function loadPlayers() {
+async function loadGwentPlayers() {
   if (!currentUser) return;
   try {
     await fetch('/api/presence/heartbeat', {method:'POST', credentials:'same-origin'});
@@ -718,8 +718,8 @@ async function loadPlayers() {
 loadAccount().then(async () => {
   showGwentPage();
   if (!currentUser) return;
-  await Promise.all([loadGwentDeck(), loadGwentMatches(), loadPlayers(), loadDropHistory(), loadAtelier(), loadGwentStore()]);
-  window.setInterval(loadPlayers, 30000);
+  await Promise.all([loadGwentDeck(), loadGwentMatches(), loadGwentPlayers(), loadDropHistory(), loadAtelier(), loadGwentStore()]);
+  window.setInterval(loadGwentPlayers, 30000);
   gwentListPoll = window.setInterval(loadGwentMatches, 12000);
   const requested = new URLSearchParams(window.location.search).get('gwent');
   if (requested && /^\d+$/.test(requested)) openGwentMatch(requested);
@@ -780,7 +780,7 @@ async function loadRank(tipo = hubRank) {
     $('#rank-list').innerHTML = hubRows(t.length === 3 ? d.rows.slice(3) : d.rows, u);
   } catch (e) {}
 }
-async function loadPlayers() {
+async function loadCommunityPlayers() {
   try {
     const r = await fetch('/api/players', {credentials: 'same-origin', cache: 'no-store'});
     if (!r.ok) return;
@@ -801,9 +801,9 @@ async function naraAsk(q) {
 }
 $('#nara-form')?.addEventListener('submit', (e) => { e.preventDefault(); const i = $('#nara-input'), q = i.value.trim(); if (q) { i.value = ''; naraAsk(q); } });
 $('#rank-seg')?.addEventListener('click', (e) => { const b = e.target.closest('[data-rank]'); if (b) loadRank(b.dataset.rank); });
-$('#players-search')?.addEventListener('input', loadPlayers);
-document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="community"],[data-goto="community"]')) { loadRank(); loadPlayers(); } });
-loadHub(); setTimeout(() => { if (currentUser) { loadRank(); loadPlayers(); } }, 1200);
+$('#players-search')?.addEventListener('input', loadCommunityPlayers);
+document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="community"],[data-goto="community"]')) { loadRank(); loadCommunityPlayers(); } });
+loadHub(); setTimeout(() => { if (currentUser) { loadRank(); loadCommunityPlayers(); } }, 1200);
 setInterval(() => { if (!document.hidden && $('#tab-home')?.classList.contains('show')) loadHub(); }, 60000);
 
 // --- Personalização visual: tema + cor + emblema + frase (salvos no perfil). ---
