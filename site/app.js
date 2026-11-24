@@ -4,28 +4,94 @@ let currentUser = null;
 const text = (value, fallback = '—') => value === null || value === undefined || value === '' ? fallback : String(value);
 const number = (value) => new Intl.NumberFormat('pt-BR').format(Number(value || 0));
 // Manter sincronizado com VERSAO_ARTES em sistemas/cartas.py.
-const CARD_IMAGE_VERSION = 19;
+const CARD_IMAGE_VERSION = 20;
 const imageUrl = (card) => {
   const raw = card.image_url || `/api/gwent/cards/${encodeURIComponent(card.card_id || String(card.id || '').split('::')[0])}/image`;
   if (!raw.includes('/api/gwent/cards/')) return raw;
   const url = new URL(raw, window.location.origin);
   if (!url.searchParams.has('v')) url.searchParams.set('v', String(CARD_IMAGE_VERSION));
+  // Grade e deck usam miniaturas menores; remover thumb=1 permite pedir a original.
+  if (!url.searchParams.has('thumb')) url.searchParams.set('thumb', '1');
   return `${url.pathname}${url.search}`;
 };
+const cardImageMarkup = (card, alt = '') =>
+  `<img data-card-src="${escapeHTML(imageUrl(card))}" loading="lazy" decoding="async" alt="${escapeHTML(alt)}">`;
 const CARD_IMAGE_FALLBACK = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 620"><rect width="420" height="620" rx="20" fill="#17131c"/><rect x="18" y="18" width="384" height="584" rx="16" fill="none" stroke="#9b805a" stroke-width="4"/><path d="M210 190l55 55-55 55-55-55z" fill="none" stroke="#9b805a" stroke-width="8"/><text x="210" y="390" fill="#d8c6a6" font-family="sans-serif" font-size="22" text-anchor="middle">ARTE INDISPONÍVEL</text><text x="210" y="425" fill="#978a9b" font-family="sans-serif" font-size="16" text-anchor="middle">Tente recarregar a página</text></svg>')}`;
 const CARD_IMAGE_RETRY_DELAYS = [700, 1600];
+const CARD_IMAGE_MAX_ACTIVE = 4;
+const cardImageQueue = [];
+let cardImageActive = 0;
+function enqueueCardImage(image, source = image?.dataset.cardSrc) {
+  if (!(image instanceof HTMLImageElement) || !source || image.dataset.cardImageFallback === 'true') return;
+  if (image.dataset.cardImageQueued === 'true' || image.dataset.cardImageActive === 'true') return;
+  image.dataset.cardPendingSrc = source;
+  image.dataset.cardImageQueued = 'true';
+  cardImageQueue.push(image);
+  pumpCardImages();
+}
+function pumpCardImages() {
+  while (cardImageActive < CARD_IMAGE_MAX_ACTIVE && cardImageQueue.length) {
+    const image = cardImageQueue.shift();
+    if (!(image instanceof HTMLImageElement) || !image.isConnected) continue;
+    image.dataset.cardImageQueued = 'false';
+    image.dataset.cardImageActive = 'true';
+    cardImageActive += 1;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      image.dataset.cardImageActive = 'false';
+      cardImageActive = Math.max(0, cardImageActive - 1);
+      pumpCardImages();
+    };
+    image.addEventListener('load', finish, {once:true});
+    image.addEventListener('error', finish, {once:true});
+    image.src = image.dataset.cardPendingSrc || image.dataset.cardSrc;
+  }
+}
+let cardImageObserver = null;
+if ('IntersectionObserver' in window) {
+  cardImageObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      cardImageObserver.unobserve(entry.target);
+      enqueueCardImage(entry.target);
+    }
+  }, {rootMargin:'360px 0px', threshold:0.01});
+}
+function observeCardImages(root) {
+  if (!root) return;
+  const images = [];
+  if (root instanceof HTMLImageElement && root.hasAttribute('data-card-src')) images.push(root);
+  if (root.querySelectorAll) images.push(...root.querySelectorAll('img[data-card-src]'));
+  for (const image of images) {
+    if (image.dataset.cardImageObserved === 'true') continue;
+    image.dataset.cardImageObserved = 'true';
+    if (cardImageObserver) cardImageObserver.observe(image);
+    else enqueueCardImage(image);
+  }
+}
+// Observa conteúdo dinâmico: a galeria só inicia as quatro imagens mais próximas da tela.
+if (document.body && 'MutationObserver' in window) {
+  const cardMutationObserver = new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) {
+      if (node.nodeType === Node.ELEMENT_NODE) observeCardImages(node);
+    }
+  });
+  cardMutationObserver.observe(document.body, {childList:true, subtree:true});
+}
 document.addEventListener('error', (event) => {
   const image = event.target;
   if (!(image instanceof HTMLImageElement) || !image.src.includes('/api/gwent/cards/')) return;
   const attempts = Number(image.dataset.cardRetry || 0);
   if (attempts < CARD_IMAGE_RETRY_DELAYS.length) {
     image.dataset.cardRetry = String(attempts + 1);
-    const original = image.dataset.cardOriginalSrc || image.src;
+    const original = image.dataset.cardOriginalSrc || image.dataset.cardSrc || image.src;
     image.dataset.cardOriginalSrc = original;
     window.setTimeout(() => {
       const retryUrl = new URL(original, window.location.origin);
       retryUrl.searchParams.set('_retry', String(attempts + 1));
-      image.src = `${retryUrl.pathname}${retryUrl.search}`;
+      enqueueCardImage(image, `${retryUrl.pathname}${retryUrl.search}`);
     }, CARD_IMAGE_RETRY_DELAYS[attempts]);
     return;
   }
@@ -128,7 +194,7 @@ function renderGwentBuilder() {
   const specialCount = selected.filter(card => card.categoria === 'Especial').length;
   const unitCount = selected.length - specialCount;
   $('#gwent-deck-count').textContent = `${selected.length}/12 cartas · ${unitCount} unidades · ${specialCount} especiais`;
-  $('#gwent-deck-selected').innerHTML = selected.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" loading="lazy" decoding="async" alt=""><b>${escapeHTML(card.nome)}</b><small>Exemplar #${number(card.exemplar_id)} · ${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : `${card.faccao || card.tipo} · ${card.row_label || card.fileira || "Unidade"}`)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small>${card.exemplar_id && card.categoria !== 'Especial' && evolutionCost[card.raridade] ? `<button type="button" class="secondary" data-gwent-evolve="${escapeHTML(String(card.exemplar_id))}">Evoluir · ${evolutionCost[card.raridade]} fragmentos</button>` : ''}${card.exemplar_id && card.categoria !== 'Especial' && upgradeCost[card.raridade] && Number(card.poder) < Number(card.max_power) ? `<button type="button" class="secondary" data-gwent-upgrade="${escapeHTML(String(card.exemplar_id))}">Lapidar +1 · ${upgradeCost[card.raridade]} Almas</button>` : ''}<button type="button" data-gwent-remove="${escapeHTML(card.id)}">Remover</button></article>`).join('') || '<div class="empty-state">Selecione 12 cartas (unidades e especiais) da coleção.</div>';
+  $('#gwent-deck-selected').innerHTML = selected.map(card => `<article class="gwent-unit">${cardImageMarkup(card)}<b>${escapeHTML(card.nome)}</b><small>Exemplar #${number(card.exemplar_id)} · ${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : `${card.faccao || card.tipo} · ${card.row_label || card.fileira || "Unidade"}`)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small>${card.exemplar_id && card.categoria !== 'Especial' && evolutionCost[card.raridade] ? `<button type="button" class="secondary" data-gwent-evolve="${escapeHTML(String(card.exemplar_id))}">Evoluir · ${evolutionCost[card.raridade]} fragmentos</button>` : ''}${card.exemplar_id && card.categoria !== 'Especial' && upgradeCost[card.raridade] && Number(card.poder) < Number(card.max_power) ? `<button type="button" class="secondary" data-gwent-upgrade="${escapeHTML(String(card.exemplar_id))}">Lapidar +1 · ${upgradeCost[card.raridade]} Almas</button>` : ''}<button type="button" data-gwent-remove="${escapeHTML(card.id)}">Remover</button></article>`).join('') || '<div class="empty-state">Selecione 12 cartas (unidades e especiais) da coleção.</div>';
   const q = ($('#gwent-card-search').value || '').trim().toLocaleLowerCase('pt-BR');
   const selectedSet = new Set(selected.map(card => card.card_id || card.id));
   const factionFilter = $('#gwent-filter-faction')?.value || '';
@@ -137,7 +203,7 @@ function renderGwentBuilder() {
     && (!factionFilter || c.faccao === factionFilter)
     && (!rarityFilter || c.raridade === rarityFilter)
     && (`${c.nome} ${c.faccao} ${c.row_label || c.fileira} ${c.papel_gwent} ${c.categoria} ${c.habilidade}`.toLocaleLowerCase('pt-BR').includes(q)));
-  $('#gwent-card-pool').innerHTML = pool.map(card => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(card))}" loading="lazy" decoding="async" alt=""><b>${escapeHTML(card.nome)}</b><small>Exemplar #${number(card.exemplar_id)} · ${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : `${card.faccao || card.tipo} · ${card.row_label || card.fileira || "Unidade"}`)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-add="${escapeHTML(card.id)}" ${gwentDeckIds.length >= 12 ? 'disabled' : ''}>Adicionar</button>${card.exemplar_id && card.categoria !== 'Especial' && evolutionCost[card.raridade] ? `<button type="button" class="secondary" data-gwent-evolve="${escapeHTML(String(card.exemplar_id))}">Evoluir · ${evolutionCost[card.raridade]} fragmentos</button>` : ''}${card.exemplar_id && card.categoria !== 'Especial' && upgradeCost[card.raridade] && Number(card.poder) < Number(card.max_power) ? `<button type="button" class="secondary" data-gwent-upgrade="${escapeHTML(String(card.exemplar_id))}">Lapidar +1 · ${upgradeCost[card.raridade]} Almas</button>` : ''}</article>`).join('') || '<div class="empty-state">Nenhuma unidade disponível.</div>';
+  $('#gwent-card-pool').innerHTML = pool.map(card => `<article class="gwent-unit">${cardImageMarkup(card)}<b>${escapeHTML(card.nome)}</b><small>Exemplar #${number(card.exemplar_id)} · ${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : `${card.faccao || card.tipo} · ${card.row_label || card.fileira || "Unidade"}`)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-add="${escapeHTML(card.id)}" ${gwentDeckIds.length >= 12 ? 'disabled' : ''}>Adicionar</button>${card.exemplar_id && card.categoria !== 'Especial' && evolutionCost[card.raridade] ? `<button type="button" class="secondary" data-gwent-evolve="${escapeHTML(String(card.exemplar_id))}">Evoluir · ${evolutionCost[card.raridade]} fragmentos</button>` : ''}${card.exemplar_id && card.categoria !== 'Especial' && upgradeCost[card.raridade] && Number(card.poder) < Number(card.max_power) ? `<button type="button" class="secondary" data-gwent-upgrade="${escapeHTML(String(card.exemplar_id))}">Lapidar +1 · ${upgradeCost[card.raridade]} Almas</button>` : ''}</article>`).join('') || '<div class="empty-state">Nenhuma unidade disponível.</div>';
   const configChanged = ($('#gwent-faction')?.value || 'Ordem de Ferro') !== gwentSavedFaction
     || ($('#gwent-leader')?.value || 'comandante_fornalha') !== gwentSavedLeader;
   $('#gwent-save-deck').disabled = selected.length !== 12 || unitCount < 8 || specialCount > 4
@@ -406,7 +472,7 @@ async function createGwentMatch() {
 }
 
 function gwentCardView(card) {
-  return `<article class="gwent-board-card"><img src="${escapeHTML(imageUrl(card))}" loading="lazy" decoding="async" alt=""><b>${escapeHTML(card.nome)}</b><small>${number(Number(card.poder) + Number(card.bonus || 0))} poder · ${escapeHTML(card.row_label)}</small>${Number(card.escudo || 0) > 0 ? '<span class="gwent-shield" title="Escudo: ignora a primeira remoção sofrida.">Escudo</span>' : ''}</article>`;
+  return `<article class="gwent-board-card">${cardImageMarkup(card)}<b>${escapeHTML(card.nome)}</b><small>${number(Number(card.poder) + Number(card.bonus || 0))} poder · ${escapeHTML(card.row_label)}</small>${Number(card.escudo || 0) > 0 ? '<span class="gwent-shield" title="Escudo: ignora a primeira remoção sofrida.">Escudo</span>' : ''}</article>`;
 }
 
 let gwentAlvos = {};
@@ -462,7 +528,7 @@ function renderGwentArena(data) {
     <div class="gwent-score"><article><small>VOCÊ</small><h3>${number(mine.score)} poder</h3><small>${number(mine.crowns)} coroas · ${number(mine.hand)} cartas na mão ${mine.passed ? '· passou' : ''}</small></article><article><small>${escapeHTML(opponentName)}</small><h3>${number(theirs.score)} poder</h3><small>${number(theirs.crowns)} coroas · ${number(theirs.hand)} cartas na mão ${theirs.passed ? '· passou' : ''}</small></article></div>
     <h3>Seu campo</h3>${board(mine)}<h3>Campo adversário</h3>${board(theirs)}
     <div class="gwent-actions"><button class="secondary" data-gwent-pass ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>Passar rodada</button><select id="gwent-leader-row"><option value="melee">Fileira: Corpo a corpo</option><option value="ranged">Fileira: Longa distância</option><option value="siege">Fileira: Cerco</option></select><button class="secondary" data-gwent-leader ${!data.is_your_turn || data.leader_used || data.status !== 'active' || prep ? 'disabled' : ''}>Usar líder</button><button class="secondary" data-gwent-weather ${!data.is_your_turn || data.weather_used || data.status !== 'active' || prep ? 'disabled' : ''}>Clima</button><button class="danger" data-gwent-surrender ${data.status !== 'active' ? 'disabled' : ''}>Desistir da partida</button></div>
-    ${eventPanel}<h3>Sua mão</h3><div class="gwent-hand">${(data.hand || []).map(c => `<article class="gwent-unit"><img src="${escapeHTML(imageUrl(c))}" alt=""><b>${escapeHTML(c.nome)}</b><small>${c.especial ? 'Carta especial' : `${number(c.poder)} poder · ${escapeHTML(c.row_label)}`}</small><small title="${escapeHTML(c.habilidade_texto || '')}">${escapeHTML(c.habilidade_nome || 'Unidade')} · ${escapeHTML(c.habilidade_texto || 'Sem efeito adicional')}</small>${prep ? `<label><input type="checkbox" data-gwent-swap value="${escapeHTML(c.id)}" ${data.mulligan_done || !data.is_your_turn || !(data.draw_count > 0) ? 'disabled' : ''}> Trocar</label>` : `<select data-gwent-row="${escapeHTML(c.id)}"><option value="${c.row}">${escapeHTML(c.row_label)}</option>${gwentRows.filter(([r])=>r!==c.row).map(([r,l])=>`<option value="${r}">${l}</option>`).join('')}</select><button data-gwent-play="${escapeHTML(c.id)}" ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>${c.especial ? 'Usar especial' : 'Jogar unidade'}</button>`}</article>`).join('') || '<div class="empty-state">Sua mão está vazia.</div>'}</div>`;
+    ${eventPanel}<h3>Sua mão</h3><div class="gwent-hand">${(data.hand || []).map(c => `<article class="gwent-unit">${cardImageMarkup(c)}<b>${escapeHTML(c.nome)}</b><small>${c.especial ? 'Carta especial' : `${number(c.poder)} poder · ${escapeHTML(c.row_label)}`}</small><small title="${escapeHTML(c.habilidade_texto || '')}">${escapeHTML(c.habilidade_nome || 'Unidade')} · ${escapeHTML(c.habilidade_texto || 'Sem efeito adicional')}</small>${prep ? `<label><input type="checkbox" data-gwent-swap value="${escapeHTML(c.id)}" ${data.mulligan_done || !data.is_your_turn || !(data.draw_count > 0) ? 'disabled' : ''}> Trocar</label>` : `<select data-gwent-row="${escapeHTML(c.id)}"><option value="${c.row}">${escapeHTML(c.row_label)}</option>${gwentRows.filter(([r])=>r!==c.row).map(([r,l])=>`<option value="${r}">${l}</option>`).join('')}</select><button data-gwent-play="${escapeHTML(c.id)}" ${!data.is_your_turn || mine.passed || data.status !== 'active' || prep ? 'disabled' : ''}>${c.especial ? 'Usar especial' : 'Jogar unidade'}</button>`}</article>`).join('') || '<div class="empty-state">Sua mão está vazia.</div>'}</div>`;
 }
 
 async function refreshGwentMatch() {
