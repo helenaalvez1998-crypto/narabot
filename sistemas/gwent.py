@@ -506,6 +506,48 @@ def _resolve_round(state: dict) -> None:
     state["last_event"] += " Nova rodada: as cartas restantes continuam na mão."
 
 
+
+def _auto_pass_empty_hands(state: dict) -> None:
+    """Marca automaticamente como passados os jogadores sem cartas na mão.
+
+    Se ambos ficarem sem cartas (ou já tiverem passado), resolve a rodada.
+    Também avança o turno para o único jogador que ainda pode jogar.
+    """
+    while state.get("status") == "active" and state.get("phase", "battle") == "battle":
+        players = state.get("players", {})
+        if not players:
+            return
+
+        newly_passed = []
+        for uid, side in players.items():
+            if not side.get("hand") and not side.get("passed", False):
+                side["passed"] = True
+                newly_passed.append(str(uid))
+
+        if newly_passed:
+            message = "Sem cartas na mão: passagem automática de " + ", ".join(
+                f"jogador {uid}" for uid in newly_passed
+            ) + "."
+            state["last_event"] = message
+            history = state.setdefault("event_log", [])
+            if not history or history[-1] != message:
+                history.append(message[:500])
+                state["event_log"] = history[-20:]
+
+        if all(side.get("passed", False) for side in players.values()):
+            _resolve_round(state)
+            if state.get("status") != "active":
+                return
+            # Uma nova rodada pode começar com a mão vazia; nesse caso
+            # o passe também é automático, sem exigir uma ação inexistente.
+            continue
+
+        active_id = next((uid for uid, side in players.items() if not side.get("passed", False)), None)
+        turn_id = str(state.get("turn") or "")
+        if active_id is not None and (turn_id not in players or players[turn_id].get("passed", False)):
+            state["turn"] = active_id
+        return
+
 def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
                     action: str = "play", row: str | None = None,
                     card_ids: list[str] | None = None,
@@ -572,6 +614,7 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             state["phase"] = "battle"
             state["turn"] = list(state["players"])[0]
             state["last_event"] = "Preparação concluída. A batalha começou."
+            _auto_pass_empty_hands(state)
         else:
             state["turn"] = other
             state["last_event"] = "Preparação concluída por um jogador. Aguardando o adversário."
@@ -582,13 +625,18 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
     other_id = next(x for x in state["players"] if x != uid)
     other = state["players"][other_id]
 
+    # Compatibilidade com partidas salvas antes da regra de passe automático.
+    if not player.get("hand") and action != "pass":
+        state["turn"] = other_id
+        state["last_event"] = "Você está sem cartas na mão e passou automaticamente."
+        _auto_pass_empty_hands(state)
+        return _registrar_evento(state)
+
     if action == "pass":
         player["passed"] = True
-        if other["passed"]:
-            _resolve_round(state)
-        else:
-            state["turn"] = other_id
-            state["last_event"] = "Jogador passou. O adversário ainda pode jogar."
+        state["turn"] = other_id
+        state["last_event"] = "Jogador passou. O adversário ainda pode jogar."
+        _auto_pass_empty_hands(state)
         return _registrar_evento(state)
 
     if action == "leader":
@@ -894,6 +942,8 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         state["turn"] = other_id
     elif state["status"] == "active" and other["passed"]:
         state["turn"] = uid
+    if state["status"] == "active":
+        _auto_pass_empty_hands(state)
     return _registrar_evento(state)
 
 
