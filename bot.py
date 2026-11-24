@@ -582,6 +582,8 @@ class NaraBot(commands.Bot):
         self._tarefa_anuncios: asyncio.Task | None = None
         self._web_runner: web.AppRunner | None = None
         self._web_presence: dict[int, float] = {}
+        self._web_players_cache: dict[int, tuple[float, list[Any]]] = {}
+        self._web_players_locks: dict[int, asyncio.Lock] = {}
         self._gwent_bootstrapped: set[int] = set()
         self._gwent_bootstrap_locks: dict[int, asyncio.Lock] = {}
         # Os PNGs são persistidos em disco e enviados por FileResponse; manter cópias
@@ -948,7 +950,7 @@ class NaraBot(commands.Bot):
         return web.json_response({"ok": True, "expires_in": 75})
 
     async def _api_players(self, request: web.Request) -> web.Response:
-        """Lista membros humanos do servidor configurado e combina presença Discord/site."""
+        """Lista todos os membros humanos do servidor, sem depender apenas do cache do Gateway."""
         user_id = self._api_user_id(request)
         if user_id is None:
             return web.json_response({"error": "Autenticação necessária."}, status=401)
@@ -959,31 +961,65 @@ class NaraBot(commands.Bot):
         guild = self.get_guild(guild_id) if guild_id else None
         if guild is None:
             return web.json_response({"error": "Servidor do NARABOT indisponível."}, status=503)
-        # A lista baseada apenas em guild.members pode ficar incompleta quando
-        # o cache do Discord ainda não recebeu todos os membros (ou após reinício).
-        # Atualiza o cache pela API antes de montar a lista exibida no site.
-        try:
-            async for _member in guild.fetch_members(limit=None):
-                pass
-        except Exception:
-            # Mantém a lista em cache como fallback se o Discord estiver indisponível.
-            pass
 
         now = time.time()
+        cache_entry = self._web_players_cache.get(guild.id)
+        members = cache_entry[1] if cache_entry and now - cache_entry[0] < 60 else None
+
+        if members is None:
+            lock = self._web_players_locks.setdefault(guild.id, asyncio.Lock())
+            async with lock:
+                now = time.time()
+                cache_entry = self._web_players_cache.get(guild.id)
+                members = cache_entry[1] if cache_entry and now - cache_entry[0] < 60 else None
+                if members is None:
+                    try:
+                        # Busca paginada na API do Discord. guild.members sozinho pode
+                        # conter apenas o cache parcial recebido pelo Gateway.
+                        members = [member async for member in guild.fetch_members(limit=None)]
+                        self._web_players_cache[guild.id] = (time.time(), members)
+                        log.info(
+                            "Gwent jogadores: %s membros carregados da API do Discord (guild=%s).",
+                            len(members), guild.id,
+                        )
+                    except Exception as exc:
+                        log.exception("Falha ao buscar membros do Discord para a lista de jogadores.")
+                        members = list(guild.members)
+                        if not members:
+                            return web.json_response({
+                                "error": (
+                                    "Não foi possível carregar os membros do Discord. "
+                                    "Verifique se a intenção privilegiada 'Server Members Intent' "
+                                    "está ativada no Discord Developer Portal e no bot."
+                                )
+                            }, status=503)
+                        log.warning(
+                            "Lista de jogadores usando cache parcial do Gateway: %s membros (%s).",
+                            len(members), type(exc).__name__,
+                        )
+                        self._web_players_cache[guild.id] = (time.time(), members)
+
         # Heartbeats expirados não são tratados como usuários online no site.
-        self._web_presence = {uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75}
+        self._web_presence = {
+            uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75
+        }
         players = []
-        for member in guild.members:
+        for member in members:
             if member.bot:
                 continue
             status = str(member.status)
             players.append({
-                "id": str(member.id), "name": member.display_name,
+                "id": str(member.id),
+                "name": member.display_name,
                 "discord_presence": status,
                 "web_online": member.id in self._web_presence,
                 "is_self": member.id == user_id,
             })
-        players.sort(key=lambda item: (not item["web_online"], item["discord_presence"] == "offline", item["name"].casefold()))
+        players.sort(key=lambda item: (
+            not item["web_online"],
+            item["discord_presence"] == "offline",
+            item["name"].casefold(),
+        ))
         return web.json_response({"players": players, "server": guild.name})
 
     async def _api_gwent_deck(self, request: web.Request) -> web.Response:
