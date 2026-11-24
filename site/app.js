@@ -756,14 +756,14 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
   }
   const setKind = (k) => {
     kind = k; document.querySelectorAll('#cat-seg button').forEach(b => b.classList.toggle('on', b.dataset.kind === k));
-    $('#cs-plat-l').hidden = k !== 'ports'; $('#cs-tutorial-l').hidden = k !== 'ports'; $('#cs-name').placeholder = k === 'ports' ? 'Nome do port' : 'Nome do mod'; loadCatalog();
+    $('#cs-plat-l').hidden = k !== 'ports'; $('#cs-name').placeholder = k === 'ports' ? 'Nome do port' : 'Nome do mod'; loadCatalog();
   };
   document.querySelectorAll('#cat-seg button').forEach(b => b.addEventListener('click', () => setKind(b.dataset.kind)));
   $('#cat-search').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(loadCatalog, 300); });
   document.addEventListener('click', (e) => { if (e.target.closest('[data-tab="catalog"],[data-goto="catalog"]')) loadCatalog(); });
   $('#cs-send').addEventListener('click', async (ev) => {
     const btn = ev.currentTarget, v = (id) => $(id).value.trim();
-    const body = {game: v('#cs-game'), name: v('#cs-name'), link: v('#cs-link'), tutorial: v('#cs-tutorial'), description: v('#cs-desc'), platform: v('#cs-plat') || 'Outra'};
+    const body = {game: v('#cs-game'), name: v('#cs-name'), link: v('#cs-link'), description: v('#cs-desc'), platform: v('#cs-plat') || 'Outra'};
     if (!body.game || !body.name || !/^https?:\/\//i.test(body.link)) return showNotice('Preencha jogo, nome e um link http/https válido.', 'error');
     btn.disabled = true;
     try {
@@ -772,7 +772,7 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
       if (r.status === 401) return showNotice('Entre com sua conta Discord para sugerir itens.', 'error');
       if (!r.ok) return showNotice(d.error || 'Não foi possível enviar.', 'error');
       showNotice('Sugestão enviada! Ela aparece no catálogo após a aprovação da moderação.', 'success');
-      ['#cs-game', '#cs-name', '#cs-link', '#cs-tutorial', '#cs-desc', '#cs-plat'].forEach(i => $(i).value = '');
+      ['#cs-game', '#cs-name', '#cs-link', '#cs-desc', '#cs-plat'].forEach(i => $(i).value = '');
       $('#cat-suggest').open = false;
     } catch (e) { showNotice('Erro de conexão. Tente novamente.', 'error'); } finally { btn.disabled = false; }
   });
@@ -1001,28 +1001,6 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
     const badges = got.map(([ic, t, h, ok]) => `<div class="sx-badge2 ${ok ? 'ok' : ''}" tabindex="0"><div class="hex"><span>${ok ? ic : '🔒'}</span></div><b>${E(t)}</b><small>${ok ? 'Conquistada' : E(h)}</small></div>`).join('');
     const hon = Object.entries(HON).map(([k, [i, l]]) => { const c = (d.honors || {})[k] || 0; return `<button class="pt-honor sx-altar" data-k="${k}" ${own ? 'disabled' : ''} type="button">${flameHTML(c)}<span class="sx-ic">${i}</span><b>${c}</b><small>${l}</small></button>`; }).join('');
     const lk = Object.entries(links).filter(([, v]) => /^https?:\/\//.test(v)).map(([k, v]) => `<a class="sx-portal" href="${E(v)}" target="_blank" rel="noopener noreferrer">${E(k)} <span>↗</span></a>`).join('');
-    const history = d.games || {};
-    const recordCard = (g, type) => {
-      const title = type === 'run' ? (g.challenge || 'Run Soulslike') : (g.game || 'Jogo');
-      const meta = [g.platform, g.date ? fdate(g.date) : '', g.rating ? `Nota ${g.rating}/10` : ''].filter(Boolean).join(' · ');
-      const extra = type === 'run' ? [g.build, g.seconds ? `${Math.floor(g.seconds / 3600)}h ${Math.floor((g.seconds % 3600) / 60)}min` : ''].filter(Boolean).join(' · ') : (g.comment || '');
-      return `<article class="cat-card"><div class="cat-body"><small class="cat-game">${type === 'zerado' ? 'JOGO ZERADO' : type === 'platina' ? 'PLATINA' : 'RUN SOULSLIKE'}</small><h4>${E(title)}</h4><p>${E(meta || 'Registro aprovado')}${extra ? `<br>${E(extra)}` : ''}</p></div></article>`;
-    };
-    const historyCards = [
-      ...(history.zerados || []).map(g => recordCard(g, 'zerado')),
-      ...(history.platinas || []).map(g => recordCard(g, 'platina')),
-      ...(history.runs || []).map(g => recordCard(g, 'run'))
-    ].join('') || '<div class="cat-empty"><b>Nenhuma conquista registrada</b><p class="muted">Os jogos zerados, platinas e desafios aprovados no Discord aparecerão aqui.</p></div>';
-    const proofs = (d.gallery || []).map((proof, index) => {
-      const url = /^https?:\/\//i.test(proof.url || '') ? proof.url : '';
-      if (!url) return '';
-      const media = String(proof.media_type || '').toLowerCase();
-      const isVideo = media.startsWith('video/') || /\.(mp4|webm|mov)(\?|$)/i.test(url);
-      const preview = isVideo
-        ? '<div class="cat-img"><span>▶</span><em class="cat-tag">VÍDEO</em></div>'
-        : `<div class="cat-img" style="background-image:url('${E(url)}')"><em class="cat-tag">COMPROVANTE</em></div>`;
-      return `<article class="cat-card"><a href="${E(url)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir comprovante ${index + 1}">${preview}</a><div class="cat-body"><small class="cat-game">${E(proof.category || 'Comprovante')}</small><h4>${E(proof.game || 'Conquista')}</h4><div class="cat-actions"><a class="secondary linkbtn" href="${E(url)}" target="_blank" rel="noopener noreferrer">${isVideo ? 'Assistir' : 'Ampliar'}</a></div></div></article>`;
-    }).filter(Boolean).join('') || '<div class="cat-empty"><b>Galeria vazia</b><p class="muted">Os comprovantes enviados pelo Discord ou pelo site aparecerão aqui após a aprovação.</p></div>';
     const msgs = (d.messages || []).map(m => `<div class="pt-msg sx-offer"><i class="sx-candle"></i><div class="sx-oh"><b>${E(nameOf(m.author_id))}</b><small>${fdate(m.created_at)}</small></div><p>${E(m.message)}</p>${own ? `<button class="text-btn" data-del="${m.id}" type="button">apagar</button>` : ''}</div>`).join('') || '<p class="muted sx-none">Nenhuma oferenda ainda. As velas aguardam o primeiro visitante.</p>';
     const card = `🏛️ **Santuário de ${nm}** — ${rk.cur[2]} ${rk.cur[1]}\n🏆 ${num.platinas} platinas · 🎯 ${num.zerados} zerados · ⚔ ${num.runs} runs${s.media_nota != null ? ` · ⭐ ${num.media_nota.toFixed(1)}` : ''}\n🎖 ${got.filter(g => g[3]).length}/${got.length} insígnias${p.fav_game ? ` · 🎮 ${p.fav_game}` : ''}\n> ${p.tagline || 'Entre no meu santuário!'}\n${location.origin}${location.pathname}`;
     return sel + `<div class="sx pt-th-${E(p.theme || 'Ouro')}">
@@ -1042,8 +1020,6 @@ $('#vis-open')?.addEventListener('click', () => { visPanel().hidden = false; });
       </div>
     </section>
     <div class="sx-rv">${sxTitle('Runas de Conquista')}<div class="sx-runes">${runes}</div></div>
-    <div class="sx-rv">${sxTitle('Crônicas do Guerreiro')}<div class="cat-grid">${historyCards}</div></div>
-    <div class="sx-rv">${sxTitle('Galeria de Comprovantes')}<div class="cat-grid">${proofs}</div></div>
     <div class="sx-rv">${sxTitle('Salão de Insígnias')}<div class="sx-badges">${badges}</div></div>
     <div class="sx-rv">${sxTitle('Altares de Honra')}<div class="sx-altars pt-honors">${hon}</div>${own ? '' : '<small class="muted sx-hint">Acenda uma chama: você pode honrar este jogador uma vez por semana.</small>'}</div>
     <div class="sx-rv">${sxTitle('Inscrições')}<div class="sx-tablet"><p class="sx-bio">${E(p.bio || 'Nenhuma inscrição foi gravada nesta pedra.')}</p>${lk ? `<div class="sx-portals">${lk}</div>` : ''}</div></div>
