@@ -582,8 +582,6 @@ class NaraBot(commands.Bot):
         self._tarefa_anuncios: asyncio.Task | None = None
         self._web_runner: web.AppRunner | None = None
         self._web_presence: dict[int, float] = {}
-        self._web_players_cache: dict[int, tuple[float, list[Any]]] = {}
-        self._web_players_locks: dict[int, asyncio.Lock] = {}
         self._gwent_bootstrapped: set[int] = set()
         self._gwent_bootstrap_locks: dict[int, asyncio.Lock] = {}
         # Os PNGs são persistidos em disco e enviados por FileResponse; manter cópias
@@ -950,7 +948,7 @@ class NaraBot(commands.Bot):
         return web.json_response({"ok": True, "expires_in": 75})
 
     async def _api_players(self, request: web.Request) -> web.Response:
-        """Lista todos os membros humanos do servidor, sem depender apenas do cache do Gateway."""
+        """Lista membros humanos do servidor configurado e combina presença Discord/site."""
         user_id = self._api_user_id(request)
         if user_id is None:
             return web.json_response({"error": "Autenticação necessária."}, status=401)
@@ -961,65 +959,21 @@ class NaraBot(commands.Bot):
         guild = self.get_guild(guild_id) if guild_id else None
         if guild is None:
             return web.json_response({"error": "Servidor do NARABOT indisponível."}, status=503)
-
         now = time.time()
-        cache_entry = self._web_players_cache.get(guild.id)
-        members = cache_entry[1] if cache_entry and now - cache_entry[0] < 60 else None
-
-        if members is None:
-            lock = self._web_players_locks.setdefault(guild.id, asyncio.Lock())
-            async with lock:
-                now = time.time()
-                cache_entry = self._web_players_cache.get(guild.id)
-                members = cache_entry[1] if cache_entry and now - cache_entry[0] < 60 else None
-                if members is None:
-                    try:
-                        # Busca paginada na API do Discord. guild.members sozinho pode
-                        # conter apenas o cache parcial recebido pelo Gateway.
-                        members = [member async for member in guild.fetch_members(limit=None)]
-                        self._web_players_cache[guild.id] = (time.time(), members)
-                        log.info(
-                            "Gwent jogadores: %s membros carregados da API do Discord (guild=%s).",
-                            len(members), guild.id,
-                        )
-                    except Exception as exc:
-                        log.exception("Falha ao buscar membros do Discord para a lista de jogadores.")
-                        members = list(guild.members)
-                        if not members:
-                            return web.json_response({
-                                "error": (
-                                    "Não foi possível carregar os membros do Discord. "
-                                    "Verifique se a intenção privilegiada 'Server Members Intent' "
-                                    "está ativada no Discord Developer Portal e no bot."
-                                )
-                            }, status=503)
-                        log.warning(
-                            "Lista de jogadores usando cache parcial do Gateway: %s membros (%s).",
-                            len(members), type(exc).__name__,
-                        )
-                        self._web_players_cache[guild.id] = (time.time(), members)
-
         # Heartbeats expirados não são tratados como usuários online no site.
-        self._web_presence = {
-            uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75
-        }
+        self._web_presence = {uid: stamp for uid, stamp in self._web_presence.items() if now - stamp <= 75}
         players = []
-        for member in members:
+        for member in guild.members:
             if member.bot:
                 continue
             status = str(member.status)
             players.append({
-                "id": str(member.id),
-                "name": member.display_name,
+                "id": str(member.id), "name": member.display_name,
                 "discord_presence": status,
                 "web_online": member.id in self._web_presence,
                 "is_self": member.id == user_id,
             })
-        players.sort(key=lambda item: (
-            not item["web_online"],
-            item["discord_presence"] == "offline",
-            item["name"].casefold(),
-        ))
+        players.sort(key=lambda item: (not item["web_online"], item["discord_presence"] == "offline", item["name"].casefold()))
         return web.json_response({"players": players, "server": guild.name})
 
     async def _api_gwent_deck(self, request: web.Request) -> web.Response:
@@ -1418,6 +1372,24 @@ class NaraBot(commands.Bot):
         opponent_member = guild.get_member(int(opponent_id)) if guild and str(opponent_id).isdigit() else None
         from sistemas.gwent import LEADERS, opcoes_de_alvo
         leader_id = own.get("leader_id", "")
+        # O histórico interno guarda score_a/score_b na ordem em que os jogadores
+        # foram inseridos (criador, desafiante). Convertemos para a perspectiva
+        # do usuário para a UI mostrar corretamente vitória/derrota/empate.
+        player_order = list(state.get("players", {}).keys())
+        round_history = []
+        for item in state.get("rounds", []):
+            score_by_player = {}
+            if len(player_order) >= 2:
+                score_by_player[player_order[0]] = int(item.get("score_a", 0))
+                score_by_player[player_order[1]] = int(item.get("score_b", 0))
+            round_winner = str(item.get("winner_id")) if item.get("winner_id") is not None else None
+            round_history.append({
+                "round": int(item.get("round", 0)),
+                "your_score": score_by_player.get(str(user_id), 0),
+                "opponent_score": score_by_player.get(opponent_id, 0),
+                "winner_id": round_winner,
+                "result": "draw" if round_winner is None else ("win" if round_winner == str(user_id) else "loss"),
+            })
         public = {
             "match_id": match_id, "status": state["status"], "phase": state.get("phase", "battle"),
             "round": state["round"], "turn": state["turn"], "crowns": state["crowns"],
@@ -1426,7 +1398,7 @@ class NaraBot(commands.Bot):
             "alvos": opcoes_de_alvo(state, user_id),
             "weather_used": own.get("weather_used", False), "weather": state.get("weather", {}),
             "is_your_turn": state["turn"] == str(user_id), "your_id": str(user_id),
-            "rounds": state["rounds"], "mulligan_done": own.get("mulligan_done", True),
+            "rounds": round_history, "mulligan_done": own.get("mulligan_done", True),
             "discard_count": len(own.get("discard", [])), "draw_count": len(own.get("draw_pile", [])),
             "faction": own.get("faction", ""),
             "leader_id": leader_id,
