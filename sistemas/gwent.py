@@ -544,7 +544,9 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         state["last_event"] = f"Jogador {uid} se rendeu. Vitória de {opponent_id}."
         return _registrar_evento(state)
 
-    if state["turn"] != uid:
+    # A preparação inicial é simultânea: cada jogador deve poder escolher
+    # suas trocas independentemente de quem inicia a batalha.
+    if state.get("phase") != "mulligan" and state["turn"] != uid:
         return {"error": "Aguarde a jogada do adversário."}
 
     if state.get("phase") == "mulligan":
@@ -895,7 +897,6 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
     return _registrar_evento(state)
 
 
-# Recompensas competitivas usadas pelo endpoint de conclusão de partidas.
 def calcular_delta_mmr(rating_a: int, rating_b: int, resultado_a: float, k_factor: int = 32) -> int:
     """Calcula a variação Elo do jogador A; o jogador B recebe o valor oposto."""
     rating_a = max(0, int(rating_a))
