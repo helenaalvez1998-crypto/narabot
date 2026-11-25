@@ -124,7 +124,6 @@ class Carta:
     tipo: str
     poder: int
     raridade: str
-    custo: int
     habilidade: str
     descricao: str = ""
     jogo_origem: str = ""
@@ -298,7 +297,7 @@ def carta_jogo(nome_jogo: str, marco: str) -> Carta:
     titulo = nomes[tipo][(n // 13) % len(nomes[tipo])] + " " + epitetos[(n // 19) % len(epitetos)]
     return Carta(
         id=f"jogo_{slug}_{marco}", nome=titulo[:95], categoria="Chefe", tipo=tipo,
-        poder=int(poder), raridade=raridade, custo=CUSTO_RARIDADE[raridade],
+        poder=int(poder), raridade=raridade,
         habilidade=habilidade,
         descricao=("Recompensa de domínio: unidade de elite do Gwent." if marco == "platina"
                    else "Recompensa de conquista: unidade veterana do Gwent."),
@@ -330,7 +329,6 @@ def carta_patente(indice: int, nivel_minimo: int, nome_patente: str) -> Carta:
         tipo=tipo,
         poder=int(poder),
         raridade=raridade,
-        custo=CUSTO_RARIDADE[raridade],
         habilidade=habilidade,
         descricao=f"Recompensa de progressão do Gwent — nível {nivel_minimo}.",
     )
