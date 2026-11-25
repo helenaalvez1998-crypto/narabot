@@ -247,7 +247,7 @@ class PainelJogoView(discord.ui.View):
             url=f"{base_url}/forja", row=1,
         ))
         self.add_item(discord.ui.Button(
-            label="Receitas de Linhagem", emoji="🜂", style=discord.ButtonStyle.link,
+            label="Receitas de Linhagem", emoji="🔥", style=discord.ButtonStyle.link,
             url=f"{base_url}/linhagens", row=1,
         ))
         if callback_voltar is not None:
