@@ -73,9 +73,9 @@ ESTILOS: dict[str, dict] = {
 }
 
 FACCOES: dict[str, dict] = {
-    "Ordem de Ferro": dict(cor=(232, 148, 78), metal=(240, 214, 176), esc=(52, 30, 18)),
-    "Errantes do Véu": dict(cor=(90, 214, 188), metal=(204, 236, 224), esc=(12, 44, 46)),
-    "Conclave Arcano": dict(cor=(176, 146, 250), metal=(230, 220, 252), esc=(36, 24, 62)),
+    "Ordens de Lorainne": dict(cor=(232, 148, 78), metal=(240, 214, 176), esc=(52, 30, 18)),
+    "Não-Mortos do Véu": dict(cor=(90, 214, 188), metal=(204, 236, 224), esc=(12, 44, 46)),
+    "Conclave da Lua Escura": dict(cor=(176, 146, 250), metal=(230, 220, 252), esc=(36, 24, 62)),
 }
 ELEMENTOS: dict[str, dict] = {
     "Força": dict(cor=(238, 112, 70), claro=(255, 186, 140), escuro=(110, 30, 18)),

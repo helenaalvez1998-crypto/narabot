@@ -6,12 +6,13 @@ ROWS = ("melee", "ranged", "siege")
 AI_PLAYER_ID = -1  # Identidade técnica reservada à NARA; nunca recebe ranking/recompensas.
 ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
-FACTIONS = {"Força": "Ordem Áurea", "Destreza": "Império Nocturno", "Magia": "Conclave da Ruína"}
+FACTIONS = {"Força": "Ordens de Lorainne", "Destreza": "Não-Mortos do Véu", "Magia": "Conclave da Lua Escura"}
 FACTION_TYPES = {value: key for key, value in FACTIONS.items()}
 
 # Contrato de cobertura: cada habilidade declarada no catálogo precisa estar ligada
 # a um ramo do motor (unidade, Primordial ou carta tática especial).
 HABILIDADES_UNIDADE_IMPLEMENTADAS = frozenset({
+    # Habilidades originais (mantidas para compatibilidade)
     "primeira_luz", "retaliacao", "impeto", "ultimo_folego", "contragolpe",
     "encadeamento", "adaptacao", "sangue_frio", "instinto", "precisao",
     "drenagem", "cacador_arcano", "quebra_ritmo", "lei_primeva",
@@ -20,6 +21,10 @@ HABILIDADES_UNIDADE_IMPLEMENTADAS = frozenset({
     "eco_arcano", "dupla_fornalha", "irmandade_veu", "circulo_arcano",
     # Etapa 1: efeitos de ciclo de vida (escudo, queda, ressurreição, sobrevivência).
     "vinganca", "escudo_ferro", "ressurgir", "devorar", "sobrevivente", "espolios",
+    # Novas habilidades temáticas de Elden Ring (adicionadas abaixo das originais)
+    "stamina_drain", "stamina_gain", "ash_gain", "ash_spend", "grace_gain",
+    "grace_spend", "spirit_summon", "rune_equip", "rune_activate",
+    "boss_effect", "boss_aura", "death_rite", "finger_ray", "mimic_veil",
 })
 HABILIDADES_ESPECIAIS_IMPLEMENTADAS = frozenset({
     "gwent_nevoa", "gwent_geada", "gwent_chuva", "gwent_chifre", "gwent_medico",
@@ -28,20 +33,20 @@ HABILIDADES_ESPECIAIS_IMPLEMENTADAS = frozenset({
     "gwent_egide", "gwent_requiem", "gwent_passo",
 })
 FACTION_ARCHETYPES = {
-    "Ordem de Ferro": {"name": "Formação e Resistência", "description": "Proteção de fileira, fortalecimento de aliados e conversão de resistência em pressão."},
-    "Errantes do Véu": {"name": "Mobilidade e Encadeamento", "description": "Reposicionamento, ataques coordenados e vantagens por alternar fileiras."},
-    "Conclave Arcano": {"name": "Preparação e Amplificação", "description": "Marcas, efeitos preparados e amplificação de habilidades arcanas."},
+    "Ordens de Lorainne": {"name": "Formação e Resistência", "description": "Proteção de fileira, fortalecimento de aliados e conversão de resistência em pressão."},
+    "Não-Mortos do Véu": {"name": "Mobilidade e Encadeamento", "description": "Reposicionamento, ataques coordenados e vantagens por alternar fileiras."},
+    "Conclave da Lua Escura": {"name": "Preparação e Amplificação", "description": "Marcas, efeitos preparados e amplificação de habilidades arcanas."},
 }
 LEADERS = {
-    "comandante_fornalha": {"name": "Comandante da Fornalha", "faction": "Ordem de Ferro", "description": "+2 às suas unidades de corpo a corpo.", "effect": "iron_command"},
-    "bastiao_ancestral": {"name": "Bastião Ancestral", "faction": "Ordem de Ferro", "description": "+1 às unidades de corpo a corpo e resistência climática +1.", "effect": "iron_bastion"},
-    "mestre_veu": {"name": "Mestre do Véu", "faction": "Errantes do Véu", "description": "+2 às suas unidades de longa distância.", "effect": "veil_master"},
-    "sombra_caminhante": {"name": "Sombra Caminhante", "faction": "Errantes do Véu", "description": "+1 às unidades de longa distância; com 2 ou mais, concede +1 adicional.", "effect": "veil_shadow"},
-    "arquimaga_eclipse": {"name": "Arquimaga do Eclipse", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +1 ao cerco.", "effect": "arcane_archmage"},
-    "juiz_cerco": {"name": "Juiz do Cerco", "faction": "Ordem de Ferro", "description": "Concede escudo às suas unidades da fileira escolhida (até 3).", "effect": "iron_warden"},
-    "voz_caidos": {"name": "Voz dos Caídos", "faction": "Errantes do Véu", "description": "Traz do descarte, direto ao campo, a unidade mais forte de poder 6 ou menos, com +2.", "effect": "veil_chorus"},
-    "mestre_eclipse": {"name": "Mestre do Eclipse", "faction": "Conclave Arcano", "description": "Compra uma carta, dissipa o clima e concede +1 (ou +2 se havia clima) às suas unidades da fileira escolhida.", "effect": "arcane_eclipse"},
-    "oraculo_tempestade": {"name": "Oráculo da Tempestade", "faction": "Conclave Arcano", "description": "Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.", "effect": "arcane_oracle"},
+    "comandante_fornalha": {"name": "Comandante da Fornalha", "faction": "Ordens de Lorainne", "description": "+2 às suas unidades de corpo a corpo.", "effect": "iron_command"},
+    "bastiao_ancestral": {"name": "Bastião Ancestral", "faction": "Ordens de Lorainne", "description": "+1 às unidades de corpo a corpo e resistência climática +1.", "effect": "iron_bastion"},
+    "mestre_veu": {"name": "Mestre do Véu", "faction": "Não-Mortos do Véu", "description": "+2 às suas unidades de longa distância.", "effect": "veil_master"},
+    "sombra_caminhante": {"name": "Sombra Caminhante", "faction": "Não-Mortos do Véu", "description": "+1 às unidades de longa distância; com 2 ou mais, concede +1 adicional.", "effect": "veil_shadow"},
+    "arquimaga_eclipse": {"name": "Arquimaga do Eclipse", "faction": "Conclave da Lua Escura", "description": "Dissipa o clima e concede +1 ao cerco.", "effect": "arcane_archmage"},
+    "juiz_cerco": {"name": "Juiz do Cerco", "faction": "Ordens de Lorainne", "description": "Concede escudo às suas unidades da fileira escolhida (até 3).", "effect": "iron_warden"},
+    "voz_caidos": {"name": "Voz dos Caídos", "faction": "Não-Mortos do Véu", "description": "Traz do descarte, direto ao campo, a unidade mais forte de poder 6 ou menos, com +2.", "effect": "veil_chorus"},
+    "mestre_eclipse": {"name": "Mestre do Eclipse", "faction": "Conclave da Lua Escura", "description": "Compra uma carta, dissipa o clima e concede +1 (ou +2 se havia clima) às suas unidades da fileira escolhida.", "effect": "arcane_eclipse"},
+    "oraculo_tempestade": {"name": "Oráculo da Tempestade", "faction": "Conclave da Lua Escura", "description": "Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.", "effect": "arcane_oracle"},
 }
 # Arquétipos e combos nomeados. Os bônus são aplicados uma vez por combo/rodada.
 CARD_SYNERGY_TAGS = {
@@ -232,12 +237,12 @@ def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state:
 
 
 # Bônus da primeira unidade da facção a cada rodada (ajuste fino de equilíbrio por facção).
-FACTION_BOOST = {"Ordem de Ferro": 1, "Errantes do Véu": 2, "Conclave Arcano": 1}
+FACTION_BOOST = {"Ordens de Lorainne": 1, "Não-Mortos do Véu": 2, "Conclave da Lua Escura": 1}
 
 DEFAULT_LEADERS = {
-    "Ordem de Ferro": "comandante_fornalha",
-    "Errantes do Véu": "mestre_veu",
-    "Conclave Arcano": "mestre_eclipse",  # Etapa 3: padrão mais forte; quem já escolheu um líder não é afetado.
+    "Ordens de Lorainne": "comandante_fornalha",
+    "Não-Mortos do Véu": "mestre_veu",
+    "Conclave da Lua Escura": "mestre_eclipse",  # Etapa 3: padrão mais forte; quem já escolheu um líder não é afetado.
 }
 
 
@@ -253,7 +258,7 @@ def preparar_carta(card: dict) -> dict:
     if row not in ROWS:
         row = TYPE_ROW.get(str(card.get("tipo", "")), "melee")
     kind = str(card.get("tipo", "Força"))
-    faction = str(card.get("faccao") or FACTIONS.get(kind, "Ordem de Ferro"))
+    faction = str(card.get("faccao") or FACTIONS.get(kind, "Ordens de Lorainne"))
     category = "Especial" if special else "Unidade"
     identity = CARD_IDENTITY_ABILITIES.get(str(card["id"]), {})
     return {

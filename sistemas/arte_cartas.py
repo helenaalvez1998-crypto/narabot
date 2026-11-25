@@ -81,9 +81,9 @@ CORES_CATEGORIA = {
 }
 SIMBOLOS = {"Destreza": "✥", "Força": "⚔", "Magia": "✧"}
 CORES_FACCAO = {
-    "Ordem de Ferro": ((35, 24, 18), (224, 139, 72)),
-    "Errantes do Véu": ((13, 34, 39), (83, 205, 181)),
-    "Conclave Arcano": ((28, 20, 48), (167, 139, 255)),
+    "Ordens de Lorainne": ((35, 24, 18), (224, 139, 72)),
+    "Não-Mortos do Véu": ((13, 34, 39), (83, 205, 181)),
+    "Conclave da Lua Escura": ((28, 20, 48), (167, 139, 255)),
 }
 ROTULOS_FILEIRA = {"melee": "CORPO A CORPO", "ranged": "LONGA DISTÂNCIA", "siege": "CERCO"}
 LARGURA_PADRAO = 420
@@ -1027,13 +1027,13 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     rarity = str(card.get("raridade", "Comum"))
     category = "Especial" if str(card.get("categoria", "Unidade")).casefold() == "especial" else "Unidade"
     ctype = str(card.get("tipo", "Magia"))
-    faction = str(card.get("faccao") or {"Força":"Ordem de Ferro","Destreza":"Errantes do Véu","Magia":"Conclave Arcano"}.get(ctype,"Ordem de Ferro"))
+    faction = str(card.get("faccao") or {"Força":"Ordens de Lorainne","Destreza":"Não-Mortos do Véu","Magia":"Conclave da Lua Escura"}.get(ctype,"Ordens de Lorainne"))
     row = str(card.get("fileira") or {"Força":"melee","Destreza":"ranged","Magia":"siege"}.get(ctype,"melee"))
     seed = _seed(card); rng = random.Random(seed)
     palettes = {
-        "Ordem de Ferro": ((31,25,22),(104,61,40),(215,153,88),(202,194,173)),
-        "Errantes do Véu": ((13,31,34),(31,76,76),(101,190,170),(195,218,202)),
-        "Conclave Arcano": ((27,21,45),(67,46,96),(173,143,230),(220,210,241)),
+        "Ordens de Lorainne": ((31,25,22),(104,61,40),(215,153,88),(202,194,173)),
+        "Não-Mortos do Véu": ((13,31,34),(31,76,76),(101,190,170),(195,218,202)),
+        "Conclave da Lua Escura": ((27,21,45),(67,46,96),(173,143,230),(220,210,241)),
     }
     top, mid, accent, metal = palettes.get(faction, palettes["Ordem de Ferro"])
     rarity_colors = {
