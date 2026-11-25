@@ -163,6 +163,13 @@ FACCOES_IDENTIDADE_POR_CARTA = {
     "luterano_sacerdote": "Os Esquecidos",
     "luterano_irmao": "Os Esquecidos",
     "luterano_diacon": "Os Esquecidos",
+    # V75 — seis unidades adicionais da expansão pertencem à quarta facção.
+    "luterano_apostolo": "Os Esquecidos",
+    "luterano_pastor": "Os Esquecidos",
+    "luterano_mistico": "Os Esquecidos",
+    "luterano_profeta": "Os Esquecidos",
+    "luterano_vigia": "Os Esquecidos",
+    "luterano_anjo2": "Os Esquecidos",
     "gwent_unidade_sacerdote": "Os Esquecidos",
     "gwent_unidade_cruzado": "Os Esquecidos",
     "gwent_unidade_missionario": "Os Esquecidos",
@@ -405,7 +412,7 @@ for _c in [*_CARTAS_BASE, *CARTAS_PRIMORDIAIS]:
 _CARTAS_BASE = [c for c in _cartas_v18 if c.id not in {x.id for x in CARTAS_PRIMORDIAIS}]
 CARTAS_PRIMORDIAIS = [c for c in _cartas_v18 if c.id in {x.id for x in CARTAS_PRIMORDIAIS}]
 
-# Expansão V75 — 12 unidades novas, quatro por facção.
+# Expansão V75 — 18 cartas: quatro para cada facção original e seis para Os Esquecidos.
 # As cartas entram após o balanceamento legado V18 para preservar suas habilidades próprias.
 CARTAS_EXPANSAO_V75 = [
     # ORDEM ÁUREA — formação, proteção e purificação.
