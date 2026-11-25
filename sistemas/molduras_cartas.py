@@ -600,7 +600,7 @@ def _painel_texto(ov, est, faccao):
     c = 9
     pts = [(x1 + c, y1), (x2 - c, y1), (x2, y1 + c), (x2, y2 - 6), (x2 - 6, y2), (x1 + 6, y2), (x1, y2 - 6), (x1, y1 + c)]
     m = _mascara(lambda d: d.polygon(_p(pts), fill=255))
-    base = _mix(est["esc"], FACCOES.get(faccao, FACCOES["Ordem de Ferro"])["esc"], .5)
+    base = _mix(est["esc"], FACCOES.get(faccao, FACCOES["Ordens de Lorainne"])["esc"], .5)
     _forma(ov, m, fundo=[_tom(base, 1.25), _tom(base, .62), (7, 8, 10)], borda=est["metal"], borda_w=2.4,
            luz=est["luz"], sombra=3.5)
     # divisória sob a linha de facção/fileira
@@ -644,7 +644,7 @@ def _medalhao_poder(ov, est, especial):
 
 
 def _emblema_faccao(ov, est, faccao):
-    f = FACCOES.get(faccao, FACCOES["Ordem de Ferro"])
+    f = FACCOES.get(faccao, FACCOES["Ordens de Lorainne"])
     cx, cy = CENTRO_FACCAO
     r = 28
     m = _mascara(lambda d: d.ellipse(_box((cx - r, cy - r, cx + r, cy + r)), fill=255))
@@ -653,8 +653,8 @@ def _emblema_faccao(ov, est, faccao):
            luz=f["metal"], sombra=3.2)
     anel = _mascara(lambda d: d.ellipse(_box((cx - r + 6, cy - r + 6, cx + r - 6, cy + r - 6)), fill=255))
     _compor(ov, ImageChops.subtract(anel, _erodir(anel, .7)), [f["cor"]], alpha=95)
-    glifo = {"Ordem de Ferro": _g_bigorna, "Errantes do Véu": _g_lua}.get(faccao, _g_arcano)
-    _carimbar(ov, glifo, cx, cy + (1.2 if faccao == "Ordem de Ferro" else 0), 15.5, [_tom(f["metal"], 1.25), f["cor"]])
+    glifo = {"Ordens de Lorainne": _g_bigorna, "Não-Mortos do Véu": _g_lua}.get(faccao, _g_arcano)
+    _carimbar(ov, glifo, cx, cy + (1.2 if faccao == "Ordens de Lorainne" else 0), 15.5, [_tom(f["metal"], 1.25), f["cor"]])
 
 
 def _gema_elemento(ov, est, tipo):

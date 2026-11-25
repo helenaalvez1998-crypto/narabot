@@ -77,7 +77,7 @@ HABILIDADES: dict[str, dict[str, str]] = {
     "instinto": {"nome": "Instinto", "texto": "Recebe +2 quando sua pontuação está abaixo da rival."},
     "precisao": {"nome": "Precisão", "texto": "Recebe +1 ao entrar na fileira de longa distância."},
     "drenagem": {"nome": "Drenagem", "texto": "Reduz em 1 o bônus de todas as unidades inimigas, até o limite de -2."},
-    "cacador_arcano": {"nome": "Caçador Arcano", "texto": "Recebe +1 se o adversário controlar uma unidade do Conclave Arcano ou alguma unidade com bônus positivo."},
+    "cacador_arcano": {"nome": "Caçador Arcano", "texto": "Recebe +1 se o adversário controlar uma unidade do Conclave da Lua Escura ou alguma unidade com bônus positivo."},
     "quebra_ritmo": {"nome": "Quebra-ritmo", "texto": "Recebe +1 se o adversário jogou na mesma fileira em seu último turno."},
     # Efeitos exclusivos: somente a respectiva Primordial pode utilizá-los.
     "lei_primeva": {"nome": "Lei Primeva", "texto": "Recebe +2 de poder ao entrar na primeira rodada."},
@@ -221,24 +221,24 @@ _CARTAS_BASE = [
     Carta("gwent_unidade_gigante", "Gigante do Portão Antigo", "Chefe", "Força", 7, "Épica", 3, "instinto", "Uma presença colossal na linha de frente."),
     Carta("gwent_unidade_cartografa", "Cartógrafa das Marés", "Covenant", "Destreza", 4, "Comum", 1, "adaptacao", "Encontra rotas onde os outros veem obstáculos."),
     Carta("gwent_unidade_invocador", "Invocador do Sol Negro", "Magia", "Magia", 7, "Épica", 3, "cacador_arcano", "Converte conhecimento arcano em força de combate."),
-    Carta("gwent_unidade_mestre_forja", "Mestre da Forja Rubra", "Chefe", "Força", 5, "Rara", 2, "dupla_fornalha", "Luta melhor ao lado de outra unidade da Ordem de Ferro."),
+    Carta("gwent_unidade_mestre_forja", "Mestre da Forja Rubra", "Chefe", "Força", 5, "Rara", 2, "dupla_fornalha", "Luta melhor ao lado de outra unidade da Ordens de Lorainne."),
     Carta("gwent_unidade_dupla_veu", "Gêmea das Passagens", "Covenant", "Destreza", 5, "Rara", 2, "irmandade_veu", "Coordena ataques com aliados posicionados em outra fileira."),
     Carta("gwent_unidade_circulo", "Adepto do Círculo", "Magia", "Magia", 5, "Rara", 2, "circulo_arcano", "Amplifica a magia quando encontra aliados ou resíduos arcanos."),
 
     # Etapa 2: unidades de facção que usam os efeitos de ciclo de vida (escudo, queda, ressurreição...).
-    # Ordem de Ferro — muralha (escudo/sobrevivência/vingança) e banquete (devorar/espólios).
+    # Ordens de Lorainne — muralha (escudo/sobrevivência/vingança) e banquete (devorar/espólios).
     Carta("gwent_unidade_sentinela_rubra", "Sentinela da Muralha Rubra", "Covenant", "Força", 4, "Comum", 1, "escudo_ferro", "Primeira a receber o golpe, última a recuar."),
     Carta("gwent_unidade_veterano_cercos", "Veterano de Mil Cercos", "Chefe", "Força", 5, "Rara", 2, "sobrevivente", "Já viu mais muralhas caírem do que rostos conhecidos."),
     Carta("gwent_unidade_herdeiro_portao", "Herdeiro do Último Portão", "Chefe", "Força", 6, "Épica", 3, "vinganca", "Quando cai, a formação inteira jura vingá-lo."),
     Carta("gwent_unidade_carniceiro_forja", "Carniceiro da Forja Sombria", "Arma", "Força", 4, "Rara", 2, "devorar", "Alimenta a fornalha com o que a guerra deixa para trás."),
     Carta("gwent_unidade_intendente", "Intendente da Vanguarda", "Covenant", "Força", 3, "Comum", 1, "espolios", "Cada vitória enche os depósitos da Ordem."),
-    # Errantes do Véu — fantasmas (retorno e persistência) e caravana (saque e blindagem).
+    # Não-Mortos do Véu — fantasmas (retorno e persistência) e caravana (saque e blindagem).
     Carta("gwent_unidade_cacadora_fantasma", "Caçadora Fantasma", "Chefe", "Destreza", 5, "Rara", 2, "sobrevivente", "Some na névoa e reaparece quando a próxima rodada começa."),
     Carta("gwent_unidade_cantora_lamentos", "Cantora dos Lamentos", "Covenant", "Destreza", 4, "Rara", 2, "ressurgir", "Seu canto arrasta os caídos de volta ao campo."),
     Carta("gwent_unidade_senhor_cacada", "Senhor da Última Caçada", "Chefe", "Destreza", 6, "Épica", 3, "vinganca", "A presa que o derruba desperta a matilha inteira."),
     Carta("gwent_unidade_saqueadora_veu", "Saqueadora do Véu", "Arma", "Destreza", 4, "Comum", 1, "espolios", "Nenhuma rota é cara demais para quem leva o butim."),
     Carta("gwent_unidade_contrabandista", "Contrabandista das Rotas", "Covenant", "Destreza", 4, "Comum", 1, "escudo_ferro", "Sempre tem um truque guardado para a primeira emboscada."),
-    # Conclave Arcano — rúnico (proteção e retorno) e eclipse (consumo e conhecimento).
+    # Conclave da Lua Escura — rúnico (proteção e retorno) e eclipse (consumo e conhecimento).
     Carta("gwent_unidade_guardiao_runas", "Guardião das Runas Antigas", "Magia", "Magia", 5, "Comum", 1, "escudo_ferro", "Runas gravadas na pele desviam o primeiro feitiço."),
     Carta("gwent_unidade_necromante", "Necromante de Cinzas Frias", "Magia", "Magia", 4, "Rara", 2, "ressurgir", "Desperta no campo os que o descarte ainda guarda."),
     Carta("gwent_unidade_detonador", "Detonador de Relíquias", "Arma", "Magia", 6, "Épica", 3, "vinganca", "Sua queda libera a energia que ele guardava."),

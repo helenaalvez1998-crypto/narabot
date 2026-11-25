@@ -678,7 +678,7 @@ def gerar_prompt_carta(carta: dict[str, Any]) -> str:
         raridade_prompt,
         diretriz_limpeza,
     ]
-    if faccao == "Conclave Arcano":
+    if faccao == "Conclave da Lua Escura":
         blocos.append(
             "CONCLAVE ARCANO COLOR AND IDENTITY LOCK: preserve violet, amethyst and deep-indigo arcane identity; "
             "keep scholarly instruments, refined runic geometry and controlled astral magic recognizable. "

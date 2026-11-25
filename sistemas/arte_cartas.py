@@ -1035,7 +1035,7 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
         "Não-Mortos do Véu": ((13,31,34),(31,76,76),(101,190,170),(195,218,202)),
         "Conclave da Lua Escura": ((27,21,45),(67,46,96),(173,143,230),(220,210,241)),
     }
-    top, mid, accent, metal = palettes.get(faction, palettes["Ordem de Ferro"])
+    top, mid, accent, metal = palettes.get(faction, palettes["Ordens de Lorainne"])
     rarity_colors = {
         "Comum": ((79,88,88),(172,180,172)),
         "Rara": ((30,82,105),(91,184,210)),
@@ -1292,7 +1292,7 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     im=molduras_cartas.aplicar_efeitos_arte(im,rarity,seed,X,Y)
     especial=category=="Especial"
     est=molduras_cartas.ESTILOS.get(rarity,molduras_cartas.ESTILOS["Comum"])
-    fac=molduras_cartas.FACCOES.get(faction,molduras_cartas.FACCOES["Ordem de Ferro"])
+    fac=molduras_cartas.FACCOES.get(faction,molduras_cartas.FACCOES["Ordens de Lorainne"])
     d=ImageDraw.Draw(im,"RGBA")
 
     # Largura da placa de raridade depende do texto (medida em unidades da grade 420).
@@ -1452,7 +1452,7 @@ def _draw_card_com_template(card: dict[str, Any], illustration_bytes: bytes) -> 
 
     category = str(card.get("categoria", "Unidade"))
     card_type = str(card.get("tipo", "Magia"))
-    faction = str(card.get("faccao") or {"Força": "Ordem de Ferro", "Destreza": "Errantes do Véu", "Magia": "Conclave Arcano"}.get(card_type, "Ordem de Ferro"))
+    faction = str(card.get("faccao") or {"Força": "Ordens de Lorainne", "Destreza": "Não-Mortos do Véu", "Magia": "Conclave da Lua Escura"}.get(card_type, "Ordens de Lorainne"))
     row = str(card.get("fileira") or {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}.get(card_type, "melee"))
     rarity_base, rarity_accent = CORES_RARIDADE.get(rarity, CORES_RARIDADE["Comum"])
     type_accent = CORES_FACCAO.get(faction, ((21, 29, 39), (44, 47, 61)))[1]

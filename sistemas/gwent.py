@@ -50,7 +50,7 @@ LEADERS = {
 }
 # Arquétipos e combos nomeados. Os bônus são aplicados uma vez por combo/rodada.
 CARD_SYNERGY_TAGS = {
-    # Ordem de Ferro: resistência, formação e sacrifício.
+    # Ordens de Lorainne: resistência, formação e sacrifício.
     "chefe_guardiao_cinzas": {"cinzas"},
     "gwent_unidade_baluarte": {"fornalha"},
     "gwent_unidade_mestre_forja": {"fornalha"},
@@ -59,7 +59,7 @@ CARD_SYNERGY_TAGS = {
     "chefe_rei_afogado": {"abismo"},
     "covenant_coroa_abismo": {"abismo"},
     "covenant_lobos_cinza": {"cinzas"},
-    # Errantes do Véu: mobilidade, ataques encadeados e caça.
+    # Não-Mortos do Véu: mobilidade, ataques encadeados e caça.
     "chefe_cervo_sombrio": {"veu_sombrio"},
     "chefe_aparicao_veio": {"veu_sombrio"},
     "gwent_unidade_cavaleira": {"veu_sombrio"},
@@ -68,7 +68,7 @@ CARD_SYNERGY_TAGS = {
     "arma_lamina_peregrino": {"peregrino"},
     "arma_arco_peregrino": {"peregrino"},
     "gwent_unidade_cartografa": {"duas_luas"},
-    # Conclave Arcano: preparação, marcas e amplificação.
+    # Conclave da Lua Escura: preparação, marcas e amplificação.
     "chefe_dama_vazio": {"vazio"},
     "arma_agulha_astro": {"astral"},
     "gwent_unidade_circulo": {"astral"},
@@ -77,19 +77,19 @@ CARD_SYNERGY_TAGS = {
     "magia_orbe_eco": {"eco"},
     "magia_brasa_errante": {"chama"},
     "magia_chama_fria": {"chama"},
-    # Etapa 2 — Ordem de Ferro.
+    # Etapa 2 — Ordens de Lorainne.
     "gwent_unidade_sentinela_rubra": {"muralha"},
     "gwent_unidade_veterano_cercos": {"muralha"},
     "gwent_unidade_herdeiro_portao": {"muralha"},
     "gwent_unidade_carniceiro_forja": {"banquete"},
     "gwent_unidade_intendente": {"banquete"},
-    # Etapa 2 — Errantes do Véu.
+    # Etapa 2 — Não-Mortos do Véu.
     "gwent_unidade_cacadora_fantasma": {"fantasmas"},
     "gwent_unidade_cantora_lamentos": {"fantasmas"},
     "gwent_unidade_senhor_cacada": {"fantasmas"},
     "gwent_unidade_saqueadora_veu": {"caravana"},
     "gwent_unidade_contrabandista": {"caravana"},
-    # Etapa 2 — Conclave Arcano.
+    # Etapa 2 — Conclave da Lua Escura.
     "gwent_unidade_guardiao_runas": {"runico"},
     "gwent_unidade_necromante": {"runico"},
     "gwent_unidade_detonador": {"runico"},
@@ -127,12 +127,12 @@ CARD_IDENTITY_ABILITIES = {
     "chefe_vigia_cinzento": {"name": "Vigília Cinzenta", "text": "Concede +1 às outras unidades aliadas na mesma fileira.", "effect": "grey_watch"},
     "chefe_aparicao_veio": {"name": "Deslocamento Espectral", "text": "Recebe +2 se a sua última unidade foi jogada em outra fileira.", "effect": "veil_shift"},
     "arma_lamina_peregrino": {"name": "Duelo do Peregrino", "text": "Recebe +2 se o rival tiver jogado uma unidade na mesma fileira em seu último turno.", "effect": "pilgrim_duel"},
-    "arma_martelo_fornalha": {"name": "Martelo de Cadência", "text": "Recebe +1 para cada aliado da Ordem de Ferro na fileira, até +2.", "effect": "forge_rhythm"},
-    "arma_cajado_marulho": {"name": "Ressonância das Marés", "text": "Recebe +2 se o rival controlar uma unidade do Conclave Arcano; senão, +1 se o rival tiver mais unidades em campo.", "effect": "tide_resonance"},
+    "arma_martelo_fornalha": {"name": "Martelo de Cadência", "text": "Recebe +1 para cada aliado da Ordens de Lorainne na fileira, até +2.", "effect": "forge_rhythm"},
+    "arma_cajado_marulho": {"name": "Ressonância das Marés", "text": "Recebe +2 se o rival controlar uma unidade do Conclave da Lua Escura; senão, +1 se o rival tiver mais unidades em campo.", "effect": "tide_resonance"},
     "arma_duas_luas": {"name": "Dança Espelhada", "text": "Recebe +1 se houver outra unidade aliada em fileira diferente.", "effect": "twin_dance"},
     "arma_grande_sino": {"name": "Sino do Último Bastião", "text": "Recebe +2 quando sua pontuação estiver abaixo da rival.", "effect": "last_bell"},
     "arma_agulha_astro": {"name": "Fio Astral", "text": "Marca a unidade inimiga mais forte: ela perde 1 de bônus; a próxima unidade Astral aliada recebe +1 nesta rodada.", "effect": "astral_thread"},
-    "arma_lanca_fornalha": {"name": "Investida da Fornalha", "text": "Recebe +1 se já houver outra unidade da Ordem de Ferro em campo.", "effect": "furnace_charge"},
+    "arma_lanca_fornalha": {"name": "Investida da Fornalha", "text": "Recebe +1 se já houver outra unidade da Ordens de Lorainne em campo.", "effect": "furnace_charge"},
     "arma_arco_peregrino": {"name": "Tiro de Cobertura", "text": "Concede +1 à unidade aliada mais fraca em outra fileira.", "effect": "covering_shot"},
     "magia_brasa_errante": {"name": "Brasa Persistente", "text": "Recebe +1 para cada fileira inimiga sob clima, até +2.", "effect": "wandering_ember"},
     "magia_selo_vigilia": {"name": "Selo de Vigília", "text": "Concede resistência climática 1 a si e +1 a um aliado na mesma fileira.", "effect": "vigil_seal"},
@@ -145,7 +145,7 @@ CARD_IDENTITY_ABILITIES = {
     "covenant_lua_velada": {"name": "Aliança Lunar", "text": "Recebe +1 e concede +1 a uma unidade aliada em outra fileira.", "effect": "veiled_moon"},
     "covenant_sentinelas": {"name": "Sentinela Compartilhada", "text": "Recebe +1 se houver unidade aliada em cada uma das outras fileiras.", "effect": "shared_sentinel"},
     "covenant_ultimos": {"name": "Último Juramento", "text": "Recebe +2 se você tiver menos unidades em campo que o rival.", "effect": "last_oath"},
-    "covenant_filhos_brasa": {"name": "Herança da Brasa", "text": "Recebe +1 e fortalece em +1 um aliado da Ordem de Ferro na mesma fileira.", "effect": "ember_kin"},
+    "covenant_filhos_brasa": {"name": "Herança da Brasa", "text": "Recebe +1 e fortalece em +1 um aliado da Ordens de Lorainne na mesma fileira.", "effect": "ember_kin"},
     "covenant_peregrinos_nevoa": {"name": "Rastro na Névoa", "text": "Recebe +1 se sua última unidade foi jogada em outra fileira.", "effect": "mist_trail"},
 }
 
