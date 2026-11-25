@@ -141,7 +141,7 @@ $('#logout-button').addEventListener('click', async () => { await fetch('/auth/l
 // --- Motor e interface do Gwent do Coliseu. ---
 let gwentDeckIds = [];
 let gwentSavedIds = [];
-let gwentSavedFaction = 'Ordem de Ferro';
+let gwentSavedFaction = 'Ordens de Lorainne';
 let gwentSavedLeader = 'comandante_fornalha';
 let gwentLeaderOptions = [];
 let currentGwentMatch = null;
@@ -208,15 +208,15 @@ function updateGwentSelectedCardUI(cardId = gwentSelectedHandCard) {
 }
 
 const gwentFactionInfo = {
-  'Ordem de Ferro': { description: 'Formação e resistência na linha de frente.', leaders: [
+  'Ordens de Lorainne': { description: 'Formação e resistência na linha de frente.', leaders: [
     ['comandante_fornalha', 'Comandante da Fornalha', '+2 às unidades de corpo a corpo.'],
     ['bastiao_ancestral', 'Bastião Ancestral', '+1 às unidades de corpo a corpo e resistência climática +1.']
   ]},
-  'Errantes do Véu': { description: 'Mobilidade e coordenação entre fileiras.', leaders: [
+  'Não-Mortos do Véu': { description: 'Mobilidade e coordenação entre fileiras.', leaders: [
     ['mestre_veu', 'Mestre do Véu', '+2 às unidades de longa distância.'],
     ['sombra_caminhante', 'Sombra Caminhante', '+1 às unidades de longa distância; com 2 ou mais, concede +1 adicional.']
   ]},
-  'Conclave Arcano': { description: 'Controle climático e amplificação arcana.', leaders: [
+  'Conclave da Lua Escura': { description: 'Controle climático e amplificação arcana.', leaders: [
     ['arquimaga_eclipse', 'Arquimaga do Eclipse', 'Dissipa o clima e concede +1 ao cerco.'],
     ['oraculo_tempestade', 'Oráculo da Tempestade', 'Dissipa o clima e concede +2 ao cerco se havia clima ativo; caso contrário, +1.']
   ]}
@@ -230,8 +230,8 @@ function applyGwentLeaders(byFaction) {
   });
 }
 function renderGwentLeaderOptions(selected = '') {
-  const faction = $('#gwent-faction')?.value || 'Ordem de Ferro';
-  const info = gwentFactionInfo[faction] || gwentFactionInfo['Ordem de Ferro'];
+  const faction = $('#gwent-faction')?.value || 'Ordens de Lorainne';
+  const info = gwentFactionInfo[faction] || gwentFactionInfo['Ordens de Lorainne'];
   const select = $('#gwent-leader');
   if (!select) return;
   select.innerHTML = info.leaders.map(([id, name]) => `<option value="${id}">${escapeHTML(name)}</option>`).join('');
@@ -258,7 +258,7 @@ function renderGwentBuilder() {
     && (!rarityFilter || c.raridade === rarityFilter)
     && (`${c.nome} ${c.faccao} ${c.row_label || c.fileira} ${c.papel_gwent} ${c.categoria} ${c.habilidade}`.toLocaleLowerCase('pt-BR').includes(q)));
   $('#gwent-card-pool').innerHTML = pool.map(card => `<article class="gwent-unit">${cardImageMarkup(card)}<b>${escapeHTML(card.nome)}</b><small>Exemplar #${number(card.exemplar_id)} · ${escapeHTML(card.raridade)} · ${escapeHTML(card.categoria === "Especial" ? "Especial" : `${card.faccao || card.tipo} · ${card.row_label || card.fileira || "Unidade"}`)} · ${card.categoria === "Especial" ? "Efeito tático" : `${number(card.poder)} poder`}</small><button type="button" data-gwent-add="${escapeHTML(card.id)}" ${gwentDeckIds.length >= 12 ? 'disabled' : ''}>Adicionar</button>${card.exemplar_id && card.categoria !== 'Especial' && evolutionCost[card.raridade] ? `<button type="button" class="secondary" data-gwent-evolve="${escapeHTML(String(card.exemplar_id))}">Evoluir · ${evolutionCost[card.raridade]} fragmentos</button>` : ''}${card.exemplar_id && card.categoria !== 'Especial' && upgradeCost[card.raridade] && Number(card.poder) < Number(card.max_power) ? `<button type="button" class="secondary" data-gwent-upgrade="${escapeHTML(String(card.exemplar_id))}">Lapidar +1 · ${upgradeCost[card.raridade]} Almas</button>` : ''}</article>`).join('') || '<div class="empty-state">Nenhuma unidade disponível.</div>';
-  const configChanged = ($('#gwent-faction')?.value || 'Ordem de Ferro') !== gwentSavedFaction
+  const configChanged = ($('#gwent-faction')?.value || 'Ordens de Lorainne') !== gwentSavedFaction
     || ($('#gwent-leader')?.value || 'comandante_fornalha') !== gwentSavedLeader;
   $('#gwent-save-deck').disabled = selected.length !== 12 || unitCount < 8 || specialCount > 4
     || (JSON.stringify(gwentDeckIds) === JSON.stringify(gwentSavedIds) && !configChanged);
@@ -465,7 +465,7 @@ async function loadGwentDeck() {
     if (!r.ok) throw new Error(data.error || 'Não foi possível carregar o deck Gwent.');
     gwentSavedIds = (data.deck || []).map(c => c.id);
     gwentDeckIds = [...gwentSavedIds];
-    gwentSavedFaction = data.faction || 'Ordem de Ferro';
+    gwentSavedFaction = data.faction || 'Ordens de Lorainne';
     gwentSavedLeader = data.leader_id || 'comandante_fornalha';
     applyGwentLeaders(data.leaders_by_faction);
     $('#gwent-faction').value = gwentSavedFaction;
