@@ -747,6 +747,16 @@ class NaraBot(commands.Bot):
                 raise web.HTTPNotFound(text="Folha visual V59 não encontrada.")
             return web.FileResponse(arquivo)
 
+        async def camada_visual_extra(request: web.Request) -> web.Response:
+            """Entrega as camadas visuais novas do site (polimento e sistemas)."""
+            nome = request.match_info["nome"]
+            if nome not in {"narabot-polish.css", "sistemas.css", "sistemas-nav.js"}:
+                raise web.HTTPNotFound()
+            arquivo = site_dir / nome
+            if not arquivo.is_file():
+                raise web.HTTPNotFound(text="Arquivo visual não encontrado.")
+            return web.FileResponse(arquivo, headers={"Cache-Control": "no-cache"})
+
         async def status_api(_request: web.Request) -> web.Response:
             return web.json_response({
                 "service": "NaraBot-api",
@@ -761,6 +771,7 @@ class NaraBot(commands.Bot):
         app.router.add_get("/elden-ui.css", elden_ui_css)
         app.router.add_get("/narabot-visual-v59.css", narabot_visual_css)
         app.router.add_get("/app.js", script_site)
+        app.router.add_get("/{nome:(narabot-polish\\.css|sistemas\\.css|sistemas-nav\\.js)}", camada_visual_extra)
         assets_dir = site_dir / "assets"
         if assets_dir.is_dir():
             app.router.add_static("/assets/", str(assets_dir), show_index=False)
@@ -1080,12 +1091,15 @@ class NaraBot(commands.Bot):
                     f"?exemplar_id={int(record['id'])}&v={VERSAO_ARTES}"
                 )
                 cards.append(item)
-        from sistemas.gwent import (LEADERS, DEFAULT_LEADERS, FACTIONS, FACTION_ARCHETYPES,
-                                    canonical_faction, contar_faccoes_deck)
+        from sistemas.gwent import LEADERS, DEFAULT_LEADERS, FACTIONS, canonical_faction
         faction = canonical_faction(str(row["faction"] or "") if row else "") or ""
         if faction not in DEFAULT_LEADERS:
-            counts = contar_faccoes_deck(cards)
-            faction = max(counts, key=lambda name: (counts[name], name)) if any(counts.values()) else "Ordem Áurea"
+            counts = {"Força": 0, "Destreza": 0, "Magia": 0}
+            for card in cards:
+                if card.get("categoria", "").casefold() != "especial" and card.get("tipo") in counts:
+                    counts[card["tipo"]] += 1
+            inferred_type = max(counts, key=lambda kind: (counts[kind], kind))
+            faction = FACTIONS[inferred_type]
         leader_id = str(row["leader_id"] or "") if row else ""
         if leader_id not in LEADERS or LEADERS[leader_id]["faction"] != faction:
             leader_id = DEFAULT_LEADERS[faction]
@@ -1101,13 +1115,12 @@ class NaraBot(commands.Bot):
         def leader_payload(key, value):
             art = leader_art_map.get(key)
             version = str(art.get("revision", "") if art else "")[:20]
-            default_asset = default_leader_assets.get(key)
             return {
                 "id": key, "name": value["name"], "description": value["description"],
                 "visual_only": True, "power": None, "cost": None, "rarity": "Lendária",
                 "card_type": "Líder",
                 "art_url": f"/api/gwent/leaders/{key}/art?v={version}" if art else "",
-                "default_art_url": f"/assets/leaders/{default_asset}.webp" if default_asset else "",
+                "default_art_url": f"/assets/leaders/{default_leader_assets.get(key, 'godfrey')}.webp",
             }
         leaders = [leader_payload(key, value) for key, value in LEADERS.items() if value["faction"] == faction]
         return web.json_response({
@@ -1118,8 +1131,12 @@ class NaraBot(commands.Bot):
                        for key, value in LEADERS.items() if value["faction"] == name]
                 for name in DEFAULT_LEADERS},
             "factions": [{"name": name, "preferred_type": kind,
-                          "description": FACTION_ARCHETYPES.get(name, {}).get(
-                              "description", "Uma facção com identidade e estratégias próprias.")}
+                          "description": {
+                              "Ordem Áurea": "Formação e resistência na linha de frente.",
+                              "Véu Carmesim": "Sangue, sacrifício e rituais de heresia.",
+                              "Lua Negra": "Magia lunar, cosmos e segredos arcanos.",
+                              "Os Esquecidos": "Fé, devoção e glória divina.",
+                          }.get(name, "Uma facção com identidade e estratégias próprias.")}
                          for kind, name in FACTIONS.items()],
             "relic_id": str(row["relic_id"] or "") if row else "",
             "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True, "relics_per_match": 1}})
@@ -1883,9 +1900,7 @@ class NaraBot(commands.Bot):
         try:
             await self._gwent_prepare_user(user_id)
             await self._gwent_sync_patents(user_id)
-            from sistemas.cartas import (get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE,
-                                         faixa_poder_exemplar, VERSAO_ARTES, CARTAS_PACOTE,
-                                         CARTAS_PRIMORDIAIS)
+            from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar, VERSAO_ARTES
             from sistemas.gwent import preparar_carta, RARITY_EFFECT_BUDGET
             estado = await self.db.coliseu_estado_usuario(user_id)
             owned_rows = await self.db.coliseu_listar_colecao(user_id)
@@ -1934,24 +1949,10 @@ class NaraBot(commands.Bot):
                     f"?exemplar_id={int(record['id'])}&v={VERSAO_ARTES}"
                 )
                 cards.append(item)
-            # Catálogo global separado da coleção: modelos não possuídos também ficam visíveis.
-            owned_ids = {str(record["card_id"]) for record in exemplar_rows}
-            catalog = []
-            for model in [*CARTAS_PACOTE, *CARTAS_PRIMORDIAIS]:
-                model_payload = preparar_carta(model.para_dict())
-                model_payload.update({
-                    "card_id": model.id,
-                    "id": model.id,
-                    "owned": model.id in owned_ids,
-                    "image_url": f"/api/gwent/cards/{quote(model.id, safe='')}/image?v={VERSAO_ARTES}&thumb=1",
-                })
-                catalog.append(model_payload)
-
             from levels import nivel_por_xp
             xp = int(estado["xp"])
             return web.json_response({
                 "authenticated": True,
-                "catalog": catalog,
                 "summary": {
                     "souls": int(estado["almas"]),
                     "fragments": int(estado["fragmentos"]),
@@ -2595,7 +2596,6 @@ class NaraBot(commands.Bot):
             # Só metadados nesta etapa. O BLOB de arte oficial é lido apenas no cache miss.
             official_meta = await self.db.coliseu_atelie_obter_arte_oficial_metadata(card_id)
 
-            catalog_card = get_carta(card_id)
             snapshot = None
             if owned_row is None:
                 matches = await self.db._all(
@@ -2621,7 +2621,7 @@ class NaraBot(commands.Bot):
                             break
                     if found:
                         break
-                if snapshot is None and catalog_card is None:
+                if snapshot is None:
                     if official_meta:
                         official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
                         if official_art:
@@ -2630,9 +2630,9 @@ class NaraBot(commands.Bot):
                             if raw_mime:
                                 etag = hashlib.sha256(f"official-raw:{official_meta['id']}".encode()).hexdigest()
                                 return _responder(raw_art, raw_mime, etag)
-                    raise web.HTTPNotFound(text="Carta não encontrada no catálogo, coleção ou partidas.")
+                    raise web.HTTPNotFound(text="Carta não encontrada na sua coleção ou nas suas partidas.")
 
-            card = catalog_card
+            card = get_carta(card_id)
             if card is None and card_id.startswith("jogo_"):
                 game_name = str((owned_row["game_name"] if owned_row is not None else "") or
                                 (snapshot or {}).get("jogo_origem") or "")
