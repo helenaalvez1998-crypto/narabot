@@ -1072,7 +1072,7 @@ class NaraBot(commands.Bot):
             else:
                 # Compatibilidade com clientes antigos: usa o exemplar mais forte de cada modelo.
                 entries = [(str(card_id), 0) for card_id in body.get("card_ids", [])]
-            faction = str(body.get("faction", "Ordem de Ferro"))
+            faction = str(body.get("faction", "Ordens de Lorainne"))
             leader_id = str(body.get("leader_id", "comandante_fornalha"))
         except Exception:
             return web.json_response({"error": "JSON inválido ou exemplar inválido."}, status=400)
