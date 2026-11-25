@@ -1051,9 +1051,9 @@ class NaraBot(commands.Bot):
                        for key, value in LEADERS.items() if value["faction"] == name]
                 for name in DEFAULT_LEADERS},
             "factions": [{"name": name, "preferred_type": kind,
-                          "description": {"Ordem de Ferro": "Formação e resistência na linha de frente.",
-                                          "Errantes do Véu": "Mobilidade e coordenação entre fileiras.",
-                                          "Conclave Arcano": "Controle climático e amplificação arcana."}[name]}
+                          "description": {"Ordens de Lorainne": "Formação e resistência na linha de frente.",
+                                          "Não-Mortos do Véu": "Mobilidade e coordenação entre fileiras.",
+                                          "Conclave da Lua Escura": "Controle climático e amplificação arcana."}[name]}
                          for kind, name in FACTIONS.items()],
             "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True}})
 
