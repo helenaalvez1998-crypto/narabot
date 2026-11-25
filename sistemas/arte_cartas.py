@@ -1361,14 +1361,7 @@ def _draw_card(card: dict[str, Any], width: int = LARGURA_PADRAO, height: int = 
     for i,line in enumerate(linhas_txt[:4]):
         d.text((X(38),Y(538+i*passo)),line,font=fonte_txt,fill=(228,224,212,255),anchor="lm")
 
-    # Custo de deck.
-    cost=int(card.get("custo",0) or 0)
-    ox,oy=molduras_cartas.CENTRO_CUSTO
-    f_cost=_font(max(13,X(23)),True,serif=True)
-    d.text((X(ox),Y(oy-5)+max(1,X(1))),str(cost),font=f_cost,fill=(0,0,0,255),anchor="mm",
-           stroke_width=max(1,X(1.5)),stroke_fill=(0,0,0,255))
-    d.text((X(ox),Y(oy-5)),str(cost),font=f_cost,fill=(255,250,232,255),anchor="mm")
-    _texto_rastreado(d,(X(ox),Y(oy+13)),"CUSTO",_font(max(6,X(7)),True),(*est["luz"],255),X(.8),centro=True)
+    # (Custo removido — campo não existe no motor do jogo)
     return im.convert("RGB")
 
 
@@ -1492,13 +1485,8 @@ def _draw_card_com_template(card: dict[str, Any], illustration_bytes: bytes) -> 
                    ROTULOS_FILEIRA.get(row, "UNIDADE"), maximo=22, minimo=12,
                    cor=suave, alinhamento="direita", margem=22, negrito=True)
 
-    # Custo: rótulo à esquerda, valor à direita.
-    custo = str(int(card.get("custo", 0) or 0))
-    cx1, cy1, cx2, cy2 = layout["custo"]
-    _texto_no_slot(draw, (cx1, cy1, cx1 + (cx2 - cx1) * 3 // 4, cy2), "CUSTO DE DECK", maximo=26, minimo=14,
-                   cor=suave, alinhamento="esquerda", margem=22)
-    _texto_no_slot(draw, (cx2 - 130, cy1, cx2, cy2), custo, maximo=44, minimo=22, cor=creme,
-                   alinhamento="direita", margem=22, contorno=2)
+    # Custo removido: campo não existe no motor do jogo
+    # (Antigamente desenhava "CUSTO DE DECK" mas o motor usa apenas poder/tipo/habilidade)
 
     # Habilidade: o guia reserva uma placa de 92 px. O título e até duas linhas
     # de descrição são dimensionados dentro da área segura, sem invadir o relevo.
