@@ -483,7 +483,7 @@ async function loadAtelierReviewQueue() {
     panel.hidden = false;
     await loadAtelierLeaderArtAdmin();
     $('#atelier-review-queue').innerHTML = (data.pending || []).map(item =>
-      `<article class="atelier-review-item"><img src="/api/gwent/atelier/submission/${Number(item.id)}/image" alt="Arte submetida"><div><b>${escapeHTML(item.card_id)}</b><small>Artista: ${escapeHTML(item.artist_name || `Discord ${item.user_id}`)}</small><small>${escapeHTML(item.created_at || '')}</small><div class="atelier-review-actions"><button class="primary" type="button" data-atelier-approve="${Number(item.id)}">Aprovar</button><button class="secondary" type="button" data-atelier-reject="${Number(item.id)}">Rejeitar</button></div></div></article>`
+      `<article class="atelier-review-item"><img src="/api/gwent/atelier/submission/${Number(item.id)}/image" loading="lazy" decoding="async" alt="Arte submetida"><div><b>${escapeHTML(item.card_id)}</b><small>Artista: ${escapeHTML(item.artist_name || `Discord ${item.user_id}`)}</small><small>${escapeHTML(item.created_at || '')}</small><div class="atelier-review-actions"><button class="primary" type="button" data-atelier-approve="${Number(item.id)}">Aprovar</button><button class="secondary" type="button" data-atelier-reject="${Number(item.id)}">Rejeitar</button></div></div></article>`
     ).join('') || '<p class="muted">Nenhuma arte aguardando aprovação.</p>';
   } catch (error) { panel.hidden = true; showNotice(error.message, 'error'); }
 }
@@ -641,7 +641,7 @@ async function loadAtelierOfficialArt() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Falha ao consultar arte oficial.');
     target.innerHTML = data.official
-      ? `<img class="atelier-official-preview" src="${escapeHTML(data.image_url)}" alt="Arte oficial comunitária"><small>Arte oficial por <b>${escapeHTML(data.artist_name)}</b> · ${escapeHTML(data.created_at)}</small>`
+      ? `<img class="atelier-official-preview" loading="lazy" decoding="async" src="${escapeHTML(data.image_url)}" alt="Arte oficial comunitária"><small>Arte oficial por <b>${escapeHTML(data.artist_name)}</b> · ${escapeHTML(data.created_at)}</small>`
       : '<p class="muted">Esta carta ainda utiliza a arte-base. Sua submissão pode se tornar a primeira arte oficial.</p>';
   } catch (error) { target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`; }
 }
