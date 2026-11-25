@@ -1963,7 +1963,7 @@ class NaraBot(commands.Bot):
             exemplar_id = int(body.get("exemplar_id", 0))
         except (TypeError, ValueError, AttributeError):
             return web.json_response({"error": "Exemplar inválido."}, status=400)
-        result = await self.db.coliseu_aprimorar_exemplar(user_id, exemplar_id)
+        result = await self.db.coliseu_evoluir_exemplar(user_id, exemplar_id)
         status = 200 if result.get("status") == "ok" else 409
         return web.json_response(result, status=status)
 

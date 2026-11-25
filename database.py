@@ -652,6 +652,55 @@ CREATE TABLE IF NOT EXISTS cartas_gwent_rewards (
 
 
 
+CREATE TABLE IF NOT EXISTS apostas_partidas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    opponent_id INTEGER,
+    card_id_a TEXT NOT NULL,
+    card_id_b TEXT NOT NULL,
+    winner_id INTEGER,
+    denarios_apostados INTEGER NOT NULL DEFAULT 0,
+    outcome TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(opponent_id) REFERENCES users(user_id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS apostas_cartas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    partida_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    card_id TEXT NOT NULL,
+    card_nome TEXT NOT NULL,
+    rarity TEXT NOT NULL DEFAULT 'Comum',
+    denarios_ganhos INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(partida_id) REFERENCES apostas_partidas(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS apostas_torneio (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    torneio_nome TEXT NOT NULL,
+    card_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    denarios_apostados INTEGER NOT NULL DEFAULT 0,
+    multiplicador INTEGER NOT NULL DEFAULT 1,
+    ganhos INTEGER NOT NULL DEFAULT 0,
+    criado_em TEXT NOT NULL DEFAULT (date('now')),
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS users_aposta_cache (
+    user_id INTEGER PRIMARY KEY,
+    data TEXT NOT NULL DEFAULT (date('now')),
+    total_dia INTEGER NOT NULL DEFAULT 0,
+    ultimo_cooldown_risco TEXT,
+    FOREIGN KEY(user_id) REFERENCES users(user_id)
+);
+
+
+
 CREATE TABLE IF NOT EXISTS cartas_recompensas (
     event_key TEXT PRIMARY KEY,
     user_id INTEGER NOT NULL,
@@ -672,6 +721,42 @@ CREATE TABLE IF NOT EXISTS cartas_fragmentos (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
+
+
+-- Conquistas e Achievements
+CREATE TABLE IF NOT EXISTS cartas_conquistas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    conquista TEXT NOT NULL,
+    progresso INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL DEFAULT 0,
+    desbloqueada_em TEXT NOT NULL DEFAULT (date('now')),
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS cartas_conquista_usuario (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    conquista_id INTEGER NOT NULL,
+    desbloqueada INTEGER NOT NULL DEFAULT 0,
+    data_desbloqueio TEXT NOT NULL DEFAULT (date('now')),
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY(conquista_id) REFERENCES cartas_conquistas(id) ON DELETE CASCADE
+);
+
+-- Tabela para rastrear progresso em eventos
+CREATE TABLE IF NOT EXISTS cartas_eventos_usuario (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    evento TEXT NOT NULL,
+    progresso INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_cartas_conquista_user ON cartas_conquista_usuario(user_id, conquista_id);
+CREATE INDEX IF NOT EXISTS idx_cartas_eventos_user ON cartas_eventos_usuario(user_id);
 -- Inventário dedicado ao Laboratório; saldo separado de Almas e Fragmentos da Forja.
 CREATE TABLE IF NOT EXISTS cartas_materiais_transmutacao (
     user_id INTEGER NOT NULL,
@@ -2999,8 +3084,10 @@ class Database:
                 novas += int(resultado.get("status") == "ok")
             return novas
 
-    async def coliseu_entregar_drops_iniciais(self, user_id: int, quantidade: int = 12) -> int:
-        """Entrega uma única vez um deck inicial de modelos globais aleatórios por drops."""
+    async def coliseu_entregar_drops_iniciais(self, user_id: int, quantidade: int = 10) -> int:
+        """Entrega uma única vez um deck inicial de modelos globais aleatórios por drops.
+        Novo jogadores recebem exatamente 10 cartas para começar a jogar imediatamente.
+        """
         import secrets
         from sistemas.cartas import CARTAS_PACOTE
         user_id = int(user_id)
@@ -3028,7 +3115,8 @@ class Database:
             owned = {str(row["card_id"]) for row in owned_rows}
             pool = [c for c in CARTAS_PACOTE if c.raridade != "Singular" and c.categoria != "Especial"
                     and not c.id.startswith("primordial_") and c.id not in owned]
-            quantidade = max(0, min(int(quantidade), 12, len(pool)))
+            # Limita exatamente a 10 cartas para o deck inicial
+            quantidade = max(0, min(int(quantidade), 10, len(pool)))
             selecionadas = secrets.SystemRandom().sample(pool, quantidade)
             entregues = 0
             for carta in selecionadas:
@@ -3041,15 +3129,15 @@ class Database:
 
     async def coliseu_entregar_kit_especial_gwent(self, user_id: int, card_ids: list[str]) -> int:
         """Compatibilidade: kits fixos antigos foram substituídos por drops de boas-vindas."""
-        return await self.coliseu_entregar_drops_iniciais(user_id, quantidade=12)
+        return await self.coliseu_entregar_drops_iniciais(user_id, quantidade=10)
 
     async def coliseu_entregar_kit_gwent(self, user_id: int, card_ids: list[str]) -> int:
         """Compatibilidade: kits fixos antigos foram substituídos por drops de boas-vindas."""
-        return await self.coliseu_entregar_drops_iniciais(user_id, quantidade=12)
+        return await self.coliseu_entregar_drops_iniciais(user_id, quantidade=10)
 
     async def coliseu_entregar_kit_inicial(self, user_id: int, card_ids: list[str]) -> int:
         """Compatibilidade: kits fixos antigos foram substituídos por drops de boas-vindas."""
-        return await self.coliseu_entregar_drops_iniciais(user_id, quantidade=12)
+        return await self.coliseu_entregar_drops_iniciais(user_id, quantidade=10)
 
     async def coliseu_estado_usuario(self, user_id: int):
         user_id = int(user_id)

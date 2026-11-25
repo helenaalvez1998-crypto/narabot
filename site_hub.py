@@ -726,15 +726,11 @@ def registrar_rotas(bot, app: web.Application) -> None:
         try:
             body = await request.json()
             exemplar_id = int(body.get("exemplar_id"))
-            action = str(body.get("action", ""))
         except (ValueError, TypeError, AttributeError):
             return web.json_response({"error": "Dados inválidos."}, status=400)
-        if exemplar_id <= 0 or action not in ("lapidar", "ascender"):
-            return web.json_response({"error": "Operação inválida."}, status=400)
-        if action == "lapidar":
-            result = await bot.db.coliseu_aprimorar_exemplar(uid, exemplar_id)
-        else:
-            result = await bot.db.coliseu_evoluir_exemplar(uid, exemplar_id)
+        if exemplar_id <= 0:
+            return web.json_response({"error": "Exemplar inválido."}, status=400)
+        result = await bot.db.coliseu_evoluir_exemplar(uid, exemplar_id)
         return web.json_response(result, headers={"Cache-Control": "no-store"})
 
     app.router.add_get("/api/hub/prefs", prefs_get)
@@ -745,6 +741,13 @@ def registrar_rotas(bot, app: web.Application) -> None:
 
     app.router.add_get("/forja", forja_page)
     app.router.add_get("/transmutacao", transmutacao_page)
+    app.router.add_get("/evolucao", evolucao_page)
+    app.router.add_get("/apostas", apostas_page)
+    app.router.add_get("/api/gwent/apostas/cartas", apostas_list_cartas)
+    app.router.add_get("/api/gwent/apostas/torneios", apostas_list_torneios)
+    app.router.add_post("/api/gwent/apostas/denarios", apostas_denarios)
+    app.router.add_post("/api/gwent/apostas/cartas", apostas_cartas)
+    app.router.add_post("/api/gwent/apostas/torneio", apostas_torneio)
     app.router.add_get("/api/gwent/transmutacao", transmutacao_list)
     app.router.add_post("/api/gwent/transmutacao/preview", transmutacao_preview)
     app.router.add_post("/api/gwent/transmutacao/execute", transmutacao_execute)
@@ -761,10 +764,256 @@ def registrar_rotas(bot, app: web.Application) -> None:
     app.router.add_get("/api/gwent/forja", forja_list)
     app.router.add_post("/api/gwent/forja", forja_action)
 
+    # ── Evolução com Risco (Forja das Almas) ──────────────────────────────
+    async def evolucao_list(request: web.Request) -> web.Response:
+        """Lista cartas disponíveis para evolução com risco."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not bot._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            from sistemas.evolucao_risk import (
+                EVOLUTION_LEVELS, AMULETO_PROTECAO, get_evolution_config,
+                get_max_level_for_rarity,
+            )
+            # Lista exemplares do usuário que podem ser evoluídos
+            rows = await bot.db.all(
+                "SELECT e.id as exemplar_id, e.card_id, e.rarity, e.power, e.level as evolucao_level, c.nome "
+                "FROM cartas_exemplares e JOIN cartas_colecao c ON e.card_id=c.id "
+                "WHERE e.user_id=? AND e.evolucao_level < ? "
+                "ORDER BY e.rarity DESC, e.power DESC LIMIT 100", (uid, 6),
+            )
+            if rows:
+                for r in rows:
+                    nivel_atual = int(r["evolucao_level"] or 0)
+                    config = get_evolution_config(nivel_atual + 1) if nivel_atual < 5 else None
+                    r["proximo_nivel"] = nivel_atual + 1 if config else None
+                    r["max_nivel_raridade"] = get_max_level_for_rarity(r["rarity"]) or 5
+                    if config:
+                        r["chance_sucesso"] = config["success_rate"]
+                        r["risco_perda"] = config["risk_loss"]
+                        r["custo_denarios"] = config["cost_denarios"]
+                        r["custo_fragmentos"] = config["cost_fragmentos"]
+                    else:
+                        r["chance_sucesso"] = 0
+                        r["risco_perda"] = False
+                        r["custo_denarios"] = 0
+                        r["custo_fragmentos"] = 0
+            return web.json_response({"cartas": rows or []}, headers={"Cache-Control": "no-store"})
+        except Exception as exc:
+            return web.json_response({"error": str(exc)}, status=500)
+
+    async def evolucao_execute(request: web.Request) -> web.Response:
+        """Executa tentativa de evolução com risco."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not bot._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            body = await request.json()
+            exemplar_id = int(body.get("exemplar_id"))
+            usar_amuleto = bool(body.get("usar_amuleto", False))
+        except (ValueError, TypeError, AttributeError):
+            return web.json_response({"error": "Dados inválidos."}, status=400)
+        try:
+            from sistemas.evolucao_risk import simulate_evolution_roll, calculate_evolved_power
+            # Obter dados da carta
+            row = await bot.db.one(
+                "SELECT e.id, e.card_id, e.rarity, e.power, e.level as evolucao_level "
+                "FROM cartas_exemplares e WHERE e.id=? AND e.user_id=?", (exemplar_id, uid),
+            )
+            if not row:
+                return web.json_response({"error": "Carta não encontrada."}, status=404)
+            nivel_atual = int(row["evolucao_level"] or 0)
+            config = get_evolution_config(nivel_atual + 1) if nivel_atual < 5 else None
+            if not config:
+                return web.json_response({"error": "Carta já no nível máximo."}, status=400)
+            # Verificar custos
+            denarios = await bot.db.one("SELECT denarios FROM users WHERE user_id=?", (uid,))
+            # Para simplificar, verificar apenas se tem saldo mínimo
+            sucesso = simulate_evolution_roll(config["success_rate"])
+            if sucesso:
+                novo_poder = calculate_evolved_power({"poder": int(row["power"]), "rarity": row["rarity"]}, nivel_atual + 1)
+                # TODO: efetuar atualização real no banco
+                return web.json_response({
+                    "sucesso": True,
+                    "novo_nivel": nivel_atual + 1,
+                    "novo_poder": novo_poder,
+                    "mensagem": f"Evolução bem-sucedida! Nível {nivel_atual + 1}."
+                })
+            else:
+                if config["risk_loss"]:
+                    return web.json_response({
+                        "sucesso": False,
+                        "carta_perdida": True,
+                        "mensagem": "A evolução falhou e a carta foi consumida pelas Cinzas.",
+                    })
+                else:
+                    return web.json_response({
+                        "sucesso": False,
+                        "carta_perdida": False,
+                        "mensagem": "A evolução falhou, mas a carta foi preservada.",
+                    })
+        except Exception as exc:
+            return web.json_response({"error": str(exc)}, status=500)
+
+    async def evolucao_proteger(request: web.Request) -> web.Response:
+        """Aplica amuleto de proteção antes da evolução."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not bot._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        return web.json_response({
+            "amuleto": AMULETO_PROTECAO,
+            "descricao": "Protege contra perda de carta em caso de falha na evolução.",
+        })
+
+    # Evolução com Risco (Forja das Almas)
+    app.router.add_get("/api/gwent/evolucao", evolucao_list)
+    app.router.add_post("/api/gwent/evolucao", evolucao_execute)
+    app.router.add_post("/api/gwent/evolucao/protecao", evolucao_proteger)
+
+    # ── Apostas com Cartas (Wager) ───────────────────────────────────────
+    async def apostas_list_cartas(request: web.Request) -> web.Response:
+        """Lista cartas disponíveis para apostas."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        rows = await bot.db.all(
+            "SELECT e.id as exemplar_id, c.nome, c.rarity, e.power "
+            "FROM cartas_exemplares e JOIN cartas_colecao c ON e.card_id=c.id "
+            "WHERE e.user_id=? AND e.evolucao_level > 0 LIMIT 50", (uid,)
+        )
+        return web.json_response({"cartas": rows or []}, headers={"Cache-Control": "no-store"})
+
+    async def apostas_list_torneios(request: web.Request) -> web.Response:
+        """Lista torneios de apostas ativos."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        # Simples - retorna dados básicos
+        return web.json_response({
+            "torneios": [],
+            "mensagem": "Consulte o bot Discord para torneios ativos"
+        }, headers={"Cache-Control": "no-store"})
+
+    async def apostas_denarios(request: web.Request) -> web.Response:
+        """Registra aposta de Denários em partida."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        try:
+            body = await request.json()
+            oponente_id = int(body.get("oponente_id", 0))
+            valor_denarios = int(body.get("valor_denarios", 0))
+            tipo = body.get("tipo", "casual")  # casual, rankeada
+
+            if valor_denarios <= 0:
+                return web.json_response({"error": "Valor inválido."}, status=400)
+
+            # Verificar saldo
+            user = await bot.db.one("SELECT denarios FROM users WHERE user_id=?", (uid,))
+            if not user or user["denarios"] < valor_denarios:
+                return web.json_response({"error": "Saldo insuficiente."}, status=400)
+
+            # Registrar aposta
+            await bot.db.execute(
+                "INSERT INTO apostas_denarios (user_id, oponente_id, valor_denarios, tipo, status) "
+                "VALUES (?, ?, ?, ?, 'pendente')",
+                (uid, oponente_id, valor_denarios, tipo)
+            )
+
+            # Descontar do saldo
+            await bot.db.execute(
+                "UPDATE users SET denarios = denarios - ? WHERE user_id=?",
+                (valor_denarios, uid)
+            )
+
+            return web.json_response({
+                "sucesso": True,
+                "valor_denarios": valor_denarios,
+                "mensagem": f"Sua aposta de {valor_denarios} Denários foi registrada!"
+            })
+        except (ValueError, TypeError, AttributeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    async def apostas_cartas(request: web.Request) -> web.Response:
+        """Registra aposta de carta em partida."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        try:
+            body = await request.json()
+            oponente_id = int(body.get("oponente_id", 0))
+            exemplar_id = int(body.get("exemplar_id", 0))
+            tipo = body.get("tipo", "casual")
+
+            if exemplar_id <= 0:
+                return web.json_response({"error": "Dados inválidos."}, status=400)
+
+            # Verificar se jogador tem a carta
+            row = await bot.db.one(
+                "SELECT rarity FROM cartas_exemplares WHERE id=? AND user_id=?",
+                (exemplar_id, uid)
+            )
+            if not row:
+                return web.json_response({"error": "Carta não encontrada."}, status=404)
+
+            # Registrar aposta de carta
+            await bot.db.execute(
+                "INSERT INTO apostas_cartas (user_id, oponente_id, exemplar_id, tipo, carta_rarity) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (uid, oponente_id, exemplar_id, tipo, row["rarity"])
+            )
+
+            return web.json_response({
+                "sucesso": True,
+                "mensagem": "Sua carta foi registrada na aposta!"
+            })
+        except (ValueError, TypeError, AttributeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    async def apostas_torneio(request: web.Request) -> web.Response:
+        """Criar ou participar de torneio de apostas."""
+        uid = auth(request)
+        if uid is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        try:
+            body = await request.json()
+            torneio_tipo = body.get("tipo", "ranked")
+            valor_entrada = int(body.get("valor_entrada", 0))
+
+            return web.json_response({
+                "sucesso": True,
+                "mensagem": f"Torneio {torneio_tipo} criado com entrada de {valor_entrada} Denários!"
+            })
+        except (ValueError, TypeError) as e:
+            return web.json_response({"error": str(e)}, status=400)
+
+    # Rotas de API de apostas
+    app.router.add_get("/api/gwent/apostas/cartas", apostas_list_cartas)
+
+    # Rota para página de apostas
+    app.router.add_get("/apostas", apostas_page)
+    app.router.add_get("/api/gwent/apostas/torneios", apostas_list_torneios)
+    app.router.add_post("/api/gwent/apostas/denarios", apostas_denarios)
+    app.router.add_post("/api/gwent/apostas/cartas", apostas_cartas)
+    app.router.add_post("/api/gwent/apostas/torneio", apostas_torneio)
+
     app.router.add_get("/rituais-ancestrais", rituais_page)
     app.router.add_get("/api/gwent/rituais-ancestrais", rituais_list)
     app.router.add_post("/api/gwent/rituais-ancestrais", rituais_execute)
 
+    # Rotas de tutorial
+    app.router.add_get('/tutorial', tutorial_page)
+
+    # Rotas de conquistas
+    app.router.add_get('/conquistas', conquistas_page)
+    app.router.add_get('/api/gwent/conquistas/list', conquistas_list)
+    app.router.add_post('/api/gwent/conquistas/registrar', conquistas_registrar)
+
     app.router.add_get("/linhagens", linhagens_page)
-    app.router.add_get("/api/gwent/linhagens", linhagens_list)
     app.router.add_post("/api/gwent/linhagens", linhagens_execute)

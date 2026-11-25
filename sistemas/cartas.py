@@ -155,6 +155,19 @@ FACCOES_IDENTIDADE_POR_CARTA = {
     "gwent_unidade_detonador": "Véu Carmesim",          # Guerreiro da Chama Frenética
     "gwent_unidade_devorador_mana": "Véu Carmesim",     # Cavaleiro de Sangue de Mohg
     "gwent_unidade_carniceiro_forja": "Véu Carmesim",   # Recusante de Volcano Manor
+    "luterano_cruzado": "Os Esquecidos",
+    "luterano_missionario": "Os Esquecidos",
+    "luterano_bispo": "Os Esquecidos",
+    "luterano_anjo": "Os Esquecidos",
+    "luterano_papa": "Os Esquecidos",
+    "luterano_sacerdote": "Os Esquecidos",
+    "luterano_irmao": "Os Esquecidos",
+    "luterano_diacon": "Os Esquecidos",
+    "gwent_unidade_sacerdote": "Os Esquecidos",
+    "gwent_unidade_cruzado": "Os Esquecidos",
+    "gwent_unidade_missionario": "Os Esquecidos",
+    "gwent_unidade_protetor": "Os Esquecidos",
+    "gwent_unidade_evangelista": "Os Esquecidos",
 }
 
 # A fileira é definida pelo papel tático da unidade, não pela facção.
@@ -351,7 +364,16 @@ _CARTAS_BASE = [
     Carta("gwent_singular_primeiro", "Juramento Primordial do Crisol", "Relíquia", "Destreza", 10, "Singular", 0, "cacador_solitario", "Exemplar singular conquistado por um feito extraordinário."),
     Carta("gwent_singular_intocavel", "Adaga da Faca Negra", "Relíquia", "Destreza", 9, "Singular", 0, "precisao", "Conquistada ao concluir um desafio sem sofrer dano."),
     Carta("gwent_singular_nivel1", "Vontade de Marika", "Relíquia", "Força", 10, "Singular", 0, "ultimo_folego", "Conquistada ao vencer um desafio no nível um."),
-    Carta("gwent_singular_cacador_chefes", "Coroa do Lorde Prístino", "Relíquia", "Magia", 9, "Singular", 0, "paradoxo_eterno", "Conquistada ao derrotar todos os chefes de um desafio."),
+     Carta("gwent_singular_cacador_chefes", "Coroa do Lorde Prístino", "Relíquia", "Magia", 9, "Singular", 0, "paradoxo_eterno", "Conquistada ao derrotar todos os chefes de um desafio."),
+    # Nova facção: Os Esquecidos (Luteranos)
+    Carta("luterano_cruzado", "Cruzado Esquecido", "Chefe", "Força", 6, "Épica", 3, "sinergia_faccao", "Um guerreiro sagrado que luta pela fé, mesmo após ser esquecido pelo mundo. Ganha força com aliados da mesma facção."),
+    Carta("luterano_missionario", "Missionário Esquecido", "Unidade", "Destreza", 4, "Rara", 2, "legado", "Espalha a palavra divina. Se venceu a rodada anterior, entra com +2 de poder."),
+    Carta("luterano_bispo", "Bispo Esquecido", "Chefe", "Magia", 5, "Lendária", 3, "devoto", "Líder espiritual que fortalece aliados da mesma facção."),
+    Carta("luterano_anjo", "Anjo Esquecido", "Unidade", "Magia", 3, "Épica", 2, "gloria", "Mensageiro divino que permanece no campo se vencer a rodada."),
+    Carta("luterano_papa", "Papa Esquecido", "Chefe", "Magia", 7, "Mítica", 4, "sinergia_faccao", "Sumo sacerdote esquecido. Sua presença fortalece todos os aliados da fé."),
+    Carta("luterano_sacerdote", "Sacerdote Esquecido", "Unidade", "Magia", 4, "Rara", 2, "devoto", "Cura e fortalece aliados da mesma facção."),
+    Carta("luterano_irmao", "Irmão Esquecido", "Unidade", "Força", 3, "Comum", 1, "legado", "Um irmão de fé que ganha força ao vencer."),
+    Carta("luterano_diacon", "Diácono Esquecido", "Unidade", "Destreza", 2, "Comum", 1, "escolha_ritmo", "Auxilia nos rituais e escolhe o melhor momento para agir."),
 ]
 
 CARTAS_PRIMORDIAIS = [
@@ -403,9 +425,18 @@ CARTAS_EXPANSAO_V75 = [
     Carta("gwent_v75_lua_cartografo_lunar", "Cartógrafo das Cidades Eternas", "Covenant", "Magia", 4, "Rara", 2, "", "Não possui habilidade individual. Pode completar combos de mobilidade lunar com a unidade compatível.", fileira="ranged"),
     Carta("gwent_v75_lua_graviturgista", "Graviturgista de Nokron", "Magia", "Magia", 5, "Épica", 3, "", "Dobra a gravidade sobre até dois inimigos fortalecidos na fileira escolhida; se atingir dois, recebe poder adicional.", fileira="siege"),
     Carta("gwent_v75_lua_guardia", "Guardiã do Juramento Lunar", "Chefe", "Magia", 5, "Épica", 3, "", "Não possui habilidade individual. Pode completar combos de mobilidade lunar com a unidade compatível.", fileira="melee"),
+    # Nova facção: Os Esquecidos — fé, tradição e rituais sagrados.
+    Carta("luterano_apostolo", "Apóstolo Esquecido", "Covenant", "Força", 5, "Épica", 3, "", "Espalha a verdade divina; ao entrar em campo com aliado da mesma facção, ambos ganham +1 de poder.", fileira="melee"),
+    Carta("luterano_pastor", "Pastor Esquecido", "Unidade", "Destreza", 4, "Rara", 2, "legado", "Guia o rebanho fiel. Se venceu a rodada anterior, entra em campo com +2 de poder.", fileira="ranged"),
+    Carta("luterano_mistico", "Místico Esquecido", "Magia", "Magia", 5, "Rara", 2, "devoto", "Conecta-se ao sagrado; cada aliada da mesma facção em campo concede +1 de bônus adicional.", fileira="siege"),
+    Carta("luterano_profeta", "Profeta Esquecido", "Chefe", "Força", 6, "Mítica", 4, "sinergia_faccao", "Líder espiritual que une o rebanho. Ganha +1 de poder para cada aliada da Fé em campo.", fileira="melee"),
+    Carta("luterano_vigia", "Vigia da Noite", "Unidade", "Destreza", 3, "Comum", 1, "gloria", "Mantém a vigilância durante a noite. Permanece no campo ao vencer a rodada.", fileira="melee"),
+    Carta("luterano_anjo2", "Anjo de Segunda Ordem", "Covenant", "Magia", 5, "Lendária", 3, "gloria", "Brilho do sagrado. Ao vencer rodada, permanece no campo para o início da próxima.", fileira="siege"),
 ]
 
-_CARTAS_BASE = [*_CARTAS_BASE, *CARTAS_EXPANSAO_V75]
+_LUTERANO_CARTAS = []
+
+_CARTAS_BASE = [*_CARTAS_BASE, *CARTAS_EXPANSAO_V75, *_LUTERANO_CARTAS]
 
 CARTAS_POR_ID: dict[str, Carta] = {c.id: c for c in [*_CARTAS_BASE, *CARTAS_PRIMORDIAIS]}
 

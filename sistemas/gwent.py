@@ -6,7 +6,7 @@ ROWS = ("melee", "ranged", "siege")
 AI_PLAYER_ID = -1  # Identidade técnica reservada à NARA; nunca recebe ranking/recompensas.
 ROW_LABELS = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
 TYPE_ROW = {"Força": "melee", "Destreza": "ranged", "Magia": "siege"}
-FACTIONS = {"Força": "Ordem Áurea", "Destreza": "Véu Carmesim", "Magia": "Lua Negra"}
+FACTIONS = {"Força": "Ordem Áurea", "Destreza": "Véu Carmesim", "Magia": "Lua Negra", "Fé": "Os Esquecidos"}
 FACTION_TYPES = {value: key for key, value in FACTIONS.items()}
 LEGACY_FACTION_ALIASES = {"Casa Cariana": "Lua Negra", "Lua Sombria": "Lua Negra", "Dinastia Mohgwyn": "Véu Carmesim"}
 
@@ -62,8 +62,10 @@ HABILIDADES_UNIDADE_IMPLEMENTADAS = frozenset({
     "decreto_soberano", "olho_tempestade", "fome_abismo", "paradoxo_eterno",
     "guardiao_fileira", "cacador_solitario", "estandarte", "resistencia_climatica",
     "eco_arcano", "dupla_fornalha", "irmandade_veu", "circulo_arcano",
-    # Etapa 1: efeitos de ciclo de vida (escudo, queda, ressurreição, sobrevivência).
-    "vinganca", "escudo_ferro", "ressurgir", "devorar", "sobrevivente", "espolios",
+    # Etapa 1: efeitos de ciclo de vida (escudo, queda, ressurreição, glória).
+    "vinganca", "escudo_ferro", "ressurgir", "devorar", "gloria", "espolios",
+    # Etapa 4: novas mecânicas estratégicas simples e profundas.
+    "legado", "devoto", "escolha_ritmo", "sinergia_faccao",
 })
 HABILIDADES_ESPECIAIS_IMPLEMENTADAS = frozenset({
     "gwent_nevoa", "gwent_geada", "gwent_chuva", "gwent_chifre", "gwent_medico",
@@ -104,6 +106,20 @@ CARD_SYNERGY_TAGS = {
     "chefe_rei_afogado": {"abismo", "sangue_mohgwyn"},
     "covenant_coroa_abismo": {"abismo", "sangue_mohgwyn"},
     "covenant_lobos_cinza": {"cinzas"},
+    # Os Esquecidos: fé, devoção e glória divina.
+    "luterano_cruzado": {"fe", "gloria_divina"},
+    "luterano_missionario": {"fe", "evangelho"},
+    "luterano_bispo": {"fe", "devocao"},
+    "luterano_anjo": {"fe", "gloria_divina"},
+    "luterano_papa": {"fe", "soberania"},
+    "luterano_sacerdote": {"fe", "sacerdos"},
+    "luterano_irmao": {"fe", "irmandade"},
+    "luterano_diacon": {"fe", "diaconia"},
+    "gwent_unidade_sacerdote": {"fe"},
+    "gwent_unidade_cruzado": {"fe", "gloria_divina"},
+    "gwent_unidade_missionario": {"fe", "evangelho"},
+    "gwent_unidade_protetor": {"fe", "protecao"},
+    "gwent_unidade_evangelista": {"fe", "evangelho"},
     # Lua Negra: mobilidade, ataques encadeados e caça.
     "chefe_cervo_sombrio": {"veu_sombrio"},
     "chefe_aparicao_veio": {"veu_sombrio"},
@@ -179,6 +195,13 @@ SYNERGY_COMBOS = {
     "v75_juramento_dois_crisol": {"name": "Juramento do Crisol e da Graça", "tags": {"v75_erdtree_oath", "v75_crucible_guard"}, "minimum": 2, "bonus": 2, "description": "Formação e proteção convergem: a carta que completa o juramento recebe +2."},
     "v75_banquete_hemorragia": {"name": "Banquete da Hemorragia", "tags": {"v75_blood_mark", "v75_blood_feast"}, "minimum": 2, "bonus": 2, "description": "Uma marca aberta alimenta o ritual: a carta que completa o combo recebe +2."},
     "v75_convergencia_gelida": {"name": "Convergência da Geada Lunar", "tags": {"v75_frost_lore", "v75_lunar_paths"}, "minimum": 2, "bonus": 2, "description": "Geada e leitura das fileiras entram em ressonância: a carta que completa o combo recebe +2."},
+    # Os Esquecidos (Luteranos): fé e glória divina.
+    "fe_gloria": {"name": "Glória Divina", "tags": {"fe", "gloria_divina"}, "minimum": 2, "bonus": 2, "description": "A fé e a glória convergem: +2 para a carta que completa o combo."},
+    "fe_devocao": {"name": "Devoção", "tags": {"fe", "devocao"}, "minimum": 2, "bonus": 2, "description": "Duas unidades devotas fortalecem a formação: +2."},
+    "fe_evangelho": {"name": "Evangelho", "tags": {"fe", "evangelho"}, "minimum": 2, "bonus": 2, "description": "Missionários espalham a palavra: +2."},
+    "fe_irmandade": {"name": "Irmandade Esquecida", "tags": {"fe", "irmandade"}, "minimum": 2, "bonus": 2, "description": "Irmãos e missionários unem forças: +2."},
+    "fe_soberania": {"name": "Soberania Divina", "tags": {"fe", "soberania"}, "minimum": 2, "bonus": 2, "description": "O Papa e seus seguidores estabelecem soberania: +2."},
+    "fe_sacerdos": {"name": "Sacerdócio", "tags": {"fe", "sacerdos"}, "minimum": 2, "bonus": 2, "description": "Sacerdotes abençoam a formação: +2."},
 }
 
 
@@ -306,6 +329,21 @@ def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state:
     elif effect == "veiled_moon":
         card["bonus"] += 1
         if weakest_other_row: weakest_other_row["bonus"] = int(weakest_other_row.get("bonus", 0)) + 1
+    elif effect == "legado":
+        # Legado: se ganhou a rodada anterior, entra com +2 de poder
+        card["bonus"] += 2 if player.get("legado_vitoria", False) else 0
+    elif effect == "devoto":
+        # Devoto: se aliada de mesma facção em campo, +1 de poder
+        faccao = canonical_faction(card.get("faccao") or FACTIONS.get(str(card.get("tipo", ""))))
+        count = sum(1 for u in allies if canonical_faction(u.get("faccao") or FACTIONS.get(str(u.get("tipo", "")))) == faccao)
+        card["bonus"] += 1 if count >= 2 else 0
+    elif effect == "escolha_ritmo":
+        # Escolha de ritmo: jogador escolhe fileira ao jogar; permanece se ganhar rodada
+        card["bonus"] += 1
+    elif effect == "sinergia_faccao":
+        # Sinergia de facção: +1 para cada aliada da mesma facção
+        faccao = canonical_faction(card.get("faccao") or FACTIONS.get(str(card.get("tipo", ""))))
+        card["bonus"] += sum(1 for u in allies if canonical_faction(u.get("faccao") or FACTIONS.get(str(u.get("tipo", "")))) == faccao)
     elif effect == "shared_sentinel":
         occupied = {u.get("row") for u in allies}
         if all(r == row or r in occupied for r in ROWS): card["bonus"] += 1
@@ -428,7 +466,7 @@ def _aplicar_habilidade_identidade(player: dict, other: dict, card: dict, state:
 
 
 # Passiva de facção: a primeira unidade da própria facção recebe +1 por rodada.
-FACTION_BOOST = {"Ordem Áurea": 1, "Lua Negra": 1, "Véu Carmesim": 1}
+FACTION_BOOST = {"Ordem Áurea": 1, "Lua Negra": 1, "Véu Carmesim": 1, "Fé": 1}
 
 DEFAULT_LEADERS = {
     "Ordem Áurea": "comandante_fornalha",
@@ -874,14 +912,17 @@ def _resolve_round(state: dict) -> None:
         if pid == winner and any(u.get("habilidade") == "espolios" for u in board) and player.get("draw_pile"):
             player["hand"].append(player["draw_pile"].pop(0))
             extras.append("Espólios de guerra: o vencedor comprou uma carta.")
-        # Sobrevivente: a mais forte permanece no campo para a próxima rodada.
-        keepers = [u for u in board if u.get("habilidade") == "sobrevivente"]
-        keeper = max(keepers, key=lambda u: _poder_efetivo(u, previous_weather), default=None)
-        # Unidades sobrevivem à rodada no descarte: isso habilita recuperação
-        # por Lágrima Sagrada e mantém o histórico completo da partida.
+        # Glória: a mais forte permanece no campo se a rodada for vencida.
+        # Se o jogador venceu a rodada, a unidade mais forte fica em campo pro início da próxima.
+        # Se perdeu, todas vão para o descarte normalmente.
+        rodagem_vencida = state.get("rodada_vencida", {}).get(pid, False)
+        keepers_gloria = [u for u in board if u.get("habilidade") == "gloria"]
+        keeper_gloria = max(keepers_gloria, key=lambda u: _poder_efetivo(u, previous_weather), default=None) if rodagem_vencida else None
+
+        # Unidades vão para o descarte
         for fallen in board:
-            if fallen is keeper:
-                continue
+            if fallen is keeper_gloria and rodagem_vencida:
+                continue  # Glória: não envia pro descarte
             archived = deepcopy(fallen)
             # Bônus, escudos e estados são temporários: não podem reaparecer ao
             # recuperar uma unidade do descarte em uma rodada posterior.
@@ -892,16 +933,18 @@ def _resolve_round(state: dict) -> None:
             archived.pop("combo_ativado", None)
             player.setdefault("discard", []).append(archived)
         player["board"] = []
-        if keeper is not None:
-            kept = deepcopy(keeper)
+        if keeper_gloria is not None and rodagem_vencida:
+            kept = deepcopy(keeper_gloria)
             kept["bonus"] = 0
             kept["escudo"] = 0
-            # Estados temporários são encerrados ao fim da rodada, inclusive em Sobreviventes.
+            # Estados temporários são encerrados ao fim da rodada.
             for status_key in ("sangramento", "geada", "podrida", "loucura"):
                 kept[status_key] = 0
             kept.pop("combo_ativado", None)
             player["board"].append(kept)
-            extras.append(f"{kept['nome']} sobreviveu à rodada.")
+            extras.append(f"{kept['nome']} ficou com Glória!")
+        else:
+            extras.append("Glória não se ativou — rodada perdida.")
         player["passed"] = False
         player["faction_boost_used"] = False
         player["last_row"] = None
