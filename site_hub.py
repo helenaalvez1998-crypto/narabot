@@ -755,12 +755,10 @@ def registrar_rotas(bot, app: web.Application) -> None:
     app.router.add_get("/forja", forja_page)
     app.router.add_get("/transmutacao", transmutacao_page)
     app.router.add_get("/evolucao", evolucao_page)
-    app.router.add_get("/apostas", apostas_page)
     app.router.add_get("/api/gwent/transmutacao", transmutacao_list)
     app.router.add_post("/api/gwent/transmutacao/preview", transmutacao_preview)
     app.router.add_post("/api/gwent/transmutacao/execute", transmutacao_execute)
     app.router.add_post("/api/gwent/transmutacao/discover", transmutacao_discover)
-    app.router.add_get("/cartas-geradas", generated_cards_page)
     app.router.add_get("/api/gwent/transmutacao/balanceamento", transmutacao_balance_report)
     app.router.add_get("/api/gwent/cartas-geradas", generated_cards)
     app.router.add_get("/api/gwent/cartas-geradas/{card_id}", generated_card_detail)
@@ -1097,7 +1095,6 @@ def registrar_rotas(bot, app: web.Application) -> None:
     app.router.add_post("/api/gwent/apostas/cartas", apostas_cartas)
     app.router.add_post("/api/gwent/apostas/torneio", apostas_torneio)
 
-    app.router.add_get("/rituais-ancestrais", rituais_page)
     app.router.add_get("/api/gwent/rituais-ancestrais", rituais_list)
     app.router.add_post("/api/gwent/rituais-ancestrais", rituais_execute)
 
