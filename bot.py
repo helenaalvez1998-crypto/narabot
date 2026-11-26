@@ -81,6 +81,8 @@ class NaraBot(commands.Bot):
     async def on_command_error(self, ctx, error):
         log.error("Erro no comando %s: %s", ctx.command, error, exc_info=error)
 
+    # ----- Rotas web (servidor HTTP que serve o site) -----
+
     async def _status_api(self, request: web.Request) -> web.Response:
         return web.json_response({
             "service": "NaraBot-api",
@@ -126,33 +128,52 @@ class NaraBot(commands.Bot):
         return web.FileResponse(arquivo)
 
 
+# Instância do bot
 bot = NaraBot()
 
 
+# Bloco principal: serve o site via aiohttp E conecta no Discord
 if __name__ == "__main__":
     import os as _os
     token = _os.getenv("DISCORD_TOKEN") or _os.getenv("DISCORD_BOT_TOKEN") or _os.getenv("BOT_TOKEN") or _os.getenv("TOKEN")
     if not token:
         log.error("Token do Discord não encontrado nas variáveis de ambiente.")
         sys.exit(1)
+
+    # Configura rotas do servidor web
+    app = web.Application(client_max_size=42 * 1024 * 1024)
+    app.router.add_get("/", bot._pagina_inicial)
+    app.router.add_get("/style.css", bot._estilo_site)
+    app.router.add_get("/eden-ui.css", bot._elden_ui_css)
+    app.router.add_get("/efeitos-visuais.js", bot._efeitos_visuais_js)
+    app.router.add_get("/narabot-visual-v59.css", bot._narabot_visual_css)
+    app.router.add_get("/app.js", bot._script_site)
+    app.router.add_get("/api/status", bot._status_api)
+
+    assets_dir = Path("site/assets")
+    if assets_dir.is_dir():
+        app.router.add_static("/assets/", str(assets_dir), show_index=False)
+
     try:
-        app = web.Application(client_max_size=42 * 1024 * 1024)
-        app.router.add_get("/", bot._pagina_inicial)
-        app.router.add_get("/style.css", bot._estilo_site)
-        app.router.add_get("/eden-ui.css", bot._elden_ui_css)
-        app.router.add_get("/efeitos-visuais.js", bot._efeitos_visuais_js)
-        app.router.add_get("/narabot-visual-v59.css", bot._narabot_visual_css)
-        app.router.add_get("/app.js", bot._script_site)
-        app.router.add_get("/api/status", bot._status_api)
-
-        assets_dir = Path("site/assets")
-        if assets_dir.is_dir():
-            app.router.add_static("/assets/", str(assets_dir), show_index=False)
-
-        from aiohttp import web
-        web.run_app(app, host="0.0.0.0", port=int(_os.getenv("PORT", "8080")))
+        # Inicia o servidor web em background (thread separada pra não bloquear o bot.run)
+        web_task = asyncio.get_event_loop().create_task(
+            _run_web_server(app, _os.getenv("PORT", "8080"))
+        )
+        log.info("Servidor web iniciado na porta %s", _os.getenv("PORT", "8080"))
+        # Conecta o Discord (bloqueante)
+        bot.run(token)
     except Exception:
-        log.exception("Falha ao iniciar servidor web do NARABOT")
+        log.exception("Falha ao iniciar NARABOT")
         raise
 
-    bot.run(token)
+
+async def _run_web_server(app: web.Application, porta: str) -> None:
+    """Executa o servidor web em loop async separado."""
+    from aiohttp import web as _web
+    runner = _web.AppRunner(app)
+    await runner.setup()
+    site = _web.TCPSite(runner, "0.0.0.0", int(porta))
+    await site.start()
+    # Mantém o loop rodando para sempre (a task não encerra)
+    while True:
+        await asyncio.sleep(3600)
