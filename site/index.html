@@ -46,8 +46,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
     <button class="nav" data-tab="community"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg></i><span>Comunidade</span></button>
     <button class="nav" data-tab="arena"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M9.5 6.5 21 18v3h-3L6.5 9.5"/></svg></i><span>Arena</span><em class="nbadge" id="nb-arena" hidden>!</em></button>
     <button class="nav" data-tab="deck"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="3" width="13" height="18" rx="2"/><path d="M3 7v12a2 2 0 0 0 2 2"/></svg></i><span>Deck</span><em class="nbadge" id="nb-deck">0/12</em></button>
-    <button class="nav" type="button" data-open-forja aria-label="Abrir Forja"><i>⚒</i><span>Forja</span></button>
-    <button class="nav" type="button" data-open-transmutacao aria-label="Abrir Transmutação"><i>⚗</i><span>Transmutação</span></button>
+    <button class="nav" type="button" data-tab="forja" aria-label="Abrir Forja"><i>⚒</i><span>Forja</span></button>
+    <button class="nav" type="button" data-tab="transmutacao" aria-label="Abrir Transmutação"><i>⚗</i><span>Transmutação</span></button>
     <button class="nav" data-tab="market"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 22 12 12 22 2 12z"/></svg></i><span>Mercado</span></button>
     <button class="nav" data-tab="catalog"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/></svg></i><span>Catálogo</span></button>
     <button class="nav" data-tab="atelier"><i><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1 1.5-2-.6-1.2.2-2.5 1.6-2.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16.5" cy="9.5" r="1"/></svg></i><span>Ateliê</span></button>
@@ -68,10 +68,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 <section class="portal-launcher">
   <div class="section-head"><div><small class="eyebrow">CENTRO DE OPERAÇÕES</small><h3>Todos os sistemas do Coliseu</h3><p class="muted">Acesse as ferramentas sem sair do portal principal.</p></div></div>
   <div class="portal-launch-grid">
-    <button class="portal-tile portal-tile-feature" type="button" data-open-forja><span class="portal-tile-icon">⚒</span><b>Forja</b><small>Ascensão e lapidação de cartas</small></button>
+    <button class="portal-tile portal-tile-feature" type="button" data-goto="forja"><span class="portal-tile-icon">⚒</span><b>Forja</b><small>Ascensão e lapidação de cartas</small></button>
     <button class="portal-tile" type="button" data-goto="deck"><span class="portal-tile-icon">🂠</span><b>Deck Builder</b><small>Facções, líderes e montagem</small></button>
     <button class="portal-tile" type="button" data-goto="catalog"><span class="portal-tile-icon">📚</span><b>Biblioteca</b><small>Catálogo global de cartas</small></button>
-    <button class="portal-tile" type="button" data-open-transmutacao><span class="portal-tile-icon">⚗</span><b>Transmutação</b><small>Transformação de exemplares</small></button>
+    <button class="portal-tile" type="button" data-goto="transmutacao"><span class="portal-tile-icon">⚗</span><b>Transmutação</b><small>Transformação de exemplares</small></button>
     <button class="portal-tile" type="button" data-goto="atelier"><span class="portal-tile-icon">🎨</span><b>Ateliê</b><small>Criação e arte de cartas</small></button>
     <button class="portal-tile" type="button" data-goto="market"><span class="portal-tile-icon">◈</span><b>Mercado</b><small>Pacotes e recompensas</small></button>
     <button class="portal-tile" type="button" data-goto="community"><span class="portal-tile-icon">🏆</span><b>Ranking</b><small>Classificação da comunidade</small></button>
@@ -201,6 +201,28 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
       <section class="sec-title reveal"><small class="eyebrow">SPOILS DA ARENA</small><h2>Recompensas</h2></section>
       <div class="rewards-strip reveal"><div class="reward-chip"><span>✦</span>Almas</div><div class="reward-chip"><span>✧</span>Fragmentos</div><div class="reward-chip"><span>◈</span>Denários</div><div class="reward-chip"><span>🂠</span>Cartas Raras</div><div class="reward-chip"><span>♛</span>Ranking MMR</div></div>
       </div>
+
+  <div class="tab oficio-tab" id="tab-forja" data-title="Forja">
+    <section class="oficio-panel">
+      <div class="oficio-panel-heading">
+        <small class="eyebrow">OFÍCIO DO COLISEU</small>
+        <h2>Forja</h2>
+        <p class="muted">Lapide e ascenda seus exemplares sem sair do portal.</p>
+      </div>
+      <iframe class="oficio-frame" data-src="/forja?embed=1" title="Forja do Coliseu" loading="lazy"></iframe>
+    </section>
+  </div>
+  <div class="tab oficio-tab" id="tab-transmutacao" data-title="Transmutação">
+    <section class="oficio-panel">
+      <div class="oficio-panel-heading">
+        <small class="eyebrow">OFÍCIO DO COLISEU</small>
+        <h2>Transmutação</h2>
+        <p class="muted">Combine exemplares, catalisadores e materiais no Laboratório Arcano.</p>
+      </div>
+      <iframe class="oficio-frame" data-src="/transmutacao?embed=1" title="Laboratório de Transmutação" loading="lazy"></iframe>
+    </section>
+  </div>
+
 </section>
     <footer>NARABOT · GWENT DO COLISEU <span>Jogo principal · conectado ao servidor oficial</span></footer>
   </main>
@@ -213,7 +235,7 @@ const ps=document.getElementById('profile-status'),pf=document.querySelector('.p
 </script>
 <script>
 (()=>{const tabs=[...document.querySelectorAll('.tab')],navs=[...document.querySelectorAll('.nav[data-tab]')],T=document.getElementById('page-title');
-function show(n,push){const t=document.getElementById('tab-'+n);if(!t)return;tabs.forEach(x=>x.classList.toggle('show',x===t));navs.forEach(b=>b.classList.toggle('active',b.dataset.tab===n));T.textContent=t.dataset.title;t.querySelectorAll('.reveal').forEach(e=>e.classList.add('in'));if(push)history.replaceState(null,'','#'+n);if(!document.body.classList.contains('gwent-match-active'))scrollTo({top:0,behavior:'smooth'});if(window.gwentBanner&&push&&n==='arena')0}
+function show(n,push){const t=document.getElementById('tab-'+n);if(!t)return;tabs.forEach(x=>x.classList.toggle('show',x===t));navs.forEach(b=>b.classList.toggle('active',b.dataset.tab===n));T.textContent=t.dataset.title;t.querySelectorAll('.reveal').forEach(e=>e.classList.add('in'));const oficioFrame=t.querySelector('iframe.oficio-frame[data-src]');if(oficioFrame&&!oficioFrame.dataset.loaded){oficioFrame.src=oficioFrame.dataset.src;oficioFrame.dataset.loaded='1'}if(push)history.replaceState(null,'','#'+n);if(!document.body.classList.contains('gwent-match-active'))scrollTo({top:0,behavior:'smooth'});if(window.gwentBanner&&push&&n==='arena')0}
 navs.forEach(b=>b.onclick=()=>show(b.dataset.tab,1));
 document.addEventListener('click',e=>{const g=e.target.closest('[data-goto]');if(g)show(g.dataset.goto,1);const c=e.target.closest('[data-scroll]');if(c){const t=document.getElementById(c.dataset.scroll);t&&t.scrollIntoView({behavior:'smooth',block:'center'})}});
 const h=location.hash.slice(1);if(h)show(h);
@@ -345,88 +367,24 @@ if(!seen){const w=setInterval(()=>{if(!document.getElementById('splash')){clearI
 .portal-tile b{font:700 15px Cinzel,Georgia,serif;letter-spacing:.04em}
 .portal-tile small{color:#b8b0b5;font-size:12px}
 .portal-tile-feature{border-color:#b9955d;background:linear-gradient(145deg,#34291e,#191720)}
-.portal-launcher .portal-tile{appearance:none;text-align:left;cursor:pointer;color:inherit;font:inherit}\n.portal-launcher .portal-tile:focus-visible{outline:2px solid #d9b875;outline-offset:3px}\n.portal-tool-modal{position:fixed;inset:0;z-index:2147483000;background:#05070bea;display:none;padding:3vh 3vw}
-.portal-tool-modal.open{display:flex;flex-direction:column}
-.portal-tool-head{display:flex;align-items:center;justify-content:space-between;color:#f1dfbd;padding:10px 4px}
-.portal-tool-frame{display:block;width:100%;height:calc(100% - 54px);min-height:0;border:1px solid #6c5940;border-radius:12px;background:#0b0d13}
-.portal-tool-close{border:1px solid #94764c;background:#241d19;color:#f4dfb5;border-radius:8px;padding:9px 14px;cursor:pointer}
+.portal-launcher .portal-tile{appearance:none;text-align:left;cursor:pointer;color:inherit;font:inherit}\n.portal-launcher .portal-tile:focus-visible{outline:2px solid #d9b875;outline-offset:3px}\n
+
+
+
+
 @media(max-width:900px){.portal-launch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.portal-launcher{padding:14px}.portal-launch-grid{gap:8px}.portal-tile{min-height:112px;padding:11px}}
 
-.portal-tool-tabs{display:flex;gap:8px;align-items:center}.portal-tool-tabs button{border:1px solid #806a46;background:#211b20;color:#e9d5b0;border-radius:8px;padding:8px 12px;cursor:pointer}.portal-tool-tabs button.active{background:#5b4227;border-color:#c5a56a;color:#fff0d1}
+.portal-tool-tabs button{border:1px solid #806a46;background:#211b20;color:#e9d5b0;border-radius:8px;padding:8px 12px;cursor:pointer}.portal-tool-tabs button.active{background:#5b4227;border-color:#c5a56a;color:#fff0d1}
+
+.oficio-tab{width:100%;min-width:0}
+.oficio-panel{margin:0 0 22px;padding:20px;border:1px solid #514638;border-radius:16px;background:linear-gradient(145deg,#111b28,#0b111a);min-width:0}
+.oficio-panel-heading{padding:2px 4px 15px}
+.oficio-panel-heading h2{margin:5px 0 4px;font:700 clamp(25px,3vw,36px) Cinzel,Georgia,serif;color:#ead7b3}
+.oficio-panel-heading p{margin:0;color:#a9aebb}
+.oficio-frame{display:block;width:100%;height:calc(100vh - 185px);min-height:760px;border:1px solid #5b4c3b;border-radius:12px;background:#0b0d13}
+@media(max-width:760px){.oficio-panel{padding:12px}.oficio-frame{height:calc(100vh - 155px);min-height:900px}}
+
 </style>
-<div class="portal-tool-modal" id="portal-tool-modal" role="dialog" aria-modal="true" aria-label="Ofícios do Coliseu"><div class="portal-tool-head"><b id="portal-tool-title">Ofícios do Coliseu</b><div class="portal-tool-tabs"><button type="button" data-tool-tab="forja">Forja</button><button type="button" data-tool-tab="transmutacao">Transmutação</button><button type="button" class="portal-tool-close" data-close-tool>Fechar ×</button></div></div><iframe class="portal-tool-frame" id="portal-tool-frame" title="Ofícios do Coliseu" loading="eager"></iframe></div>
-<script>
-(()=> {
-  const modal = document.getElementById('portal-tool-modal');
-  const frame = document.getElementById('portal-tool-frame');
-  const title = document.getElementById('portal-tool-title');
-  if (!modal || !frame || !title) return;
-
-  const routes = {
-    forja: '/forja?embed=1',
-    transmutacao: '/transmutacao?embed=1'
-  };
-
-  function openTool(key) {
-    const route = routes[key];
-    if (!route) return;
-    title.textContent = key === 'forja' ? 'Forja do Coliseu' : 'Transmutação do Coliseu';
-    modal.querySelectorAll('[data-tool-tab]').forEach(button => {
-      button.classList.toggle('active', button.dataset.toolTab === key);
-    });
-    modal.classList.add('open');
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    if (frame.getAttribute('src') !== route) frame.setAttribute('src', route);
-  }
-
-  function closeTool() {
-    modal.classList.remove('open');
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-    frame.removeAttribute('src');
-    document.body.style.overflow = '';
-  }
-
-  document.querySelectorAll('[data-open-forja]').forEach(button => {
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openTool('forja');
-    }, true);
-  });
-
-  document.querySelectorAll('[data-open-transmutacao]').forEach(button => {
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openTool('transmutacao');
-    }, true);
-  });
-
-  modal.querySelectorAll('[data-tool-tab]').forEach(button => {
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      openTool(button.dataset.toolTab);
-    });
-  });
-
-  modal.querySelectorAll('[data-close-tool]').forEach(button => {
-    button.addEventListener('click', closeTool);
-  });
-
-  modal.addEventListener('click', event => {
-    if (event.target === modal) closeTool();
-  });
-
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && modal.classList.contains('open')) closeTool();
-  });
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
-})();
-</script>
+<iframe class="portal-tool-frame" id="portal-tool-frame" title="Ofícios do Coliseu" loading="lazy"></iframe></div>
 </body></html>
