@@ -1939,19 +1939,40 @@ class NaraBot(commands.Bot):
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         await self._gwent_prepare_user(user_id)
         state = await self.db.coliseu_estado_usuario(user_id)
-        fragments = await self.db._one(
-            "SELECT quantidade FROM cartas_fragmentos WHERE user_id=?", (int(user_id),)
-        )
-        packs = await self.db._one(
-            "SELECT COUNT(*) AS n FROM cartas_transacoes WHERE user_id=? AND kind='pacote_fogueira' AND created_at>=datetime('now','-1 day')",
-            (int(user_id),),
-        )
-        usados = int(packs["n"] or 0) if packs else 0
+        from sistemas.cartas import CARTAS_PACOTE, CARTAS_PRIMORDIAIS
+        ordem = ("Ordem Áurea", "Véu Carmesim", "Lua Negra", "Os Esquecidos")
+        ids_reliquias = {
+            "reliquia_grande_runa_godrick", "reliquia_runa_nao_nascidos",
+            "reliquia_runa_morte", "reliquia_noite_chama",
+            "reliquia_lamina_negra", "reliquia_algemas_margit",
+        }
+        contagem = {
+            faccao: sum(1 for card in CARTAS_PACOTE
+                        if card.id not in ids_reliquias and card.para_dict().get("faccao") == faccao)
+                    + sum(1 for card in CARTAS_PRIMORDIAIS if card.para_dict().get("faccao") == faccao)
+            for faccao in ordem
+        }
+        price = 120
+        packs = [{
+            "id": "geral", "name": "Pacote do Coliseu", "faction": None,
+            "description": "Três cartas aleatórias de todo o catálogo. Inclui a chance baixa de Relíquias.",
+            "cards": 3, "price": price, "card_pool": len(CARTAS_PACOTE) + len(CARTAS_PRIMORDIAIS),
+        }]
+        slugs = {"Ordem Áurea": "ordem_aurea", "Véu Carmesim": "veu_carmesim",
+                 "Lua Negra": "lua_negra", "Os Esquecidos": "os_esquecidos"}
+        for faccao in ordem:
+            packs.append({
+                "id": "faccao_" + slugs[faccao],
+                "name": "Pacote " + faccao, "faction": faccao,
+                "description": "Três cartas exclusivamente desta facção.",
+                "cards": 3, "price": price, "card_pool": contagem[faccao],
+            })
         return web.json_response({
             "summary": {"souls": int(state["almas"]), "denarios": int(state["denarios"]),
-                        "pity": int(state["pity"]), "fragments": int(fragments["quantidade"] or 0) if fragments else 0},
-            "pack": {"available": usados < 3, "price": 120, "cards": 3,
-                     "daily_limit": 3, "remaining": max(0, 3-usados)},
+                        "pity": int(state["pity"]), "fragments": int(state["fragmentos"])},
+            "unlimited": True, "packs": packs,
+            "pack": {"available": int(state["denarios"]) >= price, "price": price,
+                     "cards": 3, "unlimited": True},
         })
 
     async def _api_gwent_store_pack(self, request: web.Request) -> web.Response:
@@ -1960,12 +1981,24 @@ class NaraBot(commands.Bot):
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         if not self._api_origin_ok(request):
             return web.json_response({"error": "Origem não autorizada."}, status=403)
-        result = await self.db.coliseu_abrir_pacote(user_id, preco=120, quantidade=3, limite_pacotes_dia=3)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        faccao = str(body.get("faction") or "").strip() or None
+        faccoes_validas = {"Ordem Áurea", "Véu Carmesim", "Lua Negra", "Os Esquecidos"}
+        if faccao and faccao not in faccoes_validas:
+            return web.json_response({"error": "Facção de pacote inválida."}, status=400)
+        result = await self.db.coliseu_abrir_pacote(
+            user_id, preco=120, quantidade=3, faccao=faccao
+        )
         status = str(result.get("status", "erro"))
         if status == "sem_saldo":
             return web.json_response({"error": "Denários insuficientes.", **result}, status=402)
-        if status == "limite_pacotes_dia":
-            return web.json_response({"error": "Você já abriu o limite de três pacotes nas últimas 24 horas.", **result}, status=429)
+        if status == "faccao_invalida":
+            return web.json_response({"error": "Facção de pacote inválida.", **result}, status=400)
         if status != "ok":
             return web.json_response({"error": "Não foi possível abrir o pacote.", **result}, status=400)
         state = await self.db.coliseu_estado_usuario(user_id)
