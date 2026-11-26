@@ -343,10 +343,10 @@ if(!seen){const w=setInterval(()=>{if(!document.getElementById('splash')){clearI
 .portal-tile b{font:700 15px Cinzel,Georgia,serif;letter-spacing:.04em}
 .portal-tile small{color:#b8b0b5;font-size:12px}
 .portal-tile-feature{border-color:#b9955d;background:linear-gradient(145deg,#34291e,#191720)}
-.portal-tool-modal{position:fixed;inset:0;z-index:9999;background:#05070bea;display:none;padding:3vh 3vw}
+.portal-launcher .portal-tile{appearance:none;text-align:left;cursor:pointer;color:inherit;font:inherit}\n.portal-launcher .portal-tile:focus-visible{outline:2px solid #d9b875;outline-offset:3px}\n.portal-tool-modal{position:fixed;inset:0;z-index:2147483000;background:#05070bea;display:none;padding:3vh 3vw}
 .portal-tool-modal.open{display:flex;flex-direction:column}
 .portal-tool-head{display:flex;align-items:center;justify-content:space-between;color:#f1dfbd;padding:10px 4px}
-.portal-tool-frame{width:100%;height:calc(100% - 54px);border:1px solid #6c5940;border-radius:12px;background:#0b0d13}
+.portal-tool-frame{display:block;width:100%;height:calc(100% - 54px);min-height:0;border:1px solid #6c5940;border-radius:12px;background:#0b0d13}
 .portal-tool-close{border:1px solid #94764c;background:#241d19;color:#f4dfb5;border-radius:8px;padding:9px 14px;cursor:pointer}
 @media(max-width:900px){.portal-launch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.portal-launcher{padding:14px}.portal-launch-grid{gap:8px}.portal-tile{min-height:112px;padding:11px}}
@@ -356,11 +356,29 @@ if(!seen){const w=setInterval(()=>{if(!document.getElementById('splash')){clearI
   <iframe class="portal-tool-frame" id="portal-tool-frame" title="Ferramenta interna do Coliseu" loading="lazy"></iframe>
 </div>
 <script>
-(()=>{const modal=document.getElementById('portal-tool-modal'),frame=document.getElementById('portal-tool-frame'),title=document.getElementById('portal-tool-title');
-function openTool(path,label){title.textContent=label;frame.src=path;modal.classList.add('open');document.body.style.overflow='hidden'}
-function closeTool(){modal.classList.remove('open');frame.src='about:blank';document.body.style.overflow=''}
-document.addEventListener('click',e=>{if(e.target.closest('[data-open-forja]'))openTool('/forja?embed=1','Forja do Coliseu');if(e.target.closest('[data-open-transmutacao]'))openTool('/transmutacao?embed=1','Transmutação');if(e.target.closest('[data-close-tool]')||e.target===modal)closeTool()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeTool()});
+(()=> {
+ const modal=document.getElementById('portal-tool-modal');
+ const frame=document.getElementById('portal-tool-frame');
+ const title=document.getElementById('portal-tool-title');
+ if(!modal||!frame) return;
+ function openTool(path,label){
+   title.textContent=label; modal.classList.add('open');
+   modal.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden';
+   frame.src=path;
+ }
+ function closeTool(){
+   modal.classList.remove('open'); modal.setAttribute('aria-hidden','true');
+   frame.src='about:blank'; document.body.style.overflow='';
+ }
+ document.addEventListener('click',ev=>{
+   const forge=ev.target.closest('[data-open-forja]');
+   const trans=ev.target.closest('[data-open-transmutacao]');
+   if(forge){ev.preventDefault();openTool('/forja?embed=1','Forja do Coliseu');return;}
+   if(trans){ev.preventDefault();openTool('/transmutacao?embed=1','Transmutação do Coliseu');return;}
+   if(ev.target.closest('[data-close-tool]')||ev.target===modal)closeTool();
+ });
+ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&modal.classList.contains('open'))closeTool();});
+ modal.setAttribute('aria-hidden','true');
 })();
 </script>
 </body></html>
