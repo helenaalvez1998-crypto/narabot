@@ -721,6 +721,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
             items.append({
                 "id": int(row["id"]), "card_id": str(row["card_id"]),
                 "name": str(getattr(card, "nome", None) or getattr(card, "name", None) or row["card_id"]),
+                "image_url": f"/api/gwent/cards/{quote(str(row['card_id']), safe='')}/image?thumb=1",
                 "rarity": rarity, "power": power, "max_power": int(maximum),
                 "potencia_raridade": int(RARITY_EFFECT_BUDGET.get(rarity, 0)),
                 "lap_cost": CUSTO_APRIMORAMENTO_ALMAS.get(rarity),
