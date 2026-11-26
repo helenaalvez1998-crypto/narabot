@@ -712,7 +712,9 @@ def novo_estado(match_id: int, creator_id: int, opponent_id: int, decks: dict[st
             "hand": deck[:10], "draw_pile": deck[10:], "discard": [], "board": [],
             "passed": False, "leader_used": False, "weather_used": False,
             "faction": faction, "leader_id": leader_id, "leader_name": LEADERS[leader_id]["name"],
-            "equipped_relic_id": str(config.get("relic_id") or ""), "relic_used": False, "faction_boost_used": False,
+            "equipped_relic_id": str(config.get("relic_id") or ""),
+            "relic_card_owned": bool(config.get("relic_owned", False)),
+            "relic_used": False, "faction_boost_used": False,
             "mulligan_done": False, "last_row": None, "synergy_used": {}, "baixas": 0,
         }
     return {
@@ -1049,6 +1051,8 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
         relic_id = str(player.get("equipped_relic_id") or "")
         if not relic_id:
             return {"error": "Você não equipou uma Relíquia para esta partida."}
+        if not player.get("relic_card_owned", False):
+            return {"error": "Você precisa possuir a carta desta Relíquia para ativá-la."}
         if player.get("relic_used"):
             return {"error": "Sua Relíquia já foi ativada nesta partida."}
         relic_cards = {

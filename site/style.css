@@ -4931,20 +4931,6 @@ body.gwent-match-active .gwent-row.has-entering {
 .gwent-leader-relic.faction-blood .leader-relic-sigil { color:#d77a70; }
 .gwent-leader-relic.faction-moon { border-color:#657c9e; background:radial-gradient(ellipse at 50% 28%,rgba(73,102,151,.32),transparent 58%),linear-gradient(145deg,#111722,#1b2434 58%,#0b0f17); }
 .gwent-leader-relic.faction-moon .leader-relic-sigil { color:#a8c8e6; }
-.gwent-leader-relic.faction-faith { border-color:#789b80; background:radial-gradient(ellipse at 50% 28%,rgba(95,147,108,.30),transparent 58%),linear-gradient(145deg,#111a16,#1b2a20 58%,#0b100d); }
-.gwent-leader-relic.faction-faith .leader-relic-sigil { color:#b7e0bd; }
-.gwent-catalog-section{margin-top:28px;padding-top:22px;border-top:1px solid rgba(198,166,107,.25)}
-.gwent-catalog-card{cursor:pointer;text-align:left;color:inherit;transition:border-color .16s ease,transform .16s ease}.gwent-catalog-card:hover{transform:translateY(-2px);border-color:rgba(218,184,117,.65)}.gwent-catalog-card:focus-visible{outline:2px solid #d8bb7a;outline-offset:3px}.gwent-catalog-open{display:block;margin-top:5px;color:#d8bb7a;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.gwent-catalog-pool{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px;margin-top:14px}
-.gwent-catalog-card{min-width:0;overflow:hidden;border:1px solid rgba(198,166,107,.25);border-radius:10px;background:rgba(13,16,22,.78);display:flex;flex-direction:column}
-.gwent-catalog-art{aspect-ratio:2/3;overflow:hidden;background:#10131a}
-.gwent-catalog-art img{display:block;width:100%;height:100%;object-fit:cover}
-.gwent-catalog-meta{display:grid;gap:5px;padding:9px;min-width:0}
-.gwent-catalog-meta b{font-size:12px;line-height:1.25;overflow-wrap:anywhere}
-.gwent-catalog-meta small{font-size:10px;line-height:1.3;color:var(--muted,#a5a9b4)}
-.gwent-catalog-state{font-size:10px;font-weight:800;color:#a9c7ad}
-.gwent-catalog-card.is-locked .gwent-catalog-art img{filter:saturate(.7) brightness(.84)}
-.gwent-catalog-card.is-locked .gwent-catalog-state{color:#c0a878}
 
 /* V17 — retratos individuais dos nove líderes, recortados da prancha de arte. */
 .gwent-leader-relic {
@@ -5561,3 +5547,16 @@ body.gwent-match-active .gwent-row.has-entering {
 .gwent-target-actions button{min-height:38px;padding:9px 14px;border:1px solid var(--gold);border-radius:8px;background:var(--gold);color:#17120a;font:800 11px Inter,sans-serif;letter-spacing:.08em;cursor:pointer}
 .gwent-target-actions button.secondary{background:transparent;color:var(--text);border-color:var(--line)}
 .gwent-target-actions button:disabled{opacity:.45;cursor:not-allowed}
+
+
+/* Mercado: pacotes gerais e de facção */
+.gwent-store-pack-section{margin:0 0 18px}
+.gwent-store-pack-section .section-head h4{font:700 18px Cinzel,Georgia,serif;color:#ead7b3;margin:5px 0}
+.gwent-store-extras{margin-top:12px}
+.gwent-pack-option{display:flex;flex-direction:column;gap:10px;min-height:245px}
+.gwent-pack-option .pack-tag{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#d6b66f}
+.gwent-pack-option h4{margin:0}
+.gwent-pack-option .pack-pool{font-size:11px;color:var(--muted)}
+.gwent-pack-option .primary{margin-top:auto;width:100%}
+.gwent-pack-option.faction-pack{border-color:rgba(208,177,111,.35)}
+.gwent-pack-option .pack-crest{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:rgba(208,177,111,.1);border:1px solid rgba(208,177,111,.3);font-size:20px}
