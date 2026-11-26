@@ -1037,7 +1037,8 @@ class NaraBot(commands.Bot):
         exemplar_by_id = {int(e["id"]): e for e in exemplars}
         owned = await self.db.coliseu_listar_colecao(user_id)
         game_by_id = {str(r["card_id"]): str(r["game_name"] or "") for r in owned}
-        from sistemas.cartas import get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE, faixa_poder_exemplar, VERSAO_ARTES
+        from sistemas.cartas import (get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE,
+                                     faixa_poder_exemplar, VERSAO_ARTES, CARTAS_POR_ID)
         from sistemas.gwent import preparar_carta, RARITY_EFFECT_BUDGET
         cards = []
         for index, card_id in enumerate(ids):
@@ -1110,6 +1111,38 @@ class NaraBot(commands.Bot):
                 "default_art_url": f"/assets/leaders/{default_asset}.webp" if default_asset else "",
             }
         leaders = [leader_payload(key, value) for key, value in LEADERS.items() if value["faction"] == faction]
+        relic_ids = (
+            "reliquia_grande_runa_godrick", "reliquia_runa_nao_nascidos",
+            "reliquia_runa_morte", "reliquia_noite_chama",
+            "reliquia_lamina_negra", "reliquia_algemas_margit",
+        )
+        relic_exemplars = {}
+        for exemplar in exemplars:
+            card_id = str(exemplar["card_id"])
+            if card_id in relic_ids:
+                relic_exemplars.setdefault(card_id, []).append(exemplar)
+        relics_payload = []
+        for relic_card_id in relic_ids:
+            relic_model = CARTAS_POR_ID.get(relic_card_id)
+            if relic_model is None:
+                continue
+            copies = relic_exemplars.get(relic_card_id, [])
+            relics_payload.append({
+                "id": relic_card_id, "name": relic_model.nome,
+                "rarity": relic_model.raridade, "owned": bool(copies),
+                "owned_count": len(copies),
+                "image_url": f"/api/gwent/cards/{quote(relic_card_id, safe='')}/image?v={VERSAO_ARTES}",
+            })
+        saved_relic_id = str(row["relic_id"] or "") if row else ""
+        owned_relic_ids = {item["id"] for item in relics_payload if item["owned"]}
+        if saved_relic_id and saved_relic_id not in owned_relic_ids:
+            # Remove configuração antiga que permitia equipar sem possuir a carta.
+            async with self.db.transaction() as tx:
+                await tx.conn.execute(
+                    "UPDATE cartas_gwent_decks SET relic_id='' WHERE user_id=? AND relic_id=?",
+                    (user_id, saved_relic_id),
+                )
+            saved_relic_id = ""
         return web.json_response({
             "deck": cards, "faction": faction, "leader_id": leader_id,
             "leaders": leaders,
@@ -1121,8 +1154,10 @@ class NaraBot(commands.Bot):
                           "description": FACTION_ARCHETYPES.get(name, {}).get(
                               "description", "Uma facção com identidade e estratégias próprias.")}
                          for kind, name in FACTIONS.items()],
-            "relic_id": str(row["relic_id"] or "") if row else "",
-            "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True, "relics_per_match": 1}})
+            "relic_id": saved_relic_id,
+            "relics": relics_payload,
+            "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True,
+                      "relics_per_match": 1, "relic_drop_chance_percent": 0.5}})
 
     async def _api_gwent_deck_save(self, request: web.Request) -> web.Response:
         import json
@@ -1162,6 +1197,10 @@ class NaraBot(commands.Bot):
         if relic_id not in valid_relics:
             return web.json_response({"error": "Relíquia inválida."}, status=400)
         exemplars = await self.db.coliseu_listar_exemplares(user_id)
+        if relic_id and not any(str(e["card_id"]) == relic_id for e in exemplars):
+            return web.json_response({
+                "error": "Você ainda não possui a carta desta Relíquia. Ela pode ser encontrada em drops raros."
+            }, status=403)
         by_exemplar = {int(e["id"]): e for e in exemplars}
         resolved = []
         for card_id, exemplar_id in entries:
@@ -1340,6 +1379,7 @@ class NaraBot(commands.Bot):
             return web.json_response({"error": "Os dois jogadores precisam salvar um deck Gwent de 12 cartas."}, status=409)
 
         import json
+        from sistemas.gwent import canonical_faction
         configs = {}
         for participant_id in (user_id, opponent_id):
             saved = await self.db._one(
@@ -1347,10 +1387,23 @@ class NaraBot(commands.Bot):
                 (participant_id,),
             )
             if saved:
+                relic_id = str(saved["relic_id"] or "")
+                relic_owned = False
+                if relic_id:
+                    owned_relic = await self.db._one(
+                        "SELECT 1 FROM cartas_exemplares WHERE user_id=? AND card_id=? LIMIT 1",
+                        (participant_id, relic_id),
+                    )
+                    relic_owned = bool(owned_relic)
+                    if not relic_owned:
+                        return web.json_response({
+                            "error": f"O jogador {participant_id} não possui mais a carta da Relíquia equipada. Atualize o deck."
+                        }, status=409)
                 configs[str(participant_id)] = {
                     "faction": canonical_faction(str(saved["faction"] or "")) or "",
                     "leader_id": str(saved["leader_id"] or ""),
-                    "relic_id": str(saved["relic_id"] or ""),
+                    "relic_id": relic_id,
+                    "relic_owned": relic_owned,
                 }
 
         # A partida só começa depois da aceitação. O snapshot impede que alterações
@@ -1414,7 +1467,18 @@ class NaraBot(commands.Bot):
             "faction": canonical_faction(str(saved["faction"] or "")) if saved else "",
             "leader_id": str(saved["leader_id"] or "") if saved else "",
             "relic_id": str(saved["relic_id"] or "") if saved else "",
+            "relic_owned": False,
         }
+        if human_config["relic_id"]:
+            owned_relic = await self.db._one(
+                "SELECT 1 FROM cartas_exemplares WHERE user_id=? AND card_id=? LIMIT 1",
+                (user_id, human_config["relic_id"]),
+            )
+            if not owned_relic:
+                return web.json_response({
+                    "error": "Você não possui mais a carta da Relíquia equipada. Atualize seu deck."
+                }, status=409)
+            human_config["relic_owned"] = True
         faction = human_config["faction"]
         ai_config = {
             "faction": faction,
@@ -1422,6 +1486,8 @@ class NaraBot(commands.Bot):
             # artificial de coleção; a IA recebe outra ordem de compra.
             "leader_id": human_config["leader_id"] or DEFAULT_LEADERS.get(faction, ""),
             "relic_id": human_config["relic_id"],
+            # A NARA espelha a Relíquia somente no modo treino e só quando o jogador a possui.
+            "relic_owned": bool(human_config["relic_owned"]),
         }
         ai_deck = copy.deepcopy(deck)
 
@@ -1507,12 +1573,27 @@ class NaraBot(commands.Bot):
                 if not invitation.get("pending_invitation"):
                     return web.json_response({"error": "Dados do convite inválidos."}, status=409)
                 from sistemas.gwent import novo_estado, embaralhar_deck
+                invitation_configs = invitation.get("configs", {})
+                for participant_key, player_config in invitation_configs.items():
+                    relic_id = str(player_config.get("relic_id") or "")
+                    relic_owned = False
+                    if relic_id:
+                        owned_relic = await tx._one(
+                            "SELECT 1 FROM cartas_exemplares WHERE user_id=? AND card_id=? LIMIT 1",
+                            (int(participant_key), relic_id),
+                        )
+                        relic_owned = bool(owned_relic)
+                        if not relic_owned:
+                            return web.json_response({
+                                "error": "Um dos jogadores não possui mais a carta da Relíquia equipada. O convite não pode iniciar."
+                            }, status=409)
+                    player_config["relic_owned"] = relic_owned
                 match_decks = invitation.get("decks", {})
                 # O embaralhamento acontece somente após a aceitação, usando CSPRNG.
                 match_decks = {uid: embaralhar_deck(deck) for uid, deck in match_decks.items()}
                 state = novo_estado(
                     match_id, creator_id, opponent_id,
-                    match_decks, invitation.get("configs", {}),
+                    match_decks, invitation_configs,
                 )
                 cursor = await tx.conn.execute(
                     "UPDATE cartas_gwent_matches SET status='active',state_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'",
@@ -1674,6 +1755,24 @@ class NaraBot(commands.Bot):
 
             turno_antes = str(state.get("turn") or "")
             target_id = str(body.get("target_id", ""))[:120] or None
+            if action == "relic":
+                current_player = state.get("players", {}).get(str(user_id), {})
+                relic_id = str(current_player.get("equipped_relic_id") or "")
+                if not relic_id:
+                    return web.json_response({"error": "Nenhuma Relíquia equipada."}, status=409)
+                owned_relic = await tx._one(
+                    "SELECT 1 FROM cartas_exemplares WHERE user_id=? AND card_id=? LIMIT 1",
+                    (user_id, relic_id),
+                )
+                if not owned_relic:
+                    return web.json_response({
+                        "error": "Você precisa possuir a carta desta Relíquia para ativá-la."
+                    }, status=403)
+                current_player["relic_card_owned"] = True
+                if state.get("is_ai_match"):
+                    ai_player = state.get("players", {}).get("-1")
+                    if ai_player and ai_player.get("equipped_relic_id") == relic_id:
+                        ai_player["relic_card_owned"] = True
             result = aplicar_jogada(state, user_id, card_id, action, target_row, card_ids, target_id)
             if "error" in result:
                 return web.json_response({"error": result["error"]}, status=409)

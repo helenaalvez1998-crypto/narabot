@@ -4106,7 +4106,16 @@ class Database:
                     "card_rarity": ja["rarity"], "exemplar_id": ja["exemplar_id"], "card_power": ja["power"]}
 
         # O catálogo é global: qualquer modelo elegível pode sair em qualquer atividade.
-        modelos = [c for c in CARTAS_PACOTE if c.raridade != "Singular"]
+        # Relíquias não participam do sorteio comum. Elas entram por um sorteio raro
+        # próprio, mas continuam usando o mesmo inventário, exemplar e tratamento de duplicatas.
+        ids_reliquias = {
+            "reliquia_grande_runa_godrick", "reliquia_runa_nao_nascidos",
+            "reliquia_runa_morte", "reliquia_noite_chama",
+            "reliquia_lamina_negra", "reliquia_algemas_margit",
+        }
+        cartas_reliquias = [c for c in CARTAS_PACOTE if c.id in ids_reliquias]
+        modelos = [c for c in CARTAS_PACOTE if c.raridade != "Singular" and c.id not in ids_reliquias]
+        chance_reliquia_bps = 50  # 0,50% por carta sorteada (50 em 10.000).
         primordiais = list(CARTAS_PRIMORDIAIS)
         pesos = [("Comum", 6940), ("Rara", 2200), ("Épica", 700),
                  ("Lendária", 100), ("Mítica", 50)]
@@ -4124,8 +4133,21 @@ class Database:
                 if sorteio < acumulado:
                     raridade = nome
                     break
-        carta = (modelo_forcado if modelo_forcado is not None else
-                 secrets.choice(primordiais if raridade == "Primordial" else modelos))
+        # Uma Relíquia pode substituir a carta comum em 0,50% das tentativas.
+        # A raridade do exemplar continua obedecendo à roleta normal de raridade.
+        drop_reliquia = (
+            modelo_forcado is None
+            and bool(cartas_reliquias)
+            and secrets.randbelow(10_000) < chance_reliquia_bps
+        )
+        if modelo_forcado is not None:
+            carta = modelo_forcado
+        elif drop_reliquia:
+            carta = secrets.choice(cartas_reliquias)
+            if raridade == "Primordial":
+                raridade = "Mítica"
+        else:
+            carta = secrets.choice(primordiais if raridade == "Primordial" else modelos)
         if raridade == "Primordial" and modelo_forcado is not None:
             # Um drop inicial não pode contornar as condições especiais de Primordial.
             raridade = "Mítica"
