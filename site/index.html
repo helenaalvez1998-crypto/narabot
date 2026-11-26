@@ -155,11 +155,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 
   <div class="tab" id="tab-market" data-title="Mercado e Drops"><section class="earn" id="earn-panel"><div class="section-head"><div><small class="eyebrow">CONTRIBUA E GANHE</small><h3>Como ganhar cartas</h3></div><span class="muted">Contribuições aprovadas rendem cartas</span></div><ul class="earn-grid"><li class="earn-z"><i>🏆</i><div><b>Jogo zerado</b><span>Registre no painel de Zerados do Discord</span></div></li><li class="earn-p"><i>💎</i><div><b>Platina</b><span>Envie no painel de Platinas</span></div></li><li class="earn-s"><i>⚔</i><div><b>Run Soulslike</b><span>Conclua um desafio e ganhe até carta Singular</span></div></li><li class="earn-m"><i>🔧</i><div><b>Mod</b><span>Envie um mod ao catálogo e ganhe após aprovação</span></div></li><li class="earn-t"><i>🎮</i><div><b>Port de jogo</b><span>Compartilhe um port; a moderação aprova e a carta é sua</span></div></li><li class="earn-a"><i>🎨</i><div><b>Arte de carta</b><span>Ilustre uma carta no Ateliê — vira arte oficial com seu crédito</span></div></li></ul><p class="earn-note">Ganhou carta? O bot avisa no canal do Coliseu para toda a comunidade ver. <button class="earn-go" data-goto="atelier">Ir ao Ateliê</button></p></section><div class="market-cols"><section class="gwent-store gwent-drop-info">
         <div class="section-head"><div><small class="eyebrow">MERCADO E RECOMPENSAS</small><h3>Mercado do Coliseu</h3></div><span id="gwent-store-wallet" class="muted">Carregando saldo...</span></div>
-        <div class="gwent-store-grid">
-          <article class="gwent-store-card gwent-pack-card"><div class="store-seal">✦</div><div><small class="eyebrow">PACOTE DA FORJA</small><h4>Pacote de 3 cartas</h4><p>Receba três cartas aleatórias diretamente na coleção. As raridades seguem a tabela global; após 10 cartas comuns consecutivas, a próxima recebe proteção de raridade.</p><small id="gwent-pack-limit" class="muted">Limite de 3 pacotes a cada 24 horas.</small></div><button id="gwent-open-pack" class="primary" type="button">Abrir por 120 Denários</button></article>
-          <article class="gwent-store-card"><div class="store-seal">✧</div><div><small class="eyebrow">ATIVIDADES APROVADAS</small><h4>Drops adicionais</h4><p>Zerados, platinas, runs Soulslike e contribuições aprovadas também podem conceder cartas sem custo. Drops e pacotes compartilham a coleção.</p></div></article>
-          <article class="gwent-store-card"><div class="store-seal">✧</div><div><small class="eyebrow">CATÁLOGO E EXPANSÕES</small><h4>Novas cartas e facções</h4><p>Consulte o Catálogo Global na aba Deck e Coleção. Ele exibe todos os modelos, inclusive cartas ainda não obtidas. Pacotes e recompensas adicionam exemplares à sua coleção.</p></div></article>
+        <div class="gwent-store-pack-section">
+          <div class="section-head"><div><small class="eyebrow">PACOTES DISPONÍVEIS</small><h4>Escolha seu pacote</h4></div><span class="muted">Compras ilimitadas · 3 cartas por pacote</span></div>
+          <div id="gwent-pack-options" class="gwent-store-grid"><p class="muted">Carregando pacotes...</p></div>
         </div>
+        <div class="gwent-store-grid gwent-store-extras"><article class="gwent-store-card"><div class="store-seal">✧</div><div><small class="eyebrow">ATIVIDADES APROVADAS</small><h4>Drops adicionais</h4><p>Zerados, platinas, runs Soulslike e contribuições aprovadas também podem conceder cartas sem custo. Drops e pacotes compartilham a coleção.</p></div></article>
+          <article class="gwent-store-card"><div class="store-seal">✧</div><div><small class="eyebrow">CATÁLOGO E EXPANSÕES</small><h4>Novas cartas e facções</h4><p>Consulte o Catálogo Global na aba Deck e Coleção. Ele exibe todos os modelos, inclusive cartas ainda não obtidas. Pacotes e recompensas adicionam exemplares à sua coleção.</p></div></article></div>
         <p id="gwent-store-status" class="muted" role="status">Entre com Discord para consultar o mercado.</p>
         <div id="gwent-pack-results" class="gwent-pack-results" aria-live="polite"></div>
       </section>
@@ -251,7 +252,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
     <footer>NARABOT · GWENT DO COLISEU <span>Jogo principal · conectado ao servidor oficial</span></footer>
   </main>
 </div>
-<script src="/app.js?v=gwent-competitive-v75" defer></script>
+<script src="/app.js?v=gwent-competitive-v76" defer></script>
 <script>
 (()=>{const io=new IntersectionObserver(e=>e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target)}}),{threshold:.12});
 const sc=()=>document.querySelectorAll('.reveal:not(.in),.gwent-store,.atelier-panel,.gwent-drop-history,.challenge-panel').forEach(el=>{if(!el.dataset.o){el.dataset.o=1;el.classList.add('reveal');io.observe(el)}});sc();
