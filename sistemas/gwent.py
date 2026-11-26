@@ -93,6 +93,8 @@ LEADERS = {
     "voz_caidos": {"name": "Esgar", "faction": "Véu Carmesim", "description": "Ressuscita do descarte a unidade mais forte de poder 5 ou menos na fileira escolhida, com +1 de bônus.", "effect": "esgar_blood_priest"},
     # Líder próprio dos Esquecidos, baseado na identidade do Papa Esquecido.
     "lider_papa_esquecido": {"name": "Papa Esquecido", "faction": "Os Esquecidos", "description": "Concede +1 de bônus às unidades dos Esquecidos na fileira escolhida.", "effect": "forgotten_blessing"},
+    "madre_serafina": {"name": "Madre Serafina", "faction": "Os Esquecidos", "description": "Na fileira escolhida, remove efeitos negativos de todas as unidades dos Esquecidos purificadas; cada uma recebe +1 de bônus.", "effect": "forgotten_absolution"},
+    "inquisidor_aurel": {"name": "Inquisidor Aurel", "faction": "Os Esquecidos", "description": "Concede Escudo e +1 de bônus às 2 unidades dos Esquecidos mais fortes na fileira escolhida.", "effect": "forgotten_aegis"},
     # Lua Negra — feitiçaria, gravidade e domínio astral.
     "arquimaga_eclipse": {"name": "Rennala", "faction": "Lua Negra", "description": "Remove Geada e Podridão dos aliados; cada aliado purificado em Cerco recebe +1 de bônus.", "effect": "rennala_full_moon"},
     "mestre_eclipse": {"name": "Astel", "faction": "Lua Negra", "description": "A gravidade atinge os inimigos da fileira escolhida: aplica uma marca de Geada a até 3 unidades mais fortes.", "effect": "astel_gravity"},
@@ -1243,6 +1245,35 @@ def aplicar_jogada(state: dict, user_id: int, card_id: str | None = None,
             if not targets:
                 return {"error": "O Papa Esquecido precisa de ao menos uma unidade dos Esquecidos na fileira escolhida."}
             for unit in targets:
+                unit["bonus"] = int(unit.get("bonus", 0)) + 1
+        elif effect == "forgotten_absolution":
+            status_keys = ("sangramento", "geada", "podrida", "loucura")
+            targets = [
+                unit for unit in player["board"]
+                if unit.get("row") == row
+                and canonical_faction(unit.get("faccao") or FACTIONS.get(str(unit.get("tipo", "")))) == "Os Esquecidos"
+                and any(int(unit.get(key, 0)) > 0 for key in status_keys)
+            ]
+            if not targets:
+                return {"error": "Madre Serafina precisa de unidades dos Esquecidos afetadas por efeitos negativos na fileira escolhida."}
+            for unit in targets:
+                for key in status_keys:
+                    unit[key] = 0
+                unit["bonus"] = int(unit.get("bonus", 0)) + 1
+        elif effect == "forgotten_aegis":
+            targets = sorted(
+                (
+                    unit for unit in player["board"]
+                    if unit.get("row") == row
+                    and int(unit.get("escudo", 0)) <= 0
+                    and canonical_faction(unit.get("faccao") or FACTIONS.get(str(unit.get("tipo", "")))) == "Os Esquecidos"
+                ),
+                key=lambda unit: _poder_efetivo(unit, state.get("weather")), reverse=True
+            )[:2]
+            if not targets:
+                return {"error": "Inquisidor Aurel precisa de ao menos uma unidade dos Esquecidos sem Escudo na fileira escolhida."}
+            for unit in targets:
+                unit["escudo"] = 1
                 unit["bonus"] = int(unit.get("bonus", 0)) + 1
         else:
             return {"error": "Habilidade de líder não reconhecida."}
