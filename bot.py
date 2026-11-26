@@ -81,92 +81,8 @@ class NaraBot(commands.Bot):
     async def on_command_error(self, ctx, error):
         log.error("Erro no comando %s: %s", ctx.command, error, exc_info=error)
 
-    # ----- Rotas web (servidor HTTP que serve o site) -----
 
-    async def _status_api(self, request: web.Request) -> web.Response:
-        return web.json_response({
-            "service": "NaraBot-api",
-            "status": "online",
-            "discord_connected": self.is_ready(),
-            "database": "connected",
-        })
-
-    async def _pagina_inicial(self, request: web.Request) -> web.Response:
-        index_file = Path("site/index.html")
-        if not index_file.is_file():
-            return web.Response(text="Site não encontrado.", status=404)
-        return web.FileResponse(index_file)
-
-    async def _estilo_site(self, request: web.Request) -> web.Response:
-        arquivo = Path("site/style.css")
-        if not arquivo.is_file():
-            raise web.HTTPNotFound(text="CSS do site não encontrado.")
-        return web.FileResponse(arquivo)
-
-    async def _elden_ui_css(self, request: web.Request) -> web.Response:
-        arquivo = Path("site/elden-ui.css")
-        if not arquivo.is_file():
-            raise web.HTTPNotFound(text="Sistema visual V49 não encontrado.")
-        return web.FileResponse(arquivo)
-
-    async def _efeitos_visuais_js(self, request: web.Request) -> web.Response:
-        arquivo = Path("site/efeitos-visuais.js")
-        if not arquivo.is_file():
-            raise web.HTTPNotFound(text="Efeitos visuais não encontrados.")
-        return web.FileResponse(arquivo)
-
-    async def _narabot_visual_css(self, request: web.Request) -> web.Response:
-        arquivo = Path("site/narabot-visual-v59.css")
-        if not arquivo.is_file():
-            raise web.HTTPNotFound(text="Folha visual V59 não encontrada.")
-        return web.FileResponse(arquivo)
-
-    async def _script_site(self, request: web.Request) -> web.Response:
-        arquivo = Path("site/app.js")
-        if not arquivo.is_file():
-            raise web.HTTPNotFound(text="JavaScript do site não encontrado.")
-        return web.FileResponse(arquivo)
-
-
-# Instância do bot
-bot = NaraBot()
-
-
-# Bloco principal: serve o site via aiohttp E conecta no Discord
-if __name__ == "__main__":
-    import os as _os
-    token = _os.getenv("DISCORD_TOKEN") or _os.getenv("DISCORD_BOT_TOKEN") or _os.getenv("BOT_TOKEN") or _os.getenv("TOKEN")
-    if not token:
-        log.error("Token do Discord não encontrado nas variáveis de ambiente.")
-        sys.exit(1)
-
-    # Configura rotas do servidor web
-    app = web.Application(client_max_size=42 * 1024 * 1024)
-    app.router.add_get("/", bot._pagina_inicial)
-    app.router.add_get("/style.css", bot._estilo_site)
-    app.router.add_get("/eden-ui.css", bot._elden_ui_css)
-    app.router.add_get("/efeitos-visuais.js", bot._efeitos_visuais_js)
-    app.router.add_get("/narabot-visual-v59.css", bot._narabot_visual_css)
-    app.router.add_get("/app.js", bot._script_site)
-    app.router.add_get("/api/status", bot._status_api)
-
-    assets_dir = Path("site/assets")
-    if assets_dir.is_dir():
-        app.router.add_static("/assets/", str(assets_dir), show_index=False)
-
-    try:
-        # Inicia o servidor web em background (thread separada pra não bloquear o bot.run)
-        web_task = asyncio.get_event_loop().create_task(
-            _run_web_server(app, _os.getenv("PORT", "8080"))
-        )
-        log.info("Servidor web iniciado na porta %s", _os.getenv("PORT", "8080"))
-        # Conecta o Discord (bloqueante)
-        bot.run(token)
-    except Exception:
-        log.exception("Falha ao iniciar NARABOT")
-        raise
-
-
+# Função que roda o servidor web em thread separada
 async def _run_web_server(app: web.Application, porta: str) -> None:
     """Executa o servidor web em loop async separado."""
     from aiohttp import web as _web
@@ -177,3 +93,108 @@ async def _run_web_server(app: web.Application, porta: str) -> None:
     # Mantém o loop rodando para sempre (a task não encerra)
     while True:
         await asyncio.sleep(3600)
+
+
+# Rota do status da API
+async def _status_api(request: web.Request) -> web.Response:
+    return web.json_response({
+        "service": "NaraBot-api",
+        "status": "online",
+        "discord_connected": True,
+        "database": "connected",
+    })
+
+
+# Rota da página inicial
+async def _pagina_inicial(request: web.Request) -> web.Response:
+    index_file = Path("site/index.html")
+    if not index_file.is_file():
+        return web.Response(text="Site não encontrado.", status=404)
+    return web.FileResponse(index_file)
+
+
+# Rota do estilo CSS
+async def _estilo_site(request: web.Request) -> web.Response:
+    arquivo = Path("site/style.css")
+    if not arquivo.is_file():
+        raise web.HTTPNotFound(text="CSS do site não encontrado.")
+    return web.FileResponse(arquivo)
+
+
+# Rota do edên UI CSS
+async def _elden_ui_css(request: web.Request) -> web.Response:
+    arquivo = Path("site/elden-ui.css")
+    if not arquivo.is_file():
+        raise web.HTTPNotFound(text="Sistema visual V49 não encontrado.")
+    return web.FileResponse(arquivo)
+
+
+# Rota dos efeitos visuais (novo)
+async def _efeitos_visuais_js(request: web.Request) -> web.Response:
+    arquivo = Path("site/efeitos-visuais.js")
+    if not arquivo.is_file():
+        raise web.HTTPNotFound(text="Efeitos visuais não encontrados.")
+    return web.FileResponse(arquivo)
+
+
+# Rota da visual V59
+async def _narabot_visual_css(request: web.Request) -> web.Response:
+    arquivo = Path("site/narabot-visual-v59.css")
+    if not arquivo.is_file():
+        raise web.HTTPNotFound(text="Folha visual V59 não encontrada.")
+    return web.FileResponse(arquivo)
+
+
+# Rota do script do site
+async def _script_site(request: web.Request) -> web.Response:
+    arquivo = Path("site/app.js")
+    if not arquivo.is_file():
+        raise web.HTTPNotFound(text="JavaScript do site não encontrado.")
+    return web.FileResponse(arquivo)
+
+
+# Sinalizador de visual para o frontend
+def _visual_signal(state: dict, user_id) -> dict | None:
+    try:
+        board_now = state.get("players", {}).get(str(user_id), {}).get("board", [])
+        for u in board_now:
+            if u.get("_efeito_ativado"):
+                return {"type": "card_effect", "card_id": str(u.get("id", ""))}
+    except Exception:
+        pass
+    return None
+
+
+bot = NaraBot()
+
+
+if __name__ == "__main__":
+    import os as _os
+    token = _os.getenv("DISCORD_TOKEN") or _os.getenv("DISCORD_BOT_TOKEN") or _os.getenv("BOT_TOKEN") or _os.getenv("TOKEN")
+    if not token:
+        log.error("Token do Discord não encontrado nas variáveis de ambiente.")
+        sys.exit(1)
+    try:
+        app = web.Application(client_max_size=42 * 1024 * 1024)
+        app.router.add_get("/", _pagina_inicial)
+        app.router.add_get("/style.css", _estilo_site)
+        app.router.add_get("/eden-ui.css", _elden_ui_css)
+        app.router.add_get("/efeitos-visuais.js", _efeitos_visuais_js)
+        app.router.add_get("/narabot-visual-v59.css", _narabot_visual_css)
+        app.router.add_get("/app.js", _script_site)
+        app.router.add_get("/api/status", _status_api)
+
+        assets_dir = Path("site/assets")
+        if assets_dir.is_dir():
+            app.router.add_static("/assets/", str(assets_dir), show_index=False)
+
+        # Inicia o servidor web em background (task async) sem bloquear o bot.run()
+        loop = asyncio.get_event_loop()
+        loop.create_task(_run_web_server(app, _os.getenv("PORT", "8080")))
+        log.info("Servidor web iniciado em segundo plano na porta %s", _os.getenv("PORT", "8080"))
+
+        # Conecta o Discord (bloqueante)
+        bot.run(token)
+    except Exception:
+        log.exception("Falha ao iniciar NARABOT")
+        raise
