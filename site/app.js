@@ -825,7 +825,24 @@ async function loadGwentDeck() {
     gwentSavedLeader = data.leader_id || 'comandante_fornalha';
     gwentSavedRelic = data.relic_id || '';
     const relicSelect = $('#gwent-relic-select');
-    if (relicSelect) { relicSelect.value = gwentSavedRelic; relicSelect.dispatchEvent(new Event('change', {bubbles:true})); }
+    if (relicSelect) {
+      const ownedRelics = Array.isArray(data.relics) ? data.relics : [];
+      const options = ['<option value="">Sem Relíquia</option>'];
+      for (const relic of ownedRelics) {
+        const label = relic.owned
+          ? `${relic.name} · ${relic.rarity} · Possuída (${number(relic.owned_count)})`
+          : `${relic.name} · ${relic.rarity} · Não obtida`;
+        options.push(`<option value="${escapeHTML(relic.id)}" ${relic.owned ? '' : 'disabled'}>${escapeHTML(label)}</option>`);
+      }
+      relicSelect.innerHTML = options.join('');
+      const savedIsOwned = ownedRelics.some(relic => relic.id === gwentSavedRelic && relic.owned);
+      relicSelect.value = savedIsOwned ? gwentSavedRelic : '';
+      relicSelect.dispatchEvent(new Event('change', {bubbles:true}));
+      const relicStatus = $('#gwent-relic-status');
+      if (relicStatus && !ownedRelics.some(relic => relic.owned)) {
+        relicStatus.textContent = 'Você ainda não possui Relíquias. Elas têm 0,50% de chance em cada drop de carta.';
+      }
+    }
     applyGwentLeaders(data.leaders_by_faction);
     $('#gwent-faction').value = gwentSavedFaction;
     renderGwentLeaderOptions(gwentSavedLeader);
@@ -2482,18 +2499,15 @@ window.addEventListener('resize', () => {
   const preview = document.querySelector('#gwent-relic-preview');
   const status = document.querySelector('#gwent-relic-status');
   if (!select || !preview) return;
-  const key = 'narabot_gwent_relic_loadout_v20';
   const render = () => {
     const relic = relics[select.value];
     preview.innerHTML = relic
       ? `<div class="v52-relic-seal"><i>♜</i><span>${escapeHTML(relic[3])}</span></div><small>${escapeHTML(relic[1])} · ${escapeHTML(relic[3])}</small><b>${escapeHTML(relic[0])}</b><p>${escapeHTML(relic[2])}</p><span class="gwent-relic-equipped">PREPARADA</span>`
       : '<b>Nenhuma Relíquia selecionada</b><p>Você entrará sem Relíquia equipada.</p>';
-    if (status) status.textContent = 'Relíquia selecionada. Salve o deck para registrar a escolha na sua conta.';
+    if (status) status.textContent = relic ? 'Carta possuída. Salve o deck para equipar esta Relíquia. Chance de Relíquia: 0,50% por drop.' : 'Somente cartas de Relíquia que você possui podem ser equipadas. Chance de drop: 0,50% por carta.';
   };
-  try { select.value = localStorage.getItem(key) || ''; } catch (_) {}
   render();
   select.addEventListener('change', () => {
-    try { localStorage.setItem(key, select.value); } catch (_) {}
     render();
     if (typeof renderGwentBuilder === 'function') renderGwentBuilder();
   });
