@@ -9,9 +9,9 @@ import re
 import unicodedata
 from typing import Any
 
-ASPECT_RATIO = "5:4"
-ART_WIDTH = 1200
-ART_HEIGHT = 960
+ASPECT_RATIO = "2:3"
+ART_WIDTH = 1024
+ART_HEIGHT = 1536
 
 
 def _text(value: Any, limit: int = 1000) -> str:
@@ -35,46 +35,53 @@ FACTIONS = {
     "ordem aurea": "Ordem Áurea",
     "veu carmesim": "Véu Carmesim",
     "lua negra": "Lua Negra",
+    "os esquecidos": "Os Esquecidos",
 }
 
 
 def normalizar_faccao(valor: Any) -> str:
-    """Resolve somente os três valores oficiais do campo faccao; nunca infere pela lore."""
+    """Resolve somente uma das quatro facções oficiais do campo faccao; nunca infere pela lore."""
     return FACTIONS.get(_norm(_text(valor, 100)), "")
 
 
 def direcao_faccao(valor: Any) -> str:
-    """Direção visual compartilhada. A entrada deve vir exclusivamente de card['faccao']."""
+    """Instruções visuais do modelo completo específico da facção."""
     canonical = normalizar_faccao(valor)
     directions = {
         "Ordem Áurea": (
-            "FACTION ART STANDARD — ORDEM ÁUREA (LIGHT, LAW AND FAITH): this is a NARABOT deck faction, not proof that the named subject is canonically a member of the Golden Order. "
-            "Faction signature: majesty, order, nobility, spirituality and sacred authority. Use aged gold, solar yellow, warm ivory, muted bronze and neutral weathered stone as a controlled palette. "
-            "Express the faction primarily through motivated golden or warm reflected light, environmental atmosphere, monumental but weathered stone, restrained sacred geometry and subtle background motifs. "
-            "Leyndell, Altus Plateau, Erdtree-related architecture, temples or processional spaces may be selected only when the character's canonical identity or card lore supports that location. "
-            "Do not automatically add angel wings, halos, a giant Erdtree, a paladin archetype or a full-frame gold filter. The faction must never recolor, replace or redesign canonical armor, garments, skin, hair, weapons or signature equipment."
+            "FACTION CARD TEMPLATE — ORDEM ÁUREA. Use the supplied Ordem Áurea complete-card image as the exact layout and styling reference. "
+            "Preserve its warm ivory/parchment field, fine dark outline, golden-brown accents, restrained gold ornament, circular power medallion at upper left, "
+            "large upper illustration, centered name panel, dark tactical strip with gold lettering and diamond markers, gold faction ribbon on the right, "
+            "open lore panel and gold rarity plaque at bottom right. Its visual identity is sacred, solar, noble and disciplined. "
+            "Keep the faction's gold/ivory palette and tree/solar motifs; do not copy the reference character or its lore."
         ),
         "Véu Carmesim": (
-            "FACTION ART STANDARD — VÉU CARMESIM (BLOOD, SACRIFICE AND HERESY): this is a NARABOT deck faction, not a claim that every card subject is an official member of Mohg's blood dynasty. "
-            "Faction signature: blood, violence, combat, mystery, lineage and dark elegance. Use deep crimson, blood red, claret, oxblood, blackened iron, tarnished silver and neutral ash-grey as controlled environmental and lighting accents. "
-            "Express the faction through dramatic motivated red reflections, deep shadows, severe atmosphere, restrained heraldic or ritual context only when supported, and a fitting fortress, noble estate, battlefield, ruin or ceremonial environment selected from the card's actual story. "
-            "Do not automatically make the subject a vampire, assassin, blood mage or demon; do not add horns, tridents, gore, bloodflame or blood magic without explicit card support. Never recolor or redesign canonical armor, garments, skin, hair, weapons or signature equipment."
+            "FACTION CARD TEMPLATE — VÉU CARMESIM. Use the supplied Véu Carmesim complete-card image as the exact layout and styling reference. "
+            "Preserve its warm parchment field, dark red corner ornaments, fine pale border, circular power medallion at upper left, "
+            "dominant upper illustration, pale title strip, black tactical strip with crimson diamond markers, vertical crimson faction banner on the right, "
+            "spacious lore area, crimson divider detail and dark red rarity plaque at bottom right. "
+            "Its visual identity is blood-red, severe, ritualistic and somber. Do not copy the reference priest or its lore."
         ),
         "Lua Negra": (
-            "FACTION ART STANDARD — LUA NEGRA (MAGIC, COSMOS AND SECRETS): this is a NARABOT deck faction, not proof that the named subject canonically belongs to the Carian royal family or a lunar order. "
-            "Faction signature: mystery, darkness, cold, lunar forces, melancholy and restrained supernatural atmosphere. Use deep blue, lunar blue, blue-grey, silver, cold white and blue-black as controlled environmental and lighting accents. "
-            "Express the faction through motivated moonlight, cool reflections, mist, deep shadows and ancient ruins, night landscapes, observatories or Carian architecture only when supported by the card's actual identity and lore. "
-            "Do not automatically turn the subject into a wizard, sorcerer or lunar entity; do not add a moon, starfield, glintstone spell, runes or magical aura without explicit support. Never recolor or redesign canonical armor, garments, skin, hair, weapons or signature equipment."
+            "FACTION CARD TEMPLATE — LUA NEGRA. Use the supplied Lua Negra complete-card image as the exact layout and styling reference. "
+            "Preserve its pale parchment field, fine dark border, circular power medallion at upper left, expansive upper illustration, "
+            "pale title strip, black tactical strip with blue diamond markers, vertical deep-blue faction banner on the right, "
+            "spacious centered lore panel, blue divider detail and deep-blue rarity plaque at bottom right. "
+            "Its visual identity is lunar, nocturnal, cold and mysterious, using deep blue, silver and moonlit highlights. Do not copy Hanni or her lore."
+        ),
+        "Os Esquecidos": (
+            "FACTION CARD TEMPLATE — OS ESQUECIDOS. Use the supplied Os Esquecidos complete-card image as the exact layout and styling reference. "
+            "Preserve its pale parchment field, fine dark border, circular power medallion at upper left, large upper illustration, "
+            "pale title strip, dark emerald tactical strip with green diamond markers, vertical emerald faction banner on the right, "
+            "spacious lore panel, green divider detail and emerald rarity plaque at bottom right. "
+            "Its visual identity is ancient, solemn and mysterious, using emerald green, antique gold and ivory. Do not copy the reference pope or his lore."
         ),
     }
     if canonical:
         return directions[canonical]
     raw = _text(valor, 100) or "blank"
-    return (
-        f"FACTION FIELD VALIDATION: the card's faccao field is '{raw}', which does not match one of the game's exactly three official factions: "
-        "Ordem Áurea, Véu Carmesim or Lua Negra. Do not infer or assign a faction from the character name, lore, appearance, abilities, affinities or synergies. "
-        "Do not create a fourth faction. Keep faction-specific heraldry, uniform, palette and allegiance neutral until the actual faccao field is corrected."
-    )
+    return (f"FACTION VALIDATION: '{raw}' is not one of the four registered factions. Do not infer a faction or choose a template. "
+            "Request correction before generating the card.")
 
 
 # Referências explícitas para personagens/identidades recorrentes. A referência
@@ -128,177 +135,120 @@ def gerar_analise_artistica(
     ability_name: str = "",
     ability_rule: str = "",
 ) -> str:
-    """Cria a análise artística em português. A facção vem somente de card['faccao']."""
+    """Ficha artística enxuta: somente os seis dados oficiais solicitados."""
     name = _text(card.get("nome") or card.get("name") or "Carta sem nome", 160)
-    category = _text(card.get("categoria") or card.get("category") or "não informada", 80)
-    faction_raw = _text(card.get("faccao"), 80)
-    faction = normalizar_faccao(faction_raw) or (faction_raw or "não informada")
-    rarity = _text(card.get("raridade") or card.get("rarity") or "não informada", 60)
-    card_type = _text(card.get("tipo") or card.get("type") or "não informado", 60)
-    description = _text(card.get("descricao") or card.get("lore") or "", 1200)
-    power = _text(card.get("poder") if card.get("poder") is not None else "não informado", 30)
-    power_max = _text(card.get("poder_maximo") or card.get("max_power") or "não informado", 30)
-    function = _text(card.get("funcao_tatica") or card.get("funcao") or card.get("papel_gwent") or "não informada", 100)
-    row = _text(card.get("fileira") or "não informada", 40)
-    archetype = _text(card.get("arquetipo") or card.get("epiteto") or "não informado", 140)
-    affinities = card.get("afinidades") or card.get("afinidade_dominante") or "não informadas"
-    if isinstance(affinities, (list, tuple, set)):
-        affinities = ", ".join(_text(x, 80) for x in list(affinities)[:8]) or "não informadas"
-    else:
-        affinities = _text(affinities, 180)
-    synergies = card.get("sinergias") or card.get("sinergia") or card.get("synergies") or []
-    if isinstance(synergies, (list, tuple, set)):
-        synergies = ", ".join(_text(x.get("nome") or x.get("name") or x, 100) if isinstance(x, dict) else _text(x, 100) for x in list(synergies)[:8]) or "não informadas"
-    else:
-        synergies = _text(synergies, 240)
-    if has_ability is None:
-        has_ability = bool(_text(ability_name, 100) or _text(ability_rule, 300))
-    ability_summary = (
-        f"Habilidade: {_text(ability_name, 100) or 'habilidade registrada'}. Interpretação: {_text(ability_rule, 300) or 'representar somente o efeito documentado'}."
-        if has_ability else "Habilidade: nenhuma habilidade especial registrada; não adicionar magia, aura, runas ou poderes artificiais."
-    )
-    lore_line = f"Lore: {description}" if description else "Lore: sem descrição narrativa suficiente; não preencher lacunas com biografia inventada."
-    return "\n".join((
-        f"ANÁLISE ARTÍSTICA — {name} ({category}).",
-        "Universo: Elden Ring / Terras Intermédias. Identificar primeiro o sujeito literal e preservar seu modelo canônico, quando reconhecível.",
-        f"Facção identificada exclusivamente pelo campo FACÇÃO: {faction}.",
-        f"Direção de facção: {direcao_faccao(faction_raw)}",
-        f"Identidade e narrativa: {lore_line}",
-        f"Classificação: raridade {rarity}; tipo {card_type}; arquétipo/função {archetype}; função tática {function}; fileira {row}.",
-        f"Atributos de jogo: poder {power}/{power_max}; calibrar competência, sem transformar números em efeitos visuais.",
-        ability_summary,
-        f"Afinidades: {affinities}; são contexto secundário e não determinam a facção.",
-        f"Sinergias: {synergies}; são contexto complementar, não exigem personagens adicionais.",
-        "Hierarquia: universo Elden Ring → modelo original do personagem → facção → identidade individual da carta → lore → cenário e composição → complementos artísticos.",
-        "Cena: " + (_text(scene_reference, 1000) if scene_reference else "criar um instante próprio a partir do nome e da lore, sem inventar fatos canônicos."),
-        "Composição: ilustração horizontal em proporção exata 5:4; protagonista e equipamento integralmente dentro das margens seguras.",
-    ))
+    faction = _text(card.get("faccao") or "não informada", 80)
+    rarity = _text(card.get("raridade") or "não informada", 60)
+    category = _text(card.get("categoria") or "Unidade", 80)
+    row = _text(card.get("fileira") or card.get("row") or "", 30)
+    labels = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
+    row_label = "Carta especial" if category.casefold() == "especial" else labels.get(row, "não informada")
+    lore = _text(card.get("lore") or card.get("descricao") or card.get("description") or "", 1400)
+    base_power = card.get("poder_base", card.get("poder", "não informado"))
+    return "\n".join([
+        f"NOME DA CARTA: {name}",
+        f"PODER-BASE: {base_power}",
+        f"RARIDADE: {rarity}",
+        f"POSIÇÃO TÁTICA: {row_label}",
+        f"FACÇÃO: {faction}",
+        f"LORE: {lore or '[LORE NÃO CADASTRADA]'}",
+    ])
 
-def gerar_negative_prompt(card: dict[str, Any], *, has_ability: bool = True) -> str:
-    """Negative prompt global + restrições específicas derivadas da carta."""
-    base = [
-        "generic medieval fantasy, generic fantasy knight, stock fantasy character, wrong Elden Ring character, alternate redesign of a canonical character, inaccurate face, inaccurate species, inaccurate silhouette, incorrect armor, incorrect clothing, incorrect signature weapon",
-        "non-Elden-Ring universe, other game franchise, anime, manga, cartoon, cel shading, chibi, science fiction, futuristic armor, cyberpunk, modern clothing",
-        "invented biography, unsupported rank, unsupported heraldry, unsupported faction membership, random castle, random cathedral, random dragon, random skulls, unrelated creatures, unrelated companions, extra characters not required by the card story",
-        "random weapon, duplicate weapons, weapon incompatible with the named character, malformed weapon grip, impossible armor construction, floating equipment, broken anatomy, extra limbs, extra fingers, fused fingers, malformed hands, asymmetrical eyes, distorted face, incorrect proportions",
-        "unmotivated magic, random runes, floating symbols, magical aura without lore support, excessive glow, neon, oversaturated color filter, excessive bloom, visual clutter, confusing silhouette, collage, split panels, multiple vignettes",
-        "text, letters, typography, numbers, stats, title, logo, watermark, signature, card frame, card border, card edge, rarity gem, game UI, interface, mockup",
-        "glossy CGI, plastic armor, waxy skin, airbrushed face, artificial microtexture, excessive pores, random scratches, film grain, digital noise, speckling, dithering, pixelation, compression artifacts, oversharpening, HDR halos, muddy detail",
-    ]
-    if not has_ability:
-        base.append("spellcasting, magical attack, supernatural aura, energy beam, energy trail, floating glintstone, unexplained glow, invented elemental effect, artificial power")
-    name = _norm(_text(card.get("nome") or card.get("name"), 180))
-    faction = _norm(_text(card.get("faccao"), 80))
-    if faction == _norm("Ordem Áurea"):
-        base.append("generic angel, angel wings, excessive halo, full-frame gold filter, fantasy paladin stereotype")
-    elif faction == _norm("Véu Carmesim"):
-        base.append("automatic vampire traits, horns, trident, gratuitous gore, blood magic without explicit card support")
-    elif faction == _norm("Lua Negra"):
-        base.append("generic wizard robe, compulsory starfield, neon magic, science-fiction interface, cyberpunk elements")
-    if "hoslow" in name:
-        base.append("ordinary sword, greatsword, oversized plate armor, crown, horns, vampire design, blood splatter, gore, invented blood magic")
-    if "ranni" in name:
-        base.append("two arms, human skin, red-haired human woman without doll anatomy, missing canonical witch hat")
-    if "malenia" in name:
-        base.append("ordinary human limbs, missing prosthetic limbs, unrelated helmet, generic angel wings")
-    return "; ".join(base)
+
+def gerar_negative_prompt(card: dict[str, Any], *, has_ability: bool = False) -> str:
+    """Negative prompt alinhado ao layout atual de seis campos."""
+    return "; ".join([
+        "misspelled Portuguese text, gibberish typography, wrong accent marks, incorrect card name, incorrect faction, wrong tactical position, wrong rarity, wrong base-power digit",
+        "cost field, maximum power field, rarity potency field, category field, ability field, synergy field, extra statistics, extra labels, invented card attributes",
+        "faction confused with tactical position, tactical position confused with faction, Força, Destreza or Magia used as combat class",
+        "wrong faction template, generic universal recolored template, copied sample character, copied sample card title, copied sample lore, copied sample power number",
+        "generic medieval fantasy, inaccurate Elden Ring identity, incorrect face, inaccurate species, wrong silhouette, incorrect canonical armor, clothing or signature weapon",
+        "broken anatomy, extra limbs, malformed hands, fused fingers, impossible weapon grip, floating equipment, impossible perspective, inconsistent light, unreadable layout, overlapping panels, cropped title, clipped lore, cluttered composition",
+        "anime, manga, cartoon, chibi, science fiction, futuristic armor, cyberpunk, glossy CGI, plastic armor, waxy skin, neon filter, excessive bloom, oversaturation, pixelation, compression artifacts, watermark, signature, external brand logo",
+    ])
 
 
 def montar_prompt_mestre(
-    *,
-    card: dict[str, Any],
-    detail_prompt: str,
-    scene_reference: str = "",
-    has_ability: bool = True,
-    ability_name: str = "",
-    ability_rule: str = "",
-    faction_direction: str = "",
-    negative_prompt: str = "",
+    *, card: dict[str, Any], detail_prompt: str, scene_reference: str = "",
+    has_ability: bool = True, ability_name: str = "", ability_rule: str = "",
+    faction_direction: str = "", negative_prompt: str = "",
 ) -> str:
-    """Aplica o Prompt-Mestre V71 com precedência canônica e facção lida só do campo faccao."""
-    name = _text(card.get("nome") or card.get("name") or "Unnamed card", 160)
-    category = _text(card.get("categoria") or card.get("category") or "unspecified", 80)
-    # IMPORTANTE: não consultar 'faction', lore, sinergias ou afinidades para decidir a facção.
-    faction_raw = _text(card.get("faccao"), 80)
-    faction = normalizar_faccao(faction_raw) or (faction_raw or "not specified")
-    card_type = _text(card.get("tipo") or card.get("type") or "unspecified", 60)
-    rarity = _text(card.get("raridade") or card.get("rarity") or "unspecified", 60)
-    power = _text(card.get("poder") if card.get("poder") is not None else "not supplied", 30)
-    power_max = _text(card.get("poder_maximo") or card.get("max_power") or "not supplied", 30)
-    lore = _text(card.get("descricao") or card.get("lore") or "No card lore supplied; keep unknown facts neutral.", 1400)
-    affinity = card.get("afinidades") or card.get("afinidade_dominante") or "not supplied"
-    if isinstance(affinity, (list, tuple, set)):
-        affinity = ", ".join(_text(item, 80) for item in list(affinity)[:8]) or "not supplied"
-    else:
-        affinity = _text(affinity, 180)
-    ability_text = (
-        f"{_text(ability_name, 100)} — {_text(ability_rule, 450)}" if has_ability else
-        "No special ability. Do not invent spellcasting, magical attacks, aura, runes, energy trails or supernatural effects."
-    )
+    """Prompt integral para a nova identidade visual: seis campos e template por facção."""
+    name = _text(card.get("nome") or card.get("name") or "Carta sem nome", 160)
+    faction_raw = _text(card.get("faccao") or "", 80)
+    faction = normalizar_faccao(faction_raw)
+    rarity = _text(card.get("raridade") or "", 40)
+    category = _text(card.get("categoria") or "Unidade", 60)
+    row = _text(card.get("fileira") or card.get("row") or "", 20)
+    row_labels = {"melee": "Corpo a corpo", "ranged": "Longa distância", "siege": "Cerco"}
+    row_label = "Carta especial" if category.casefold() == "especial" else row_labels.get(row, "")
+    if not faction:
+        raise ValueError(f"Facção ausente ou inválida para gerar a carta {name}.")
+    if not rarity:
+        raise ValueError(f"Raridade ausente para gerar a carta {name}.")
+    if not row_label:
+        raise ValueError(f"Posição tática ausente ou inválida para gerar a carta {name}.")
+    try:
+        base_power = int(card.get("poder_base", card.get("poder")))
+    except (TypeError, ValueError):
+        raise ValueError(f"Poder-base inválido para gerar a carta {name}.")
+    lore = _text(card.get("descricao") or card.get("lore") or "Sem lore cadastrada.", 1400)
     canonical = canonical_reference(card)
-    scene = _text(scene_reference, 1800) or "No fixed catalogue scene. Derive one original moment strictly from the card name and lore; leave unsupported identity details neutral."
-    faction_text = direcao_faccao(faction_raw)
-    negative = negative_prompt or gerar_negative_prompt(card, has_ability=has_ability)
-    detail = _multiline(detail_prompt, 30000)
+    faction_text = faction_direction or direcao_faccao(faction)
+    scene = _text(scene_reference, 1800) or "Create a scene grounded only in the exact card name, lore and canonical identity. Do not invent powers, equipment or biography."
+    # detail_prompt is intentionally not interpolated: legacy builders may contain
+    # category, cost, max power, rarity potency, abilities or synergies, all excluded
+    # from the new six-field card face.
+    negative = negative_prompt or gerar_negative_prompt(card, has_ability=False)
+    return f"""NARABOT — PROMPT MESTRE DE CARTA COMPLETA — NOVA IDENTIDADE VISUAL
 
-    return f"""NARABOT — ELDEN RING CARD ART DIRECTOR / MASTER PROMPT
+OBJECTIVE: create ONE finished collectible card, not a standalone illustration. Use the attached faction-specific complete card as the visual template. Each of the four factions has its OWN complete template. Do not apply a universal layout and do not recolor another faction's template.
 
-1. CARD AND SUBJECT IDENTIFICATION
-Card name: {name}. Category: {category}. Type: {card_type}. Rarity: {rarity}. Current power: {power}. Maximum power: {power_max}. Affinities: {affinity}. Ability: {ability_text}. These are production facts, not elements to render. Resolve the literal named subject. A category label must never replace the actual named person, creature, object, weapon, spell, place or event.
+OFFICIAL CARD DATA — THESE SIX FIELDS ARE THE ONLY CARD DATA TO PRINT:
+CARD NAME: {name}
+BASE POWER (upper-left medallion): {base_power}
+RARITY: {rarity}
+TACTICAL POSITION: {row_label}
+FACTION: {faction}
+LORE: {lore}
 
-2. ELDEN RING UNIVERSE AND CANONICAL REFERENCE
-Mandatory universe: Elden Ring — the Lands Between. Use the Realm of Shadow only when supported by the card. {canonical} Preserve canonical character, creature, weapon, spell, event or location design: model, silhouette, anatomy, face, proportions, armor, helmet, clothing, materials, signature equipment and canonical colors. Never create an unsupported alternate version, merge distinct identities or borrow another franchise's designs. When the exact identity is uncertain, do not invent canonical details; keep unknown features neutral and create only a restrained subject coherent with Elden Ring.
+HARD EXCLUSION RULE — NEVER PRINT OR VISUALLY REPRESENT:
+COST, MAXIMUM POWER, RARITY POTENCY, CATEGORY, ABILITY, SYNERGIES, combat attributes, internal IDs or any other data fields. Do not create icons, badges, empty boxes or labels for excluded fields. These values may exist in internal game records but are not part of this card design.
 
-3. OFFICIAL NARABOT FACTION — SOURCE FIELD ONLY
-The faction MUST be read exclusively from the card's FACÇÃO field (internal key: 'faccao'). The supplied value is: {faction}. The game has EXACTLY THREE factions: ORDEM ÁUREA, VÉU CARMESIM and LUA NEGRA. The three NARABOT factions are custom deck allegiances. Do not infer, guess, rename or assign a faction from the character's appearance, name, canon allegiance, lore, type, ability, affinity, synergy, ingredient or environment. Synergy and affinity are not faction fields. Do not create a fourth faction. If the 'faccao' field is missing or does not exactly identify one of the three official factions, leave faction styling neutral and explicitly do not infer it.
+FIELD PLACEMENT:
+- BASE POWER: exact number {base_power} in the upper-left circular power medallion.
+- CARD NAME: exact name in the horizontal title panel below the artwork.
+- TACTICAL POSITION: exact label “{row_label}” in the dark horizontal strip below the title.
+- FACTION: exact faction identity {faction}, represented by the faction's vertical side banner and its emblem. The faction name may appear vertically as in its supplied reference.
+- LORE: reproduce the supplied lore in the lower parchment panel, preserving its meaning and wording. Do not add a lore heading unless the faction reference contains one.
+- RARITY: exact value “{rarity}” in the bottom-right rarity plaque.
 
-4. FACTION ART DIRECTION — CONSISTENT COLLECTION SIGNATURE
+VISUAL TEMPLATE — FACTION-SPECIFIC, NOT UNIVERSAL:
 {faction_text}
-Across cards of the same faction, maintain a recognizable visual signature through atmosphere, lighting, environmental color, background materials and restrained complementary motifs. Do not make every card look like the same character or repeat the same composition. The faction is an art-direction layer, never a replacement for the named subject's canonical design, equipment, colors or actual Elden Ring allegiance.
+The attached reference image for this faction is authoritative for card proportions, border, parchment, panel placement, typography, banner, emblem placement, divider treatment, color accents and rarity plaque. Match its structure closely. Small faction-specific differences are intentional and must be preserved. Never copy the sample character, sample card name, sample power number, sample lore or sample rarity; replace them with the six official data fields above.
 
-VISUAL AUTHORITY HIERARCHY — apply in this exact order when any instructions appear to conflict: (1) Elden Ring universe and lore; (2) original canonical model of the named character, creature, object or place; (3) faction signature as a subordinate art-direction layer; (4) the individual card identity; (5) supplied lore and context; (6) scene, location and composition; (7) optional artistic complements. A lower-priority layer may never rewrite a higher-priority fact. In particular, faction colors must never recolor canonical armor, clothing, skin, hair, weapons or signature equipment.
+ART DIRECTION:
+- Main illustration occupies the same large upper artwork region as the faction reference.
+- Depict the exact named subject, preserving recognizable Elden Ring identity where applicable: {canonical}
+- Translate the supplied lore into a specific scene, pose, expression, equipment, setting and atmosphere. Do not invent weapons, abilities, magic, companions, canonical allegiance or biography.
+- Faction styling influences the card template, restrained environmental accents and lighting. It must not overwrite the subject's canonical appearance, armor, clothing, skin, hair or signature equipment.
+- Scene guidance: {scene}
 
-5. PHYSICAL APPEARANCE AND ORIGINAL MODEL
-Derive anatomy, species, age impression, face, hair, body proportions and silhouette from the canonical identity and supplied lore. Preserve all recognizable traits of existing Elden Ring characters. Do not change gender, species, age, body plan, skin, hair, face or physical condition. For an original NARABOT archetype, infer only details required to depict the stated role; leave all unsupported physical details restrained and neutral.
+TEXT AND LAYOUT RULES:
+- The card is a single complete vertical 2:3 collectible card.
+- Keep the entire border visible; no mockup, hands, background canvas or multiple-card sheet.
+- Use clear, accurate Portuguese typography with correct accents.
+- Preserve the exact six field values. Do not paraphrase, translate, abbreviate or invent them.
+- Fit lore legibly inside the existing lower panel; do not remove or shrink other required fields to add new fields.
+- Do not show the old dark-metal multi-stat card layout. Use the newly supplied faction-specific parchment template.
 
-6. ARMOR, CLOTHING AND EQUIPMENT
-Use the subject's canonical armor, clothing, helmet and equipment whenever established. Otherwise use only garments and materials supported by the card's lore or scene. Respect the actual construction language of Elden Ring: functional articulated armor, attached straps, worn leather, woven cloth, oxidized steel, aged brass, carved stone and weathered materials. Preserve original colors and motifs. Never recolor, replace or redesign canonical armor, garments or equipment merely to match a faction.
+FINAL VALIDATION:
+Verify that the image contains exactly the authorized information: name “{name}”, base power “{base_power}”, rarity “{rarity}”, tactical position “{row_label}”, faction “{faction}” and the supplied lore. Verify that COST, MAXIMUM POWER, RARITY POTENCY, CATEGORY, ABILITY and SYNERGIES do not appear anywhere. Confirm the correct faction-specific template was followed.
 
-7. WEAPONS AND COMBAT POSTURE
-Use the recognizable canonical weapon or equipment explicitly supported by the card. Match stance and gesture to the named subject and actual combat function. Tactical type or row may guide movement and distance but cannot invent a weapon, profession or class. Use a readable pose with correct grip, balance, scale and weapon construction. Do not add duplicate or unrelated weapons.
-
-8. EXPRESSION AND PERSONALITY
-Translate documented personality and emotional tone into gaze, expression, shoulder tension, hand placement and bearing. Avoid default frontal posing. Do not invent emotion, injury, relationship, rank or dramatic gesture that contradicts the canonical character or supplied lore.
-
-9. SCENE AND CARD-SPECIFIC NARRATIVE
-Card lore: "{lore}". Depict one distinct, concrete moment that communicates this specific card's story through action, expression, gesture, objects and consequence. Use the scene reference only where it is compatible with the actual card identity: {scene}. Synergies are context only; do not add associated characters unless the card lore explicitly depicts them. Ability effects must correspond only to the exact documented ability: {ability_text}
-
-10. ENVIRONMENT AND LOCATION
-Choose one Elden Ring region, structure or landscape supported by the named identity or card lore. Select architecture, terrain, climate and materials appropriate to that place. If no precise location is established, use a restrained Lands Between environment. Never insert famous landmarks randomly, combine unrelated regions or let faction alone force a canonical location.
-
-11. LIGHTING AND ATMOSPHERE
-Use cinematic but physically motivated lighting with one coherent source: overcast daylight, dawn, torchlight, firelight, moonlight, storm light, reflected snow light or a supernatural source only when the card supports it. The faction may guide the secondary color of light and atmosphere, but cannot alter canonical character colors or obscure the subject. Preserve Elden Ring's ancient, solemn, melancholic dark-fantasy mood.
-
-12. COLOR PALETTE
-Priority: canonical character and equipment colors first; the faction's palette second, applied mainly to lighting, atmosphere, background, environmental materials and restrained complementary accents; individual affinities only as subtle accents supported by the lore. Do not recolor canonical armor, clothing, skin, hair, weapons or signature equipment. Do not apply a full-image faction filter.
-
-13. CINEMATIC COMPOSITION
-Create one dominant subject and one focal story beat. Use landscape composition with clear foreground, subject plane and background; choose eye-level intimacy, three-quarter action, low-angle threat or environmental scale according to this card. Maintain strong silhouette, natural perspective, depth and clear focal hierarchy. Keep face, hands, weapon and defining equipment fully inside safe margins. Avoid static catalogue pose unless the identity calls for it. The image must remain readable at card-thumbnail size.
-
-14. MANDATORY FORMAT — EXACT 5:4
-Mandatory 5:4 aspect ratio, horizontal composition. Exact landscape ratio 5:4 only. Compose natively for 5:4 from the beginning. Never use portrait, square, 3:4, 2:3, 16:9 or any other aspect ratio. Do not rely on later cropping; keep all important parts of the subject and signature equipment inside safe margins.
-
-15. QUALITY AND MATERIAL FINISH
-Premium realistic Elden Ring dark-fantasy collectible-card illustration. Believable anatomy, natural facial proportions, correct hands, physically plausible materials and reflections, credible weight, accurate perspective, grounded contact shadows, coherent light direction and atmospheric depth. Controlled painterly finish, deliberate brushwork and restrained detail; no glossy CGI. Maintain professional quality regardless of rarity. Rarity influences narrative scale and refinement only; power influences credible competence only. Neither grants new powers or changes canonical design.
-
-16. NEGATIVE PROMPT — CARD-SPECIFIC EXCLUSIONS
+NEGATIVE PROMPT:
 {negative}
 
-DETAILED CARD-SPECIFIC PRODUCTION BRIEF
-The following source brief adds card-specific visual facts. It is subordinate to Elden Ring canonical identity, the FACÇÃO-field rule, the hierarchy above, exact 5:4 and every explicit prohibition:
-{detail}
-
-FINAL OUTPUT: one standalone illustration only, set in Elden Ring, exact horizontal 5:4. No card frame, border, title, text, numbers, stats, icon, logo, watermark, signature, rarity gem, user interface, collage or mockup. The requested output is artwork only."""
+OUTPUT: one finished, high-resolution vertical 2:3 card, using the attached faction-specific reference as the template."""
 
 def pacote_prompt_arte(
     *,

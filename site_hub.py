@@ -334,7 +334,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
                               "name": str(getattr(card, "nome", None) or item["card_id"]),
                               "rarity": str(item["rarity"]), "power": int(item["power"] or 0),
                               "faction": classification["faccao"], "eligible": True,
-                              "image_url": f"/api/gwent/cards/{quote(str(item['card_id']), safe='')}/image?thumb=1"})
+                              "image_url": f"/api/gwent/public-cards/{quote(str(item['card_id']), safe='')}/image?rarity={quote(str(item['rarity']), safe='')}&power={int(item['power'] or 0)}&exemplar_id={int(item['id'])}&thumb=1"})
         materials = await bot.db.coliseu_listar_materiais_transmutacao(uid)
         history = await bot.db._all(
             """SELECT tx_key,status,ingredient_ids_json,probability,generated_card_id,
@@ -550,6 +550,34 @@ def registrar_rotas(bot, app: web.Application) -> None:
             data["definition"] = json.loads(data.pop("definition_json") or "{}")
         except (TypeError, ValueError, json.JSONDecodeError):
             data["definition"] = {}
+        # A ficha e o prompt usam a mesma cópia pessoal exibida na coleção.
+        exemplar_rows = await bot.db.coliseu_listar_exemplares(uid, str(data["card_id"]))
+        stored_exemplar_id = int(data.get("exemplar_id") or 0)
+        exemplar = next(
+            (dict(item) for item in exemplar_rows
+             if stored_exemplar_id and int(item["id"]) == stored_exemplar_id),
+            None,
+        )
+        if exemplar is None and len(exemplar_rows) == 1:
+            exemplar = dict(exemplar_rows[0])
+        if exemplar:
+            from sistemas.gwent import RARITY_EFFECT_BUDGET
+            current_power = int(exemplar.get("power") if exemplar.get("power") is not None else data["power"])
+            current_rarity = str(exemplar.get("rarity") or data["rarity"] or "Comum")
+            data.update({
+                "exemplar_id": int(exemplar["id"]),
+                "power": current_power,
+                "max_power": current_power,
+                "rarity": current_rarity,
+            })
+            data["definition"].update({
+                "raridade": current_rarity,
+                "poder": current_power,
+                "poder_base": current_power,
+                "poder_maximo": current_power,
+                "potencia_raridade": int(RARITY_EFFECT_BUDGET.get(current_rarity, 0)),
+                "exemplar_id": int(exemplar["id"]),
+            })
         return web.json_response(data, headers={"Cache-Control": "no-store"})
 
     async def atelier_page(request: web.Request) -> web.Response:
@@ -568,6 +596,38 @@ def registrar_rotas(bot, app: web.Application) -> None:
             return web.json_response({"error": "Carta não encontrada para esta conta."}, status=404)
         try:
             definition = json.loads(row["definition_json"] or "{}")
+            # A carta transmutada tem um exemplar pessoal. O prompt precisa usar
+            # exatamente os valores que a coleção e o modal exibem para essa cópia.
+            exemplar_rows = await bot.db.coliseu_listar_exemplares(uid, card_id)
+            stored_exemplar_id = int(row["exemplar_id"] or 0)
+            exemplar = next(
+                (dict(item) for item in exemplar_rows
+                 if stored_exemplar_id and int(item["id"]) == stored_exemplar_id),
+                None,
+            )
+            if exemplar is None and len(exemplar_rows) == 1:
+                exemplar = dict(exemplar_rows[0])
+            if exemplar is None:
+                return web.json_response(
+                    {"error": "Não foi possível identificar o exemplar dono desta carta para bloquear seus atributos."},
+                    status=409,
+                )
+            from sistemas.gwent import RARITY_EFFECT_BUDGET
+            current_power = int(exemplar.get("power") if exemplar.get("power") is not None else row["power"])
+            current_rarity = str(exemplar.get("rarity") or row["rarity"] or definition.get("raridade", "Comum"))
+            definition.update({
+                "nome": str(row["name"] or definition.get("nome", "Carta")),
+                "faccao": str(row["faction"] or definition.get("faccao", "")),
+                "raridade": current_rarity,
+                "categoria": "Unidade",
+                "poder": current_power,
+                "poder_base": current_power,
+                # No Gwent, o exemplar transmutado não tem evolução de poder separada:
+                # a própria coleção publica max_power igual ao poder atual.
+                "poder_maximo": current_power,
+                "potencia_raridade": int(RARITY_EFFECT_BUDGET.get(current_rarity, 0)),
+                "exemplar_id": int(exemplar["id"]),
+            })
             from sistemas.prompt_arte_criador import gerar_prompt_arte
             result = gerar_prompt_arte(definition, card_id=card_id)
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -635,13 +695,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
                 "faction": str(definition.get("faccao") or row["faction"]),
                 "rarity": str(definition.get("raridade") or row["rarity"]),
             }
-            manifest_path = target.with_suffix(".manifest.json")
-            manifest_tmp = manifest_path.with_suffix(".manifest.tmp")
-            manifest_tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
-            try:
-                os.replace(manifest_tmp, manifest_path)
-            finally:
-                manifest_tmp.unlink(missing_ok=True)
+            # O manifesto é mantido no banco junto com os metadados da arte.
             result = await bot.db.coliseu_registrar_arte_carta_gerada(
                 int(uid), card_id, storage_key, digest, width, height,
                 replace_existing=replace_existing,
@@ -732,7 +786,7 @@ def registrar_rotas(bot, app: web.Application) -> None:
             items.append({
                 "id": int(row["id"]), "card_id": str(row["card_id"]),
                 "name": str(getattr(card, "nome", None) or getattr(card, "name", None) or row["card_id"]),
-                "image_url": f"/api/gwent/cards/{quote(str(row['card_id']), safe='')}/image?thumb=1",
+                "image_url": f"/api/gwent/public-cards/{quote(str(row['card_id']), safe='')}/image?rarity={quote(str(row['rarity']), safe='')}&power={int(row['power'] or 0)}&exemplar_id={int(row['id'])}&thumb=1",
                 "rarity": rarity, "power": power, "max_power": int(maximum),
                 "potencia_raridade": int(RARITY_EFFECT_BUDGET.get(rarity, 0)),
                 "lap_cost": CUSTO_APRIMORAMENTO_ALMAS.get(rarity),
@@ -1022,9 +1076,11 @@ def registrar_rotas(bot, app: web.Application) -> None:
             from sistemas.cartas import CARTAS_POR_ID, CARTAS_PACOTE, CARTAS_EXPANSAO_V75, HABILIDADES
             ids_pacote = {str(c.id) for c in CARTAS_PACOTE}
             ids_expansao_v75 = {str(c.id) for c in CARTAS_EXPANSAO_V75}
+            from sistemas.arte_cartas import preparar_payload_carta_base, etag_carta_base
             items = []
             for carta in CARTAS_POR_ID.values():
                 data = carta.para_dict()
+                public_image_version = etag_carta_base(preparar_payload_carta_base(carta))
                 habilidade_id = str(data.get("habilidade") or "")
                 habilidade = HABILIDADES.get(habilidade_id, {})
                 fileira_raw = str(data.get("fileira") or carta.fileira)
@@ -1038,9 +1094,13 @@ def registrar_rotas(bot, app: web.Application) -> None:
                 }
                 items.append({
                     "card_id": str(carta.id),
+                    "image_url": (
+                        f"/api/gwent/public-cards/{quote(str(carta.id), safe='')}/image?"
+                        f"v={public_image_version}&thumb=1"
+                    ),
                     "nome": str(carta.nome),
                     "categoria": str(data.get("categoria") or carta.categoria),
-                    "faccao": str(data.get("faccao") or carta.tipo),
+                    "faccao": str(data.get("faccao") or carta.faccao),
                     "fileira": fileira_labels.get(fileira_raw.casefold(), fileira_raw),
                     "raridade": str(carta.raridade),
                     "poder": int(carta.poder),

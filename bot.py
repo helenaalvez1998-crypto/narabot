@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import sys
 import hmac
 import hashlib
@@ -572,6 +573,9 @@ class NaraBot(commands.Bot):
             intents=intents,
             tree_cls=NaraCommandTree,
             allowed_mentions=discord.AllowedMentions.none(),
+            # As funcionalidades usam eventos/API e não dependem de 1.000 mensagens
+            # antigas em cache; reduz memória sem desativar on_message.
+            max_messages=100,
         )
         self.db = Database(config.DB_PATH)
         self.failed_extensions: list[str] = []
@@ -594,6 +598,59 @@ class NaraBot(commands.Bot):
         except (TypeError, ValueError):
             render_workers = 1
         self._gwent_render_semaphore = asyncio.Semaphore(max(1, min(2, render_workers)))
+        self._cpu_heavy_waiters = 0
+
+    async def _executar_cpu_limitado(
+        self,
+        func,
+        *args,
+        limite_espera: int = 2,
+        **kwargs,
+    ):
+        """Executa CPU/Pillow fora do event loop, serializando o uso de RAM/CPU.
+
+        A thread continua após o cancelamento da requisição; por isso o semáforo
+        só é liberado quando o trabalho real termina, não quando o cliente desconecta.
+        """
+        esperando = int(self._cpu_heavy_waiters)
+        if esperando >= max(1, limite_espera):
+            raise web.HTTPServiceUnavailable(
+                text="Processamento ocupado. Tente novamente em alguns segundos.",
+                headers={"Retry-After": "3"},
+            )
+
+        self._cpu_heavy_waiters = esperando + 1
+        try:
+            await self._gwent_render_semaphore.acquire()
+        finally:
+            self._cpu_heavy_waiters = max(0, int(self._cpu_heavy_waiters) - 1)
+
+        loop = asyncio.get_running_loop()
+        try:
+            future = loop.run_in_executor(None, lambda: func(*args, **kwargs))
+        except BaseException:
+            self._gwent_render_semaphore.release()
+            raise
+
+        liberar_no_callback = False
+
+        def _liberar_apos_cancelamento(done_future):
+            try:
+                done_future.exception()
+            except BaseException:
+                pass
+            finally:
+                self._gwent_render_semaphore.release()
+
+        try:
+            return await asyncio.shield(future)
+        except asyncio.CancelledError:
+            future.add_done_callback(_liberar_apos_cancelamento)
+            liberar_no_callback = True
+            raise
+        finally:
+            if not liberar_no_callback:
+                self._gwent_render_semaphore.release()
 
     def _handle_asyncio_exception(self, loop: asyncio.AbstractEventLoop, context: dict[str, Any]) -> None:
         exception = context.get("exception")
@@ -775,8 +832,10 @@ class NaraBot(commands.Bot):
         app.router.add_get("/api/gwent/drops/history", self._api_gwent_drop_history)
         app.router.add_post("/api/gwent/evolve", self._api_gwent_evolve)
         app.router.add_post("/api/gwent/upgrade", self._api_gwent_upgrade)
+        app.router.add_get("/api/gwent/public-cards/{card_id}/image", self._api_gwent_public_card_image)
         app.router.add_get("/api/gwent/cards/{card_id}/image", self._api_gwent_card_image)
         app.router.add_get("/api/gwent/atelier/prompt", self._api_gwent_atelier_prompt)
+        app.router.add_post("/api/gwent/atelier/pdf", self._api_gwent_atelier_pdf)
         app.router.add_post("/api/gwent/atelier/submit", self._api_gwent_atelier_submit)
         app.router.add_get("/api/gwent/atelier/history", self._api_gwent_atelier_history)
         app.router.add_get("/api/gwent/atelier/review", self._api_gwent_atelier_review_list)
@@ -1018,7 +1077,17 @@ class NaraBot(commands.Bot):
         card = preparar_carta_pessoal(definition, exemplar, owner_id=int(user_id))
         if card is None:
             return None
-        card["image_url"] = f"/api/gwent/atelier/art/{quote(card_id, safe='')}"
+        rarity = str(card.get("raridade") or exemplar.get("rarity") or "Comum")
+        power = int(card.get("poder") or exemplar.get("power") or 0)
+        exemplar_id = int(exemplar.get("id") or 0)
+        image_query = urlencode({
+            "rarity": rarity, "power": power,
+            **({"exemplar_id": exemplar_id} if exemplar_id > 0 else {}),
+            "thumb": "1",
+        })
+        card["image_url"] = (
+            f"/api/gwent/public-cards/{quote(card_id, safe='')}/image?{image_query}"
+        )
         return card
 
     async def _api_gwent_deck(self, request: web.Request) -> web.Response:
@@ -1040,6 +1109,7 @@ class NaraBot(commands.Bot):
         from sistemas.cartas import (get_carta, carta_de_jogo_por_id, CUSTO_RARIDADE,
                                      faixa_poder_exemplar, VERSAO_ARTES, CARTAS_POR_ID)
         from sistemas.gwent import preparar_carta, RARITY_EFFECT_BUDGET
+        from sistemas.arte_cartas import preparar_payload_carta_base, etag_carta_base
         cards = []
         for index, card_id in enumerate(ids):
             exemplar_id = int(exemplar_ids[index]) if index < len(exemplar_ids) and exemplar_ids[index] else 0
@@ -1076,9 +1146,11 @@ class NaraBot(commands.Bot):
                 item["id"] = f"{card_id}::{int(record['id'])}"
                 item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
                 item["potencia_raridade"] = int(RARITY_EFFECT_BUDGET.get(rarity, 0))
+                image_source = preparar_payload_carta_base(payload)
+                image_version = etag_carta_base(image_source, tamanho=(210, 310), quality=82)
                 item["image_url"] = (
-                    f"/api/gwent/cards/{quote(card_id, safe='')}/image"
-                    f"?exemplar_id={int(record['id'])}&v={VERSAO_ARTES}"
+                    f"/api/gwent/public-cards/{quote(card_id, safe='')}/image?"
+                    f"{urlencode({'rarity': rarity, 'power': int(record['power'] or payload.get('poder', 0)), 'exemplar_id': int(record['id']), 'v': image_version, 'thumb': '1'})}"
                 )
                 cards.append(item)
         from sistemas.gwent import (LEADERS, DEFAULT_LEADERS, FACTIONS, FACTION_ARCHETYPES,
@@ -1131,7 +1203,7 @@ class NaraBot(commands.Bot):
                 "id": relic_card_id, "name": relic_model.nome,
                 "rarity": relic_model.raridade, "owned": bool(copies),
                 "owned_count": len(copies),
-                "image_url": f"/api/gwent/cards/{quote(relic_card_id, safe='')}/image?v={VERSAO_ARTES}",
+                "image_url": f"/api/gwent/public-cards/{quote(relic_card_id, safe='')}/image?thumb=1",
             })
         saved_relic_id = str(row["relic_id"] or "") if row else ""
         owned_relic_ids = {item["id"] for item in relics_payload if item["owned"]}
@@ -1150,10 +1222,10 @@ class NaraBot(commands.Bot):
                 name: [leader_payload(key, value)
                        for key, value in LEADERS.items() if value["faction"] == name]
                 for name in DEFAULT_LEADERS},
-            "factions": [{"name": name, "preferred_type": kind,
+            "factions": [{"name": name, "preferred_type": None,
                           "description": FACTION_ARCHETYPES.get(name, {}).get(
                               "description", "Uma facção com identidade e estratégias próprias.")}
-                         for kind, name in FACTIONS.items()],
+                         for name in FACTIONS],
             "relic_id": saved_relic_id,
             "relics": relics_payload,
             "rules": {"cards": 12, "opening_hand": 10, "reserve": 2, "unique": True,
@@ -1238,7 +1310,7 @@ class NaraBot(commands.Bot):
                         or definition.get("categoria") != "Unidade"):
                     return web.json_response({"error": f"Carta pessoal inválida: {card_id}."}, status=409)
                 unit_count += 1
-                faction_units.append({"tipo": str(definition.get("tipo", "")), "categoria": "Unidade"})
+                faction_units.append({"faccao": str(definition.get("faccao", "")), "categoria": "Unidade"})
             elif card is None and card_id.startswith("jogo_"):
                 game_name = game_by_id.get(card_id, "")
                 if not game_name:
@@ -1248,14 +1320,14 @@ class NaraBot(commands.Bot):
                 except ValueError:
                     return web.json_response({"error": f"Carta de jogo inválida: {card_id}."}, status=409)
                 unit_count += 1
-                faction_units.append({"tipo": str(game_card.tipo), "categoria": str(game_card.categoria)})
+                faction_units.append({"faccao": str(game_card.faccao), "categoria": str(game_card.categoria)})
             elif card is None:
                 return web.json_response({"error": f"Carta inválida no deck: {card_id}."}, status=400)
             elif str(card.categoria).casefold() == "especial":
                 special_count += 1
             else:
                 unit_count += 1
-                faction_units.append({"tipo": str(card.tipo), "categoria": str(card.categoria)})
+                faction_units.append({"faccao": str(card.faccao), "categoria": str(card.categoria)})
         faction_ok, faction_counts = validar_faccao_deck(faction_units, faction)
         if not faction_ok:
             counts_text = " · ".join(f"{name}: {count}" for name, count in faction_counts.items())
@@ -1335,6 +1407,7 @@ class NaraBot(commands.Bot):
             payload["raridade"] = rarity
             payload["poder"] = int(record["power"] or payload.get("poder", 0))
             payload["custo"] = int(CUSTO_RARIDADE.get(rarity, payload.get("custo", 0)))
+            payload["exemplar_id"] = int(record["id"])
             cards.append(preparar_carta(payload))
         return cards if len(cards) == 12 else None
 
@@ -2019,6 +2092,7 @@ class NaraBot(commands.Bot):
                                          faixa_poder_exemplar, VERSAO_ARTES, CARTAS_PACOTE,
                                          CARTAS_PRIMORDIAIS)
             from sistemas.gwent import preparar_carta, RARITY_EFFECT_BUDGET
+            from sistemas.arte_cartas import preparar_payload_carta_base, etag_carta_base
             estado = await self.db.coliseu_estado_usuario(user_id)
             owned_rows = await self.db.coliseu_listar_colecao(user_id)
             game_by_id = {str(r["card_id"]): str(r["game_name"] or "") for r in owned_rows}
@@ -2035,8 +2109,7 @@ class NaraBot(commands.Bot):
                         from sistemas.gwent import RARITY_EFFECT_BUDGET
                         personal["potencia_raridade"] = int(RARITY_EFFECT_BUDGET.get(str(personal.get("raridade", "Comum")), 0))
                         personal["image_url"] = (
-                            f"/api/gwent/cards/{quote(card_id, safe='')}/image"
-                            f"?exemplar_id={int(record['id'])}&v=transmutacao-v36"
+                            f"/api/gwent/public-cards/{quote(card_id, safe='')}/image?thumb=1"
                         )
                         cards.append(personal)
                     continue
@@ -2061,9 +2134,11 @@ class NaraBot(commands.Bot):
                 item["source"] = str(record["source"] or "")
                 item["max_power"] = faixa_poder_exemplar(card, rarity)[1]
                 item["potencia_raridade"] = int(RARITY_EFFECT_BUDGET.get(rarity, 0))
+                image_source = preparar_payload_carta_base(payload)
+                image_version = etag_carta_base(image_source, tamanho=(210, 310), quality=82)
                 item["image_url"] = (
-                    f"/api/gwent/cards/{quote(card_id, safe='')}/image"
-                    f"?exemplar_id={int(record['id'])}&v={VERSAO_ARTES}"
+                    f"/api/gwent/public-cards/{quote(card_id, safe='')}/image?"
+                    f"{urlencode({'rarity': rarity, 'power': int(record['power'] or payload.get('poder', 0)), 'exemplar_id': int(record['id']), 'v': image_version, 'thumb': '1'})}"
                 )
                 cards.append(item)
             # Catálogo global separado da coleção: modelos não possuídos também ficam visíveis.
@@ -2075,7 +2150,10 @@ class NaraBot(commands.Bot):
                     "card_id": model.id,
                     "id": model.id,
                     "owned": model.id in owned_ids,
-                    "image_url": f"/api/gwent/cards/{quote(model.id, safe='')}/image?v={VERSAO_ARTES}&thumb=1",
+                    "image_url": (
+                        f"/api/gwent/public-cards/{quote(model.id, safe='')}/image?"
+                        f"v={etag_carta_base(preparar_payload_carta_base(model))}&thumb=1"
+                    ),
                 })
                 catalog.append(model_payload)
 
@@ -2183,8 +2261,12 @@ class NaraBot(commands.Bot):
         if user_id is None:
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         card_id = str(request.query.get("card_id", "")).strip()[:120]
-        if not card_id:
-            return web.json_response({"error": "Selecione uma carta."}, status=400)
+        try:
+            exemplar_id = int(request.query.get("exemplar_id", "0"))
+        except (TypeError, ValueError):
+            exemplar_id = 0
+        if not card_id or exemplar_id <= 0:
+            return web.json_response({"error": "Selecione um exemplar específico da sua coleção."}, status=400)
         try:
             owned = await self.db._one(
                 "SELECT card_id,game_name FROM cartas_colecao WHERE user_id=? AND card_id=?",
@@ -2199,24 +2281,187 @@ class NaraBot(commands.Bot):
                 card = carta_de_jogo_por_id(card_id, str(owned["game_name"]))
             if card is None:
                 return web.json_response({"error": "Modelo de carta não encontrado no catálogo."}, status=404)
+            exemplar_rows = await self.db.coliseu_listar_exemplares(user_id, card_id)
+            exemplar = next((dict(row) for row in exemplar_rows if int(row["id"]) == exemplar_id), None)
+            if not exemplar:
+                return web.json_response({"error": "O exemplar selecionado não pertence à sua coleção."}, status=403)
+            from sistemas.cartas import CUSTO_RARIDADE, faixa_poder_exemplar
+            from sistemas.gwent import preparar_carta, RARITY_EFFECT_BUDGET
             payload = card.para_dict()
+            rarity = str(exemplar.get("rarity") or payload.get("raridade") or "Comum")
+            power = int(exemplar.get("power") if exemplar.get("power") is not None else payload.get("poder", 0))
+            payload.update({
+                "raridade": rarity,
+                "poder": power,
+                "poder_base": power,
+                "poder_maximo": int(faixa_poder_exemplar(card, rarity)[1]),
+                "custo": int(CUSTO_RARIDADE.get(rarity, payload.get("custo", 0))),
+                "potencia_raridade": int(RARITY_EFFECT_BUDGET.get(rarity, 0)),
+                "exemplar_id": exemplar_id,
+            })
+            canonical = preparar_carta(payload)
+            payload.update({
+                "categoria": canonical.get("categoria", payload.get("categoria", "Unidade")),
+                "faccao": canonical.get("faccao", payload.get("faccao", "")),
+                "fileira": canonical.get("row", payload.get("fileira", "melee")),
+                "row_label": canonical.get("row_label", "Corpo a corpo"),
+                "habilidade_nome": canonical.get("habilidade_nome", "Sem habilidade especial"),
+                "habilidade_texto": canonical.get("habilidade_texto", "Sem habilidade especial."),
+            })
+            payload.pop("tipo", None)
             package = gerar_prompt_carta_estruturado(payload)
+            faction = str(payload.get("faccao") or payload.get("facção") or "").strip().casefold()
+            references = {
+                "ordem áurea": "/assets/atelier-referencias/ordem-aurea.png",
+                "ordem aurea": "/assets/atelier-referencias/ordem-aurea.png",
+                "lua negra": "/assets/atelier-referencias/lua-negra.png",
+                "véu carmesim": "/assets/atelier-referencias/veu-carmesim.png",
+                "veu carmesim": "/assets/atelier-referencias/veu-carmesim.png",
+                "os esquecidos": "/assets/atelier-referencias/os-esquecidos.png",
+            }
+            reference_url = references.get(faction)
+            fixed_path = Path(__file__).resolve().parent / "sistemas" / "prompt_carta_completa_fixo.txt"
+            fixed_prompt = fixed_path.read_text(encoding="utf-8")
+            analysis = str(package.get("analysis") or "")
+            # Remove instruções técnicas antigas da análise; ela orienta somente o conteúdo visual.
+            analysis = re.sub(r"(?im)^.*(?:proporção|resolução|pixels|dimensões|horizontal 5:4|vertical 2:3|margens seguras|1200\s*[×x]\s*960).*$", "", analysis)
             return web.json_response({
                 "card_id": card_id,
+                "exemplar_id": exemplar_id,
                 "name": payload.get("nome", card_id),
-                "analysis": package["analysis"],
-                "prompt": package["prompt"],
-                "negative_prompt": package["negative_prompt"],
-                "aspect_ratio": package["recommended_aspect_ratio"],
-                "width": package["recommended_width"],
-                "height": package["recommended_height"],
+                "rarity": rarity,
+                "power": power,
+                "faction": payload.get("faccao", ""),
+                "analysis": analysis.strip(),
+                "prompt": str(package.get("prompt") or fixed_prompt),
+                "negative_prompt": str(package.get("negative_prompt") or ""),
+                "recommended_aspect_ratio": package.get("recommended_aspect_ratio", "2:3"),
+                "recommended_width": package.get("recommended_width", 1024),
+                "recommended_height": package.get("recommended_height", 1536),
+                "reference_url": reference_url,
+                "reference_required": True,
+                "full_card": True,
+                "format_note": f"Gere e envie a carta completa do exemplar #{exemplar_id}, usando o modelo visual específico da facção. Dados visíveis: nome, poder-base {power}, raridade {rarity}, posição tática e facção. A lore deve ser reproduzida integralmente. A arte será vinculada somente a este exemplar.",
             })
         except Exception:
             log.exception("Falha ao gerar prompt do Ateliê para %s.", user_id)
             raise web.HTTPInternalServerError(text="Não foi possível gerar o prompt da carta.")
 
+    async def _api_gwent_atelier_pdf(self, request: web.Request) -> web.Response:
+        user_id = self._api_user_id(request)
+        if user_id is None:
+            return web.json_response({"error": "Autenticação necessária."}, status=401)
+        if not self._api_origin_ok(request):
+            return web.json_response({"error": "Origem não autorizada."}, status=403)
+        try:
+            data = await request.json()
+            card_id = str(data.get("card_id", "")).strip()[:120]
+            try:
+                exemplar_id = int(data.get("exemplar_id", 0))
+            except (TypeError, ValueError):
+                exemplar_id = 0
+            if not card_id or exemplar_id <= 0:
+                return web.json_response({"error": "Selecione um exemplar específico."}, status=400)
+
+            owned = await self.db._one(
+                "SELECT card_id,game_name FROM cartas_colecao WHERE user_id=? AND card_id=?",
+                (user_id, card_id),
+            )
+            if not owned:
+                return web.json_response({"error": "Você precisa possuir essa carta para gerar o PDF."}, status=403)
+
+            from sistemas.cartas import get_carta, carta_de_jogo_por_id
+            from sistemas.atelie_coliseu import gerar_prompt_carta_estruturado
+            from sistemas.atelier_pdf import gerar_pdf_atelie
+
+            card = get_carta(card_id)
+            if card is None and card_id.startswith("jogo_") and owned["game_name"]:
+                card = carta_de_jogo_por_id(card_id, str(owned["game_name"]))
+            if card is None:
+                return web.json_response({"error": "Modelo de carta não encontrado no catálogo."}, status=404)
+
+            exemplar_rows = await self.db.coliseu_listar_exemplares(user_id, card_id)
+            exemplar = next((dict(row) for row in exemplar_rows if int(row["id"]) == exemplar_id), None)
+            if not exemplar:
+                return web.json_response({"error": "O exemplar selecionado não pertence à sua coleção."}, status=403)
+            from sistemas.cartas import CUSTO_RARIDADE, faixa_poder_exemplar
+            from sistemas.gwent import preparar_carta, RARITY_EFFECT_BUDGET
+            payload = card.para_dict()
+            rarity = str(exemplar.get("rarity") or payload.get("raridade") or "Comum")
+            power = int(exemplar.get("power") if exemplar.get("power") is not None else payload.get("poder", 0))
+            payload.update({
+                "raridade": rarity, "poder": power, "poder_base": power,
+                "poder_maximo": int(faixa_poder_exemplar(card, rarity)[1]),
+                "custo": int(CUSTO_RARIDADE.get(rarity, payload.get("custo", 0))),
+                "potencia_raridade": int(RARITY_EFFECT_BUDGET.get(rarity, 0)),
+                "exemplar_id": exemplar_id,
+            })
+            canonical = preparar_carta(payload)
+            payload.update({"faccao": canonical.get("faccao", payload.get("faccao", "")),
+                            "categoria": canonical.get("categoria", payload.get("categoria", "Unidade")),
+                            "fileira": canonical.get("row", payload.get("fileira", "melee")),
+                            "row_label": canonical.get("row_label", "Corpo a corpo"),
+                            "habilidade_nome": canonical.get("habilidade_nome", "Sem habilidade especial"),
+                            "habilidade_texto": canonical.get("habilidade_texto", "Sem habilidade especial.")})
+            payload.pop("tipo", None)
+            package = gerar_prompt_carta_estruturado(payload)
+            faction = str(payload.get("faccao") or payload.get("facção") or "").strip().casefold()
+            references = {
+                "ordem áurea": "ordem-aurea.png",
+                "ordem aurea": "ordem-aurea.png",
+                "lua negra": "lua-negra.png",
+                "véu carmesim": "veu-carmesim.png",
+                "veu carmesim": "veu-carmesim.png",
+                "os esquecidos": "os-esquecidos.png",
+            }
+            reference_name = references.get(faction)
+            if not reference_name:
+                return web.json_response({"error": f"Não há referência cadastrada para a facção '{faction}'."}, status=400)
+
+            base_dir = Path(__file__).resolve().parent
+            prompt_path = base_dir / "sistemas" / "prompt_carta_completa_fixo.txt"
+            reference_path = base_dir / "site" / "assets" / "atelier-referencias" / reference_name
+            if not prompt_path.is_file() or not reference_path.is_file():
+                log.error("Prompt fixo ou referência do Ateliê ausente para facção %s.", faction)
+                return web.json_response({"error": "Prompt fixo ou imagem de referência não encontrado no servidor."}, status=500)
+
+            analysis = str(package.get("analysis") or "").strip()
+            analysis = re.sub(
+                r"(?im)^.*(?:proporção|resolução|pixels|dimensões|horizontal 5:4|vertical 2:3|margens seguras|1200\s*[×x]\s*960).*$",
+                "", analysis,
+            ).strip()
+            fixed_prompt = prompt_path.read_text(encoding="utf-8")
+            card_name = str(payload.get("nome", card_id))[:120]
+
+            pdf_bytes = await self._executar_cpu_limitado(
+                gerar_pdf_atelie,
+                str(package.get("prompt") or fixed_prompt),
+                analysis,
+                reference_path,
+                card_name,
+                limite_espera=2,
+            )
+            safe_name = re.sub(r"[^A-Za-z0-9_-]+", "-", card_name).strip("-")[:60] or "carta"
+            return web.Response(
+                body=pdf_bytes,
+                content_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="narabot-{safe_name}-criacao.pdf"',
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        except web.HTTPException:
+            raise
+        except ValueError as exc:
+            return web.json_response({"error": str(exc)}, status=400)
+        except Exception:
+            log.exception("Falha ao gerar PDF do Ateliê para %s.", user_id)
+            return web.json_response({"error": "Não foi possível gerar o PDF do Ateliê."}, status=500)
+
     async def _enviar_submissao_atelie_discord(
         self, submission_id: int, user_id: int, card_id: str, artist_name: str, image_data: bytes,
+        exemplar_id: int | None = None,
     ) -> bool:
         """Publica no canal privado do Ateliê a mesma submissão salva no banco compartilhado."""
         channel_id = int(getattr(config, "COLISEU_ART_CHANNEL_ID", 0) or 0)
@@ -2232,7 +2477,7 @@ class NaraBot(commands.Bot):
                 return False
         embed = discord.Embed(
             title=f"Nova arte para revisão · #{submission_id}",
-            description=f"**Carta:** `{card_id}`\n**Artista:** {artist_name[:100]}\n**Autor:** <@{user_id}>\n**Status:** Em análise",
+            description=f"**Carta:** `{card_id}`\n**Exemplar:** `#{exemplar_id}`\n**Artista:** {artist_name[:100]}\n**Autor:** <@{user_id}>\n**Status:** Em análise",
             color=discord.Color.gold(),
         )
         embed.set_image(url="attachment://arte_atelie.jpg")
@@ -2259,6 +2504,10 @@ class NaraBot(commands.Bot):
         try:
             form = await request.post()
             card_id = str(form.get("card_id", "")).strip()[:120]
+            try:
+                exemplar_id = int(form.get("exemplar_id", "0"))
+            except (TypeError, ValueError):
+                exemplar_id = 0
             prompt_text = str(form.get("prompt_text", ""))[:65000]
             if not prompt_text.strip():
                 return web.json_response({"error": "Gere o prompt individual antes de enviar a ilustração."}, status=400)
@@ -2266,28 +2515,56 @@ class NaraBot(commands.Bot):
             if not artist_name:
                 artist_name = f"Artista Discord {user_id}"
             upload = form.get("image")
-            if not card_id or upload is None or not hasattr(upload, "file"):
-                return web.json_response({"error": "Carta e arquivo de imagem são obrigatórios."}, status=400)
+            if not card_id or exemplar_id <= 0 or upload is None or not hasattr(upload, "file"):
+                return web.json_response({"error": "Exemplar específico e arquivo da carta completa são obrigatórios."}, status=400)
             raw = upload.file.read(8 * 1024 * 1024 + 1)
             from sistemas.atelie_coliseu import normalizar_imagem_carta, ArteInvalida
             try:
-                normalized = normalizar_imagem_carta(raw)
+                normalized = await self._executar_cpu_limitado(
+                    normalizar_imagem_carta, raw, limite_espera=2
+                )
             except ArteInvalida as exc:
                 return web.json_response({"error": str(exc)}, status=400)
-            result = await self.db.coliseu_atelie_criar_submissao_web(
-                user_id, card_id, prompt_text, normalized.dados, "image/jpeg",
-                artist_name,
-            )
+            # Envia a imagem ao R2 antes de registrar a submissão. A cópia em memória
+            # continua sendo usada apenas para anexar a imagem à notificação do Discord.
+            from sistemas.storage_r2 import upload_image, delete_image, R2NotConfigured
+            import uuid
+            image_hash = hashlib.sha256(normalized.dados).hexdigest()
+            card_key = hashlib.sha256(card_id.encode("utf-8")).hexdigest()[:24]
+            object_key = f"atelier/submissions/{int(user_id)}/{card_key}/exemplar-{exemplar_id}/{image_hash}-{uuid.uuid4().hex[:12]}.jpg"
+            try:
+                await asyncio.to_thread(upload_image, object_key, normalized.dados, "image/jpeg")
+            except R2NotConfigured as exc:
+                return web.json_response({"error": str(exc), "code": "r2_not_configured"}, status=503)
+            except Exception:
+                log.exception("Falha ao enviar imagem do Ateliê para o R2 (usuário %s).", user_id)
+                return web.json_response({"error": "Não foi possível armazenar a imagem no Cloudflare R2.", "code": "r2_upload_failed"}, status=502)
+            try:
+                result = await self.db.coliseu_atelie_criar_submissao_web(
+                    user_id, card_id, prompt_text, b"", "image/jpeg",
+                    artist_name, image_key=object_key, exemplar_id=exemplar_id, full_card=True,
+                )
+            except Exception:
+                try:
+                    await asyncio.to_thread(delete_image, object_key)
+                except Exception:
+                    log.exception("Falha ao remover objeto R2 órfão: %s", object_key)
+                raise
+            if result.get("status") != "ok":
+                try:
+                    await asyncio.to_thread(delete_image, object_key)
+                except Exception:
+                    log.exception("Falha ao remover objeto R2 não associado: %s", object_key)
             statuses = {
                 "not_owned": (403, "Você precisa possuir essa carta."),
-                "pending_exists": (409, "Você já tem uma submissão pendente para esta carta."),
+                "pending_exists": (409, "Você já tem uma submissão pendente para este exemplar."),
                 "pending_limit": (429, "Limite de três submissões pendentes atingido."),
             }
             if result.get("status") in statuses:
                 code, message = statuses[result["status"]]
                 return web.json_response({"error": message, **result}, status=code)
             notified = await self._enviar_submissao_atelie_discord(
-                int(result["submission_id"]), user_id, card_id, artist_name, normalized.dados,
+                int(result["submission_id"]), user_id, card_id, artist_name, normalized.dados, exemplar_id,
             )
             return web.json_response({"ok": True, "discord_notified": notified, **result}, status=201)
         except web.HTTPException:
@@ -2323,12 +2600,23 @@ class NaraBot(commands.Bot):
         except (TypeError, ValueError):
             raise web.HTTPNotFound(text="Submissão não encontrada.")
         art = await self.db._one(
-            "SELECT image_data,mime_type FROM cartas_atelie_submissoes WHERE id=? AND status='pending'",
+            "SELECT image_data,image_key,mime_type FROM cartas_atelie_submissoes WHERE id=? AND status='pending'",
             (submission_id,),
         )
         if not art:
             raise web.HTTPNotFound(text="Submissão não encontrada.")
-        response = web.Response(body=bytes(art["image_data"]), content_type=str(art["mime_type"] or "image/jpeg"))
+        if art["image_key"]:
+            try:
+                from sistemas.storage_r2 import download_image
+                image_data = await asyncio.to_thread(download_image, str(art["image_key"]))
+            except Exception:
+                log.exception("Falha ao recuperar imagem pendente #%s do R2.", submission_id)
+                raise web.HTTPBadGateway(text="Não foi possível recuperar a imagem armazenada.")
+        else:
+            image_data = bytes(art["image_data"] or b"")
+        if not image_data:
+            raise web.HTTPNotFound(text="Imagem da submissão indisponível.")
+        response = web.Response(body=image_data, content_type=str(art["mime_type"] or "image/jpeg"))
         response.headers["Cache-Control"] = "private, no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
@@ -2447,7 +2735,12 @@ class NaraBot(commands.Bot):
         if not image_data:
             return web.json_response({"error": "Selecione uma imagem para o líder."}, status=400)
         try:
-            normalized = await asyncio.to_thread(normalizar_imagem_carta, image_data)
+            normalized = await self._executar_cpu_limitado(
+                normalizar_imagem_carta,
+                image_data,
+                limite_espera=2,
+                exigir_carta_completa=False,
+            )
         except ArteInvalida as exc:
             return web.json_response({"error": str(exc)}, status=400)
 
@@ -2515,23 +2808,42 @@ class NaraBot(commands.Bot):
         if user_id is None:
             return web.json_response({"error": "Autenticação necessária."}, status=401)
         card_id = str(request.match_info.get("card_id", "")).strip()[:120]
-        art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
-        if not art:
+        try:
+            exemplar_id = int(request.query.get("exemplar_id", "0")) or None
+        except (TypeError, ValueError):
+            exemplar_id = None
+        art_row = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
+        if not art_row:
             return web.json_response({"official": False})
+        art = dict(art_row)
+        image_query = urlencode({**({"exemplar_id": exemplar_id} if exemplar_id else {}), "thumb": "1"})
         return web.json_response({"official": True, "artist_name": str(art["artist_name"] or "Artista da comunidade"),
                                   "created_at": str(art["created_at"] or ""),
-                                  "image_url": f"/api/gwent/atelier/art/{card_id}"})
+                                  "exemplar_id": art.get("exemplar_id"), "full_card": bool(art.get("full_card", 0)),
+                                  "image_url": f"/api/gwent/public-cards/{quote(card_id, safe='')}/image?{image_query}"})
 
     async def _api_gwent_atelier_official_art(self, request: web.Request) -> web.Response:
         user_id = self._api_user_id(request)
         if user_id is None:
             raise web.HTTPUnauthorized(text="Faça login com o Discord.")
         card_id = str(request.match_info.get("card_id", "")).strip()[:120]
-        art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+        try:
+            exemplar_id = int(request.query.get("exemplar_id", "0")) or None
+        except (TypeError, ValueError):
+            exemplar_id = None
+        art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
         if not art:
-            raise web.HTTPNotFound(text="Esta carta ainda utiliza a arte-base.")
+            raise web.HTTPNotFound(text="Este exemplar ainda utiliza a arte-base.")
         from sistemas.arte_cartas import detectar_mime_imagem
-        dados_arte = bytes(art["image_data"])
+        if art["image_key"]:
+            try:
+                from sistemas.storage_r2 import download_image
+                dados_arte = await asyncio.to_thread(download_image, str(art["image_key"]))
+            except Exception:
+                log.exception("Falha ao recuperar arte oficial da carta %s no R2.", card_id)
+                raise web.HTTPBadGateway(text="Não foi possível recuperar a arte oficial.")
+        else:
+            dados_arte = bytes(art["image_data"] or b"")
         mime_real = await asyncio.to_thread(detectar_mime_imagem, dados_arte)
         if mime_real is None:
             raise web.HTTPUnprocessableEntity(text="A arte oficial armazenada está inválida.")
@@ -2620,6 +2932,381 @@ class NaraBot(commands.Bot):
             finally:
                 if not release_in_callback:
                     semaphore.release()
+
+    def _gwent_public_image_r2_url(self, path: Path, card_id: str, etag: str, mime: str) -> str | None:
+        """Publica a variante imutável num bucket R2 isolado; sem configuração, usa o disco local."""
+        try:
+            from sistemas.storage_r2 import (
+                R2NotConfigured, upload_public_card_image, public_card_url_for_key,
+            )
+            ext = {"image/webp": "webp", "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif"}.get(mime, "png")
+            card_hash = hashlib.sha256(card_id.encode("utf-8")).hexdigest()[:24]
+            object_key = f"cards/{card_hash}/{etag}.{ext}"
+            manifest = path.with_name(path.name + ".public-r2.json")
+
+            if manifest.is_file():
+                try:
+                    saved = json.loads(manifest.read_text(encoding="utf-8"))
+                    if saved.get("etag") == etag and saved.get("key") == object_key:
+                        return public_card_url_for_key(object_key)
+                except (OSError, ValueError, TypeError):
+                    pass
+
+            result = upload_public_card_image(object_key, path.read_bytes(), mime)
+            # Escrita temporária exclusiva evita colisão quando vários usuários
+            # pedem a mesma imagem pela primeira vez ao mesmo tempo.
+            import tempfile
+            with tempfile.NamedTemporaryFile(
+                prefix=f"{manifest.name}.", suffix=".tmp",
+                dir=manifest.parent, mode="w", encoding="utf-8", delete=False,
+            ) as temp_file:
+                temp_manifest = Path(temp_file.name)
+                json.dump({"etag": etag, "key": object_key}, temp_file, ensure_ascii=False)
+            try:
+                temp_manifest.replace(manifest)
+            finally:
+                temp_manifest.unlink(missing_ok=True)
+            return str(result["public_url"])
+        except Exception as exc:
+            # R2 é um acelerador opcional: falha de CDN nunca impede a imagem local.
+            try:
+                from sistemas.storage_r2 import R2NotConfigured
+                if isinstance(exc, R2NotConfigured):
+                    return None
+            except Exception:
+                pass
+            log.warning("Não foi possível publicar carta-base no R2; usando cache local (%s).", type(exc).__name__)
+            return None
+
+    async def _api_gwent_public_card_image(self, request: web.Request) -> web.Response:
+        """Serve arte publicada de cartas sem login, com cache compartilhado e CDN opcional."""
+        card_id = str(request.match_info.get("card_id", "")).strip()
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,120}", card_id):
+            raise web.HTTPNotFound(text="Carta não encontrada.")
+
+        is_thumbnail = request.query.get("thumb") == "1"
+        is_detail = request.query.get("detail") == "1"
+        image_size = (210, 310) if is_thumbnail else ((840, 1240) if is_detail else (420, 620))
+        image_quality = 82 if is_thumbnail else (90 if is_detail else 86)
+
+        def response_headers(etag: str, mime: str, *, immutable: bool) -> dict[str, str]:
+            max_age = 31536000 if immutable else 300
+            cache_control = f"public, max-age={max_age}" + (", immutable" if immutable else "")
+            return {
+                "Content-Type": mime,
+                "Content-Disposition": "inline",
+                "Cache-Control": cache_control,
+                "Cloudflare-CDN-Cache-Control": cache_control,
+                "ETag": f'"{etag}"',
+                "X-Content-Type-Options": "nosniff",
+            }
+
+        def not_modified(headers: dict[str, str]) -> bool:
+            incoming = request.headers.get("If-None-Match", "")
+            tag = headers["ETag"]
+            return any(token.strip() in ("*", tag, f"W/{tag}") for token in incoming.split(","))
+
+        async def serve_file(path: Path, etag: str, mime: str, *, versioned: bool) -> web.Response:
+            headers = response_headers(etag, mime, immutable=versioned)
+            if not_modified(headers):
+                return web.Response(status=304, headers=headers)
+            # Coalesce o primeiro upload para o R2: vários usuários abrindo
+            # a mesma carta ao mesmo tempo compartilham uma única publicação.
+            locks = self._gwent_image_locks
+            publish_key = f"r2:{card_id}:{etag}"
+            if len(locks) > 512:
+                for old_key, old_lock in list(locks.items()):
+                    if not old_lock.locked():
+                        locks.pop(old_key, None)
+                    if len(locks) <= 384:
+                        break
+            publish_lock = locks.setdefault(publish_key, asyncio.Lock())
+            async with publish_lock:
+                cdn_url = await asyncio.to_thread(
+                    self._gwent_public_image_r2_url, path, card_id, etag, mime,
+                )
+            if cdn_url:
+                return web.Response(status=302, headers={**headers, "Location": cdn_url})
+            return web.FileResponse(path, headers=headers)
+
+        try:
+            from sistemas.cartas import (
+                get_carta, carta_de_jogo_por_id, RARIDADES, CUSTO_RARIDADE,
+                faixa_poder_exemplar,
+            )
+            from sistemas.arte_cartas import (
+                preparar_payload_carta_base, etag_carta_base, webp_disponivel,
+                cache_carta_webp_existente, render_carta_webp,
+                cache_carta_existente, render_carta,
+                cache_arte_oficial_webp_existente, render_arte_oficial_webp_cacheada_por_id,
+                cache_arte_oficial_por_id_existente, render_arte_oficial_cacheada_por_id,
+                detectar_mime_imagem, validar_imagem_bytes,
+            )
+
+            # Cartas criadas pela forja/transmutação só ficam públicas depois de
+            # publicadas e validadas. O caminho é limitado à pasta de artes geradas.
+            if card_id.startswith("transmutacao_"):
+                generated = await self.db._one(
+                    "SELECT art_path,art_status,status FROM cartas_geradas WHERE card_id=?",
+                    (card_id,),
+                )
+                if (not generated or str(generated["status"]) != "published"
+                        or str(generated["art_status"]) != "validated"):
+                    raise web.HTTPNotFound(text="Carta publicada não encontrada.")
+                from config import get_data_dir
+                art_path = Path(str(generated["art_path"] or "")).resolve()
+                root = (Path(get_data_dir()) / "cartas_geradas").resolve()
+                try:
+                    art_path.relative_to(root)
+                except ValueError:
+                    raise web.HTTPNotFound(text="Arte da carta indisponível.")
+                if not art_path.is_file() or art_path.suffix.casefold() not in (".png", ".webp", ".jpg", ".jpeg"):
+                    raise web.HTTPNotFound(text="Arte da carta indisponível.")
+                expected = await self.db._one(
+                    "SELECT content_hash FROM cartas_geradas_artes "
+                    "WHERE generated_card_id=? AND status='validated' ORDER BY id DESC LIMIT 1",
+                    (card_id,),
+                )
+                digest = str(expected["content_hash"] or "") if expected else ""
+                if not re.fullmatch(r"[a-fA-F0-9]{64}", digest):
+                    raise web.HTTPUnprocessableEntity(text="Integridade da arte publicada inválida.")
+
+                output_mime = "image/webp" if webp_disponivel() else "image/png"
+                output_ext = ".webp" if output_mime == "image/webp" else ".png"
+                generated_etag = hashlib.sha256(
+                    f"generated:{card_id}:{digest}:{image_size}:{image_quality}:{output_mime}".encode("utf-8")
+                ).hexdigest()
+                cache_root = Path(get_data_dir()) / "cartas_cache" / "public-art"
+                cache_root.mkdir(parents=True, exist_ok=True)
+                card_hash = hashlib.sha256(card_id.encode("utf-8")).hexdigest()[:16]
+                generated_cache = cache_root / (
+                    f"{card_hash}-{generated_etag}-{image_size[0]}x{image_size[1]}{output_ext}"
+                )
+
+                if not generated_cache.is_file() or generated_cache.stat().st_size < 64:
+                    actual_digest = await asyncio.to_thread(
+                        lambda: hashlib.sha256(art_path.read_bytes()).hexdigest()
+                    )
+                    if not secrets.compare_digest(actual_digest, digest):
+                        raise web.HTTPUnprocessableEntity(text="Integridade da arte publicada inválida.")
+
+                    def render_generated_variant() -> Path:
+                        from PIL import Image, ImageOps
+                        import tempfile
+                        with Image.open(art_path) as original:
+                            rendered = ImageOps.exif_transpose(original)
+                            rendered.thumbnail(image_size, Image.Resampling.LANCZOS)
+                            if rendered.mode not in ("RGB", "RGBA"):
+                                rendered = rendered.convert("RGBA" if "A" in rendered.getbands() else "RGB")
+                            if output_mime == "image/webp":
+                                output_format = "WEBP"
+                                save_options = {"quality": image_quality, "method": 4}
+                            else:
+                                output_format = "PNG"
+                                save_options = {"optimize": False}
+                            with tempfile.NamedTemporaryFile(
+                                prefix=f"{generated_cache.stem}.", suffix=output_ext + ".tmp",
+                                dir=cache_root, delete=False,
+                            ) as temp_file:
+                                temp_path = Path(temp_file.name)
+                            try:
+                                rendered.save(temp_path, format=output_format, **save_options)
+                                temp_path.replace(generated_cache)
+                            finally:
+                                temp_path.unlink(missing_ok=True)
+                        return generated_cache
+
+                    cache_lookup = lambda: generated_cache if generated_cache.is_file() and generated_cache.stat().st_size >= 64 else None
+                    generated_cache = await self._gwent_render_path_cached(
+                        f"public-generated:{generated_etag}", render_generated_variant,
+                        cache_lookup=cache_lookup,
+                    )
+
+                requested_version = request.query.get("v", "").strip()
+                versioned = bool(requested_version and secrets.compare_digest(requested_version, generated_etag))
+                return await serve_file(generated_cache, generated_etag, output_mime, versioned=versioned)
+
+            model = get_carta(card_id)
+            if model is None and card_id.startswith("jogo_"):
+                game_row = await self.db._one(
+                    "SELECT game_name FROM cartas_colecao "
+                    "WHERE card_id=? AND COALESCE(game_name,'')<>'' "
+                    "ORDER BY obtained_at DESC LIMIT 1",
+                    (card_id,),
+                )
+                if game_row and game_row["game_name"]:
+                    try:
+                        model = carta_de_jogo_por_id(card_id, str(game_row["game_name"]))
+                    except ValueError:
+                        model = None
+            if model is None:
+                raise web.HTTPNotFound(text="Carta não encontrada no catálogo público.")
+
+            source = model.para_dict() if hasattr(model, "para_dict") else dict(model)
+            rarity = request.query.get("rarity", "").strip()
+            if rarity:
+                if rarity not in RARIDADES:
+                    raise web.HTTPBadRequest(text="Raridade inválida.")
+                source["raridade"] = rarity
+            else:
+                rarity = str(source.get("raridade") or "Comum")
+
+            power_raw = request.query.get("power", "").strip()
+            if power_raw:
+                try:
+                    power = int(power_raw)
+                except (TypeError, ValueError):
+                    raise web.HTTPBadRequest(text="Poder inválido.")
+                _minimum, maximum = faixa_poder_exemplar(model, rarity)
+                if power < 0 or power > int(maximum):
+                    raise web.HTTPBadRequest(text="Poder fora dos limites da carta.")
+                source["poder"] = power
+            source["custo"] = int(CUSTO_RARIDADE.get(rarity, source.get("custo", 0)))
+            source = preparar_payload_carta_base(source)
+
+            use_webp = webp_disponivel()
+            image_mime = "image/webp" if use_webp else "image/png"
+            base_etag = etag_carta_base(source, tamanho=image_size, quality=image_quality)
+
+            # Arte aprovada é pública. Quando a URL identifica um exemplar,
+            # prioriza sua arte aprovada e mantém a arte global como fallback.
+            exemplar_id_raw = request.query.get("exemplar_id", "").strip()
+            exemplar_id = None
+            if exemplar_id_raw:
+                try:
+                    exemplar_id = int(exemplar_id_raw)
+                    if exemplar_id <= 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    raise web.HTTPBadRequest(text="Identificador de exemplar inválido.")
+            official_meta = await self.db.coliseu_atelie_obter_arte_oficial_metadata(card_id, exemplar_id)
+            if official_meta and int(official_meta["full_card"] or 0) == 1:
+                # A submissão aprovada é imutável por ID. Com o cache local presente,
+                # não buscamos novamente o BLOB/R2 em cada visualização.
+                from config import get_data_dir
+                output_mime = "image/webp" if use_webp else "image/png"
+                output_ext = ".webp" if use_webp else ".png"
+                full_etag = hashlib.sha256(
+                    f"atelier-full:{official_meta['id']}:{image_size}:{image_quality}:{output_mime}".encode("utf-8")
+                ).hexdigest()
+                cache_root = Path(get_data_dir()) / "cartas_cache" / "public-art"
+                cache_root.mkdir(parents=True, exist_ok=True)
+                card_hash = hashlib.sha256(card_id.encode("utf-8")).hexdigest()[:16]
+                cache_path = cache_root / (
+                    f"{card_hash}-{full_etag}-{image_size[0]}x{image_size[1]}{output_ext}"
+                )
+
+                if not cache_path.is_file() or cache_path.stat().st_size < 64:
+                    official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
+                    if not official_art or int(official_art["id"]) != int(official_meta["id"]):
+                        raise web.HTTPNotFound(text="Arte oficial não está mais disponível.")
+                    if official_art["image_key"]:
+                        from sistemas.storage_r2 import download_image
+                        full_bytes = await asyncio.to_thread(download_image, str(official_art["image_key"]))
+                    else:
+                        full_bytes = bytes(official_art["image_data"] or b"")
+                    full_mime = await asyncio.to_thread(detectar_mime_imagem, full_bytes)
+                    if not full_mime:
+                        raise web.HTTPUnprocessableEntity(text="Arte oficial armazenada inválida.")
+
+                    def render_full_card_variant() -> Path:
+                        from PIL import Image, ImageOps
+                        import tempfile
+                        with Image.open(BytesIO(full_bytes)) as original:
+                            rendered = ImageOps.exif_transpose(original)
+                            rendered.thumbnail(image_size, Image.Resampling.LANCZOS)
+                            if rendered.mode not in ("RGB", "RGBA"):
+                                rendered = rendered.convert("RGBA" if "A" in rendered.getbands() else "RGB")
+                            if use_webp:
+                                output_format = "WEBP"
+                                save_options = {"quality": image_quality, "method": 4}
+                            else:
+                                output_format = "PNG"
+                                save_options = {"optimize": False}
+                            with tempfile.NamedTemporaryFile(
+                                prefix=f"{cache_path.stem}.", suffix=output_ext + ".tmp",
+                                dir=cache_root, delete=False,
+                            ) as temp_file:
+                                temp_path = Path(temp_file.name)
+                            try:
+                                rendered.save(temp_path, format=output_format, **save_options)
+                                temp_path.replace(cache_path)
+                            finally:
+                                temp_path.unlink(missing_ok=True)
+                        return cache_path
+
+                    cache_lookup = lambda: cache_path if cache_path.is_file() and cache_path.stat().st_size >= 64 else None
+                    cache_path = await self._gwent_render_path_cached(
+                        f"public-full:{full_etag}", render_full_card_variant,
+                        cache_lookup=cache_lookup,
+                    )
+
+                requested_version = request.query.get("v", "").strip()
+                versioned = bool(requested_version and secrets.compare_digest(requested_version, full_etag))
+                return await serve_file(cache_path, full_etag, output_mime, versioned=versioned)
+
+            if official_meta:
+                official_id = int(official_meta["id"])
+                image_etag = hashlib.sha256(
+                    f"official:{official_id}:{base_etag}".encode("utf-8")
+                ).hexdigest()
+                if use_webp:
+                    lookup = lambda: cache_arte_oficial_webp_existente(
+                        source, official_id, image_size, quality=image_quality,
+                    )
+                    renderer = lambda raw: render_arte_oficial_webp_cacheada_por_id(
+                        source, raw, official_id, image_size, quality=image_quality,
+                    )
+                else:
+                    lookup = lambda: cache_arte_oficial_por_id_existente(
+                        source, official_id, image_size,
+                    )
+                    renderer = lambda raw: render_arte_oficial_cacheada_por_id(
+                        source, raw, official_id, image_size,
+                    )
+                image_path = await asyncio.to_thread(lookup)
+                if image_path is None:
+                    official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
+                    if not official_art or int(official_art["id"]) != official_id:
+                        raise web.HTTPNotFound(text="Arte oficial não está mais disponível.")
+                    if official_art["image_key"]:
+                        from sistemas.storage_r2 import download_image
+                        raw_art = await asyncio.to_thread(download_image, str(official_art["image_key"]))
+                    else:
+                        raw_art = bytes(official_art["image_data"] or b"")
+                    image_path = await self._gwent_render_path_cached(
+                        f"public-official:{image_etag}",
+                        lambda: renderer(raw_art),
+                        cache_lookup=lookup,
+                    )
+            else:
+                image_etag = base_etag
+                if use_webp:
+                    lookup = lambda: cache_carta_webp_existente(
+                        source, tamanho=image_size, quality=image_quality,
+                    )
+                    renderer = lambda: render_carta_webp(
+                        source, tamanho=image_size, quality=image_quality,
+                    )
+                else:
+                    lookup = lambda: cache_carta_existente(source, tamanho=image_size)
+                    renderer = lambda: render_carta(source, tamanho=image_size)
+                image_path = await asyncio.to_thread(lookup)
+                if image_path is None:
+                    image_path = await self._gwent_render_path_cached(
+                        f"public-base:{image_etag}", renderer, cache_lookup=lookup,
+                    )
+
+            requested_version = request.query.get("v", "").strip()
+            versioned = bool(requested_version and secrets.compare_digest(requested_version, image_etag))
+            return await serve_file(image_path, image_etag, image_mime, versioned=versioned)
+
+        except web.HTTPException:
+            raise
+        except Exception:
+            log.exception("Falha ao servir imagem pública da carta %s.", card_id)
+            raise web.HTTPInternalServerError(text="Não foi possível carregar a imagem da carta.")
+
 
     async def _api_gwent_card_image(self, request: web.Request) -> web.Response:
         """Entrega cache em arquivo; só consulta/renderiza a carta solicitada."""
@@ -2725,7 +3412,22 @@ class NaraBot(commands.Bot):
                 raise web.HTTPNotFound(text="Exemplar não encontrado na sua coleção.")
 
             # Só metadados nesta etapa. O BLOB de arte oficial é lido apenas no cache miss.
-            official_meta = await self.db.coliseu_atelie_obter_arte_oficial_metadata(card_id)
+            official_meta = await self.db.coliseu_atelie_obter_arte_oficial_metadata(card_id, exemplar_id)
+            if official_meta and int(official_meta["full_card"] or 0) == 1:
+                # Opção B: a imagem aprovada já é a carta final completa. Não aplicar
+                # moldura, medalhões, títulos ou quaisquer camadas do renderizador.
+                complete_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
+                if complete_art:
+                    if complete_art["image_key"]:
+                        from sistemas.storage_r2 import download_image
+                        full_bytes = await asyncio.to_thread(download_image, str(complete_art["image_key"]))
+                    else:
+                        full_bytes = bytes(complete_art["image_data"] or b"")
+                    full_mime = await asyncio.to_thread(detectar_mime_imagem, full_bytes)
+                    if full_mime:
+                        full_etag = hashlib.sha256(f"atelier-full:{official_meta['id']}:{exemplar_id}".encode()).hexdigest()
+                        return _responder(full_bytes, full_mime, full_etag)
+                    log.warning("Arte completa oficial inválida: card=%s exemplar=%s", card_id, exemplar_id)
 
             catalog_card = get_carta(card_id)
             snapshot = None
@@ -2755,9 +3457,15 @@ class NaraBot(commands.Bot):
                         break
                 if snapshot is None and catalog_card is None:
                     if official_meta:
-                        official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+                        official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
                         if official_art:
-                            raw_art = bytes(official_art["image_data"])
+                            if official_art["image_key"]:
+                                from sistemas.storage_r2 import download_image
+                                raw_art = await asyncio.to_thread(
+                                    download_image, str(official_art["image_key"])
+                                )
+                            else:
+                                raw_art = bytes(official_art["image_data"] or b"")
                             raw_mime = await asyncio.to_thread(detectar_mime_imagem, raw_art)
                             if raw_mime:
                                 etag = hashlib.sha256(f"official-raw:{official_meta['id']}".encode()).hexdigest()
@@ -2777,9 +3485,15 @@ class NaraBot(commands.Bot):
                 card = snapshot
             if card is None:
                 if official_meta:
-                    official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+                    official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
                     if official_art:
-                        raw_art = bytes(official_art["image_data"])
+                        if official_art["image_key"]:
+                            from sistemas.storage_r2 import download_image
+                            raw_art = await asyncio.to_thread(
+                                download_image, str(official_art["image_key"])
+                            )
+                        else:
+                            raw_art = bytes(official_art["image_data"] or b"")
                         raw_mime = await asyncio.to_thread(detectar_mime_imagem, raw_art)
                         if raw_mime:
                             etag = hashlib.sha256(f"official-raw:{official_meta['id']}".encode()).hexdigest()
@@ -2842,10 +3556,16 @@ class NaraBot(commands.Bot):
                     official_path = await asyncio.to_thread(official_lookup)
                     if official_path is None:
                         # BLOB só sai do SQLite quando a composição ainda não existe.
-                        official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id)
+                        official_art = await self.db.coliseu_atelie_obter_arte_oficial(card_id, exemplar_id)
                         if not official_art or int(official_art["id"]) != official_id:
                             raise ValueError("A arte oficial mudou durante a renderização.")
-                        raw_art = bytes(official_art["image_data"])
+                        if official_art["image_key"]:
+                            from sistemas.storage_r2 import download_image
+                            raw_art = await asyncio.to_thread(
+                                download_image, str(official_art["image_key"])
+                            )
+                        else:
+                            raw_art = bytes(official_art["image_data"] or b"")
                         official_path = await self._gwent_render_path_cached(
                             f"official:{etag}",
                             lambda: official_renderer(raw_art),
