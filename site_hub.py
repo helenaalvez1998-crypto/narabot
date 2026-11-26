@@ -12,6 +12,7 @@ import json
 import hashlib
 import secrets
 from pathlib import Path
+from urllib.parse import quote
 
 from aiohttp import web
 
@@ -332,7 +333,8 @@ def registrar_rotas(bot, app: web.Application) -> None:
                 items.append({"id": int(item["id"]), "card_id": str(item["card_id"]),
                               "name": str(getattr(card, "nome", None) or item["card_id"]),
                               "rarity": str(item["rarity"]), "power": int(item["power"] or 0),
-                              "faction": classification["faccao"], "eligible": True})
+                              "faction": classification["faccao"], "eligible": True,
+                              "image_url": f"/api/gwent/cards/{quote(str(item['card_id']), safe='')}/image?thumb=1"})
         materials = await bot.db.coliseu_listar_materiais_transmutacao(uid)
         history = await bot.db._all(
             """SELECT tx_key,status,ingredient_ids_json,probability,generated_card_id,
